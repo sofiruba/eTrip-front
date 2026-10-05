@@ -1,0 +1,6 @@
+function AdminRecordDetail({ type, item, onBack, onNotify }) {
+  const title = type === 'orders' ? 'Detalle de orden.' : type === 'bookings' ? 'Detalle de reserva.' : 'Detalle de reseña.'
+  return <main className="inner-page"><button className="back-button" onClick={onBack}>← Volver al listado</button><div className="page-title"><span className="intro-tag">ADMINISTRACIÓN</span><h1>{title}</h1><p>Información completa del registro seleccionado.</p></div><section className="order-panel admin-record-detail"><div className="order-status"><span>✓</span><div><strong>{item?.[0] || 'Registro PLAN'}</strong><small>{item?.[1] || 'Información asociada'}</small></div><b>{item?.[3] || 'Activa'}</b></div><div className="admin-record-fields"><div><small>Experiencia</small><strong>{type === 'orders' ? 'Compra de experiencias' : item?.[0] || 'Paseo por La Boca'}</strong></div><div><small>Estado</small><strong>{item?.[3] || 'Confirmada'}</strong></div><div><small>Importe / huéspedes</small><strong>{item?.[2] || '$28.000'}</strong></div></div><button className="primary-button" onClick={() => onNotify(type === 'reviews' ? 'Reseña moderada' : 'Estado actualizado')}>{type === 'reviews' ? 'Moderar reseña' : 'Actualizar estado'}</button></section></main>
+}
+
+export default AdminRecordDetail

@@ -1,0 +1,15 @@
+import { useState } from 'react'
+
+function SessionManagementScreen({ onBack, onNotify, onEdit, onCreate }) {
+  const [sessions, setSessions] = useState([{ date: '26/10/2025', time: '16:00', capacity: 12, available: 3 }, { date: '02/11/2025', time: '16:00', capacity: 12, available: 8 }])
+  const [formOpen, setFormOpen] = useState(false)
+  return <main className="inner-page">
+    <button className="back-button" onClick={onBack}>← Volver al modo anfitrión</button>
+    <header className="sessions-page-header"><div><span className="eyebrow">CALENDARIO DE TU EXPERIENCIA</span><h1>Gestioná tus sesiones</h1><p>Elegí cuándo recibir huéspedes y cuántos lugares ofrecer en cada encuentro.</p></div><button className="primary-button" onClick={() => onCreate ? onCreate() : setFormOpen(!formOpen)}>{formOpen ? 'Cerrar' : '＋ Nueva sesión'}</button></header>
+    <section className="sessions-overview"><div><span>PRÓXIMAS SESIONES</span><strong>{sessions.length}</strong></div><div><span>LUGARES RESERVADOS</span><strong>{sessions.reduce((total, session) => total + (session.capacity - session.available), 0)}</strong></div><div><span>DISPONIBLES</span><strong>{sessions.reduce((total, session) => total + session.available, 0)}</strong></div></section>
+    {formOpen && <form className="session-form-card" onSubmit={(event) => { event.preventDefault(); setFormOpen(false); onNotify('Nueva sesión creada') }}><div><span className="eyebrow">NUEVA SESIÓN</span><h2>Sumá una fecha a tu calendario</h2></div><div className="session-form-fields"><label>Fecha<input type="date" required /></label><label>Hora de inicio<input type="time" required /></label><label>Capacidad<input type="number" min="1" placeholder="12" required /></label><button className="primary-button">Crear sesión</button></div></form>}
+    <section className="sessions-list-section"><div className="sessions-list-heading"><div><span className="eyebrow">TU CALENDARIO</span><h2>Fechas publicadas</h2></div><span>Ordenadas por fecha</span></div><div className="sessions-cards">{sessions.map((session) => <article className="session-management-card" key={session.date}><div className="session-date-block"><strong>{session.date.slice(0, 2)}</strong><span>{session.date.slice(3, 5) === '10' ? 'OCT' : 'NOV'}</span></div><div className="session-card-main"><div><span className="session-status">PUBLICADA</span><h3>{session.date} · {session.time} hs</h3><p>Tu experiencia · {session.capacity} lugares en total</p></div><div className="session-capacity"><div><span className="capacity-bar"><i style={{ width: `${((session.capacity - session.available) / session.capacity) * 100}%` }} /></span><strong>{session.capacity - session.available}/{session.capacity}</strong></div><small>{session.available} cupos disponibles</small></div></div><div className="session-card-actions"><button onClick={() => onEdit ? onEdit(session) : onNotify('Sesión lista para editar')}>Editar</button><button onClick={() => setSessions(sessions.filter((item) => item.date !== session.date))}>Eliminar</button></div></article>)}</div></section>
+  </main>
+}
+
+export default SessionManagementScreen

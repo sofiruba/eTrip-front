@@ -1,172 +1,115 @@
+import { useMemo, useState } from 'react'
 import './App.css'
-
-const categories = [
-  { icon: '🍴', label: 'Comer' },
-  { icon: '🎨', label: 'Crear' },
-  { icon: '🌿', label: 'Escaparse' },
-  { icon: '🎵', label: 'Música' },
-  { icon: '✨', label: 'Bienestar' },
-]
-
-const experiences = [
-  {
-    title: 'Sabores de La Boca',
-    host: 'con Martina',
-    location: 'La Boca, Buenos Aires',
-    rating: '4.9',
-    reviews: '128',
-    price: '$18.500',
-    sessions: 'Hoy · 19:30',
-    category: 'Comer',
-    image:
-      'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=85',
-  },
-  {
-    title: 'Clase de cerámica',
-    host: 'con Vale',
-    location: 'Villa Crespo, Buenos Aires',
-    rating: '4.8',
-    reviews: '86',
-    price: '$22.000',
-    sessions: 'Mañana · 16:00',
-    category: 'Crear',
-    image:
-      'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=85',
-  },
-  {
-    title: 'Kayak al atardecer',
-    host: 'con Santi',
-    location: 'Tigre, Buenos Aires',
-    rating: '5.0',
-    reviews: '54',
-    price: '$28.000',
-    sessions: 'Sáb 12 · 18:30',
-    category: 'Escaparse',
-    image:
-      'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=85',
-  },
-  {
-    title: 'Cata de vinos',
-    host: 'con Tomás',
-    location: 'Palermo, Buenos Aires',
-    rating: '4.9',
-    reviews: '201',
-    price: '$25.000',
-    sessions: 'Vie 11 · 20:00',
-    category: 'Comer',
-    image:
-      'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=900&q=85',
-  },
-]
+import { experiences as mockExperiences } from './data/mockData'
+import { Home, Detail, Cart, Checkout, Confirmation, Bookings, Orders, OrderDetail, Reviews, Profile, Host, HostBookings, Admin, Auth, ExperienceEditor, SessionManagement, CategoryManagement, UserManagement, CouponManagement, PublicProfile, VoucherDetail, ReviewForm, About, CategoryDetail, EditProfile, Refund, HostExperiences, AdminOperations, CategoryEditor, CouponEditor, UserDetail, SessionEditor, AdminRecordDetail } from './screens'
 
 function App() {
+  const [screen, setScreen] = useState('home')
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('Todas')
+  const [selected, setSelected] = useState(null)
+  const [cart, setCart] = useState([])
+  const [toast, setToast] = useState('')
+  const [auth, setAuth] = useState(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [orderDetail, setOrderDetail] = useState(false)
+  const [selectedAdminScreen, setSelectedAdminScreen] = useState(null)
+  const [user, setUser] = useState(null)
+  const [myReviews, setMyReviews] = useState([])
+  const experiences = mockExperiences
+  const [adminRecord, setAdminRecord] = useState(null)
+  const [editingCategory, setEditingCategory] = useState('')
+  const [editingCoupon, setEditingCoupon] = useState(null)
+  const [editingSession, setEditingSession] = useState(null)
+  const [adminOperation, setAdminOperation] = useState(null)
+
+  const filtered = useMemo(() => experiences.filter((item) =>
+    (category === 'Todas' || item.category === category) &&
+    `${item.title} ${item.subtitle} ${item.location}`.toLowerCase().includes(query.toLowerCase()),
+  ), [category, query, experiences])
+
+
+  const notify = (message) => {
+    setToast(message)
+    window.setTimeout(() => setToast(''), 2600)
+  }
+
+  const addToCart = (item) => {
+    setCart((items) => items.some((entry) => entry.id === item.id) ? items : [...items, { ...item, quantity: 1 }])
+    notify('Sesión agregada a tu carrito')
+  }
+
+  const navigate = (next) => {
+    setScreen(next)
+    setMenuOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const openProfile = () => {
+    if (!user) {
+      setAuth('login')
+      return
+    }
+    setMenuOpen(!menuOpen)
+  }
+
+  const handleAuthSuccess = (nextUser) => {
+    setUser(nextUser)
+    setAuth(null)
+    notify(`Sesión iniciada como ${nextUser.role === 'ADMIN' ? 'administrador' : 'cliente'}`)
+    navigate(nextUser.role === 'ADMIN' ? 'admin' : 'home')
+  }
+
   return (
     <div className="app-shell">
       <header className="navbar">
-        <a className="brand" href="/" aria-label="Plan inicio">
-          <span className="brand-mark">✦</span>
-          <span>plan</span>
-        </a>
-        <div className="header-search">
-          <span>⌕</span>
-          <input aria-label="Buscar experiencias" placeholder="Buscar experiencias..." />
-        </div>
-        <div className="user-actions">
-          <button className="host-link" type="button">Publicá tu experiencia</button>
-          <button className="icon-button" type="button" aria-label="Notificaciones">♡</button>
-          <button className="profile-button" type="button">
-            <span className="avatar">SR</span>
-            <span className="profile-name">Sofía</span>
-            <span className="chevron">⌄</span>
-          </button>
+        <button className="brand" onClick={() => navigate('home')}>PLAN<span>✦</span></button>
+        <div className="header-search"><span>⌕</span><input value={query} onChange={(event) => { setQuery(event.target.value); navigate('home') }} placeholder="Buscar experiencias o guías..." /></div>
+        <nav className="top-nav"><button onClick={() => navigate('home')}>Explorar</button><button onClick={() => navigate('bookings')}>Mis reservas</button><button onClick={() => navigate('about')}>Sobre nosotros</button><button onClick={() => notify('Próximamente: experiencias guardadas')}>♡ Favoritos</button></nav>
+        <div className="header-actions">
+          <button className="host-link" onClick={() => navigate('host')}>Modo Anfitrión</button>
+          <button className="cart-button" onClick={() => navigate('cart')} aria-label="Abrir carrito"><span>🛍 <i>Carrito</i></span><b>{cart.length}</b></button>
+          <button className="profile-button" onClick={openProfile}><span className="avatar">{user ? user.name.slice(0, 2).toUpperCase() : '?'}</span><span className="profile-name">{user ? user.name.split(' ')[0] : 'Ingresar'}</span><span>⌄</span></button>
+          {menuOpen && user && <div className="profile-menu"><span className="menu-role">{user.role}</span><button onClick={() => navigate('profile')}>Mi perfil</button><button onClick={() => navigate('edit-profile')}>Editar perfil</button><button onClick={() => navigate('orders')}>Mis órdenes</button><button onClick={() => navigate('reviews')}>Mis reseñas</button><hr /><button onClick={() => { setUser(null); setMenuOpen(false); navigate('home'); notify('Sesión cerrada') }}>Cerrar sesión</button></div>}
         </div>
       </header>
 
-      <main>
-        <section className="hero-section">
-          <div className="hero-copy">
-            <p className="eyebrow">EXPERIENCIAS CERCA TUYO</p>
-            <h1>¿Qué plan<br /><span>pinta?</span></h1>
-            <p className="hero-text">
-              Encontrá eso que tenías ganas de hacer. Planes únicos,
-              personas copadas y momentos para recordar.
-            </p>
-            <div className="hero-actions">
-              <button className="primary-button" type="button">Explorar experiencias <span>→</span></button>
-              <button className="text-button" type="button">Ver cómo funciona</button>
-            </div>
-          </div>
-          <div className="hero-image-wrap">
-            <img
-              src="https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=1100&q=85"
-              alt="Personas disfrutando una experiencia juntas"
-            />
-            <div className="image-note">
-              <span className="note-icon">✦</span>
-              <span><strong>Planes que conectan</strong><small>Viví algo distinto hoy</small></span>
-            </div>
-          </div>
-        </section>
+      {screen === 'home' && <Home filtered={filtered} category={category} setCategory={setCategory} onSelect={(item) => { setSelected(item); navigate('detail') }} onCategory={(value) => { setCategory(value); navigate('category-detail') }} onAuth={() => setAuth('register')} />}
+      {screen === 'about' && <About onNavigate={navigate} />}
+      {screen === 'category-detail' && <CategoryDetail category={category} onBack={() => navigate('home')} onSelect={(item) => { setSelected(item); navigate('detail') }} />}
+      {screen === 'edit-profile' && <EditProfile user={user} onBack={() => navigate('profile')} onSave={(nextUser) => { setUser(nextUser); notify('Perfil actualizado') }} />}
+      {screen === 'category-editor' && <CategoryEditor category={editingCategory} onBack={() => navigate('admin')} onSave={() => notify('Categoría guardada')} />}
+      {screen === 'coupon-editor' && <CouponEditor coupon={editingCoupon} onBack={() => navigate('admin')} onSave={() => notify('Cupón guardado')} />}
+      {screen === 'user-detail' && <UserDetail user={adminRecord} onBack={() => navigate('admin')} onNotify={notify} />}
+      {screen === 'session-editor' && <SessionEditor session={editingSession} onBack={() => navigate('session-management')} onSave={() => notify('Sesión guardada')} />}
+      {screen === 'admin-record-detail' && <AdminRecordDetail type={adminOperation?.type} item={adminOperation?.item} onBack={() => { setSelectedAdminScreen(adminOperation?.type); navigate('admin') }} onNotify={notify} />}
+      {screen === 'detail' && selected && <Detail item={selected} onBack={() => navigate('home')} onAdd={() => addToCart(selected)} onBook={() => { addToCart(selected); navigate('cart') }} />}
+      {screen === 'cart' && <Cart cart={cart} onBack={() => navigate('home')} onRemove={(id) => setCart((items) => items.filter((item) => item.id !== id))} onCheckout={() => navigate('checkout')} />}
+      {screen === 'checkout' && <Checkout cart={cart} onBack={() => navigate('cart')} onSuccess={() => { setCart([]); navigate('confirmation') }} />}
+      {screen === 'confirmation' && <Confirmation onNavigate={navigate} />}
+      {screen === 'bookings' && <Bookings onNavigate={navigate} />}
+      {screen === 'refund' && <Refund onBack={() => navigate('bookings')} onNotify={notify} />}
+      {screen === 'orders' && !orderDetail && <Orders onNavigate={navigate} onDetail={() => setOrderDetail(true)} />}
+      {screen === 'orders' && orderDetail && <OrderDetail onBack={() => setOrderDetail(false)} />}
+      {screen === 'reviews' && <Reviews reviews={myReviews} onNotify={notify} onWrite={() => navigate('review-form')} />}
+      {screen === 'review-form' && <ReviewForm onBack={() => navigate('reviews')} onSaved={(review) => { setMyReviews((items) => [review, ...items]); notify('Reseña publicada correctamente'); navigate('reviews') }} />}
+      {screen === 'profile' && <Profile user={user} reviewCount={myReviews.length || 1} bookingCount={4} interests={user?.interests} onUpdateInterests={(interests) => { setUser((current) => ({ ...current, interests })); notify('Intereses actualizados') }} onNavigate={navigate} />}
+      {screen === 'host' && <Host onNotify={notify} onNavigate={navigate} />}
+      {screen === 'host-experiences' && <HostExperiences onBack={() => navigate('host')} onCreate={() => navigate('experience-editor')} onEdit={() => navigate('experience-editor')} onSelect={(item) => { setSelected(item); navigate('detail') }} />}
+      {screen === 'host-bookings' && <HostBookings onBack={() => navigate('host')} onNotify={notify} />}
+      {screen === 'experience-editor' && <ExperienceEditor onBack={() => navigate('host')} onNotify={notify} />}
+      {screen === 'session-management' && <SessionManagement onBack={() => navigate('host')} onNotify={notify} onCreate={() => { setEditingSession(null); navigate('session-editor') }} onEdit={(session) => { setEditingSession(session); navigate('session-editor') }} />}
+      {screen === 'public-profile' && <PublicProfile onBack={() => navigate('home')} onSelect={(item) => { setSelected(item); navigate('detail') }} />}
+      {screen === 'voucher' && <VoucherDetail onBack={() => navigate('bookings')} />}
+      {screen === 'admin' && !selectedAdminScreen && <Admin onNavigate={(next) => setSelectedAdminScreen(next)} />}
+      {screen === 'admin' && selectedAdminScreen === 'categories' && <CategoryManagement onBack={() => setSelectedAdminScreen(null)} onNotify={notify} onCreate={() => { setEditingCategory(''); navigate('category-editor') }} onEdit={(category) => { setEditingCategory(category); navigate('category-editor') }} />}
+      {screen === 'admin' && selectedAdminScreen === 'users' && <UserManagement onBack={() => setSelectedAdminScreen(null)} onNotify={notify} onDetail={(record) => { setAdminRecord(record); navigate('user-detail') }} />}
+      {screen === 'admin' && selectedAdminScreen === 'coupons' && <CouponManagement onBack={() => setSelectedAdminScreen(null)} onNotify={notify} onCreate={() => { setEditingCoupon(null); navigate('coupon-editor') }} onEdit={(coupon) => { setEditingCoupon(coupon); navigate('coupon-editor') }} />}
+      {screen === 'admin' && ['orders', 'bookings', 'reviews'].includes(selectedAdminScreen) && <AdminOperations type={selectedAdminScreen} onBack={() => setSelectedAdminScreen(null)} onNotify={notify} onDetail={(item) => { setAdminOperation({ type: selectedAdminScreen, item }); navigate('admin-record-detail') }} />}
 
-        <section className="category-section">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">ELEGÍ TU MOOD</p>
-              <h2>¿Qué tenés ganas de hacer?</h2>
-            </div>
-            <a className="see-all" href="#experiencias">Ver todas <span>→</span></a>
-          </div>
-          <div className="category-list">
-            {categories.map((category, index) => (
-              <button className={`category-pill ${index === 0 ? 'selected' : ''}`} type="button" key={category.label}>
-                <span>{category.icon}</span>{category.label}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="experiences-section" id="experiencias">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">PARA VOS</p>
-              <h2>Planes cerca tuyo</h2>
-            </div>
-            <div className="filter-actions">
-              <button className="filter-button" type="button">⌘ Filtros</button>
-              <button className="view-button active" type="button">▦</button>
-              <button className="view-button" type="button">☷</button>
-            </div>
-          </div>
-          <div className="experience-grid">
-            {experiences.map((experience) => (
-              <article className="experience-card" key={experience.title}>
-                <div className="card-image">
-                  <img src={experience.image} alt={experience.title} />
-                  <button className="heart-button" type="button" aria-label={`Guardar ${experience.title}`}>♡</button>
-                  <span className="session-badge">{experience.sessions}</span>
-                </div>
-                <div className="card-info">
-                  <div className="card-title-row">
-                    <h3>{experience.title}</h3>
-                    <span className="rating">★ {experience.rating}</span>
-                  </div>
-                  <p>{experience.host}</p>
-                  <p className="muted">{experience.location} · {experience.category}</p>
-                  <div className="card-footer">
-                    <strong>{experience.price} <small>/ persona</small></strong>
-                    <span>{experience.reviews} reseñas</span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      </main>
-
-      <footer>
-        <span>© 2025 plan</span>
-        <span>Encontrá tu próximo plan.</span>
-      </footer>
+      {auth && <Auth mode={auth} onClose={() => setAuth(null)} onSuccess={handleAuthSuccess} />}
+      {toast && <div className="toast">✦ {toast}</div>}
+      <footer><span>© 2025 PLAN</span><span>Encontrá tu próximo plan.</span><button onClick={() => navigate('admin')}>Panel interno</button></footer>
     </div>
   )
 }

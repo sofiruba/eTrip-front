@@ -16,6 +16,7 @@ function Detail({ item, onBack, onAdd, onBook }) {
     ['Llevate una historia', 'Una experiencia local guiada por tu anfitrión.'],
   ]
 
+
   return <main className="detail-page">
     <button className="back-button" onClick={onBack}>← Volver a explorar</button>
     <section className="detail-top"><DetailGallery images={gallery} title={item.title} /><ExperienceSummary item={item} reviewCount={reviews.length + 18} /></section>

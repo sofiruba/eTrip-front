@@ -22,7 +22,7 @@ function Bookings({ onNavigate }) {
       <button className="booking-card booking-button" onClick={() => onNavigate('voucher')}><ImageWithFallback src={nextBooking.image} alt="" /><div><span className="category-label">PRÓXIMA EXPERIENCIA</span><h2>{nextBooking.title}</h2><p>◷ {nextBooking.date}</p><p>⌖ {nextBooking.location}</p></div><div className="voucher-code">{nextBooking.code}<small>Ver voucher →</small></div></button>
       {otherBookings.map((booking) => <button className="booking-card booking-button booking-card-secondary" key={booking.id} onClick={() => onNavigate('voucher')}><ImageWithFallback src={booking.image} alt="" /><div><span className="category-label">RESERVA CONFIRMADA</span><h2>{booking.title}</h2><p>◷ {booking.date}</p><p>⌖ {booking.location}</p></div><div className="voucher-code">{booking.code}<small>Ver voucher →</small></div></button>)}
     </section>
-    <button className="write-review-link" onClick={() => onNavigate('review-form')}>★ Ya viviste este plan? Escribí una reseña →</button>
+    <div className="booking-footer-actions"><button className="write-review-link" onClick={() => onNavigate('review-form')}>★ Ya viviste este plan? Escribí una reseña →</button><button className="text-button" onClick={() => onNavigate('refund')}>Solicitar un reembolso</button></div>
   </main>
 }
 

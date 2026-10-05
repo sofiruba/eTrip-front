@@ -8,7 +8,7 @@ function Auth({ mode, onClose, onSuccess }) {
   const [error, setError] = useState('')
   const [step, setStep] = useState(1)
   const [interests, setInterests] = useState([])
-  const interestOptions = ['Gastronomía', 'Arte & salidas', 'Escapadas', 'Música', 'Bienestar', 'Deportes']
+  const interestOptions = ['Arte', 'Buceo', 'Cine', 'Compras', 'Fotografía', 'Gastronomía', 'Juegos de mesa', 'Museos', 'Videojuegos', 'Naturaleza']
 
   const fillDemo = (role) => {
     setLogin(true)

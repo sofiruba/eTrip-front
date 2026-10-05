@@ -1,0 +1,6 @@
+function UserDetail({ user, onBack, onNotify }) {
+  const current = user || { name: 'Sofía Rubachin', email: 'sofia@email.com', role: 'CLIENTE', active: true }
+  return <main className="inner-page"><button className="back-button" onClick={onBack}>← Volver a usuarios</button><div className="page-title"><span className="intro-tag">ADMINISTRACIÓN</span><h1>Detalle de <em>usuario.</em></h1><p>Revisá la información pública y el estado de la cuenta.</p></div><section className="user-detail-card"><span className="big-avatar">{current.name.slice(0, 2).toUpperCase()}</span><div><h2>{current.name}</h2><p>{current.email}</p><span className={`status ${current.active === false ? 'inactive' : 'active'}`}>{current.active === false ? 'Inactivo' : 'Activo'}</span></div><div className="user-detail-actions"><button className="outline-button" onClick={() => onNotify('Rol cambiado a ADMIN')}>Cambiar rol</button><button className="primary-button" onClick={() => onNotify(current.active === false ? 'Usuario activado' : 'Usuario desactivado')}>{current.active === false ? 'Activar usuario' : 'Desactivar usuario'}</button></div></section><div className="admin-grid"><div><strong>4</strong><span>reservas</span></div><div><strong>3</strong><span>reseñas</span></div><div><strong>2</strong><span>experiencias publicadas</span></div></div></main>
+}
+
+export default UserDetail

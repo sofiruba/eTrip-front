@@ -1,0 +1,131 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--color-line);
+  background: rgb(255 255 255 / 0.94);
+  backdrop-filter: blur(12px);
+}
+
+.navbar__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  height: var(--navbar-height);
+}
+
+.navbar__search {
+  flex: 1;
+  max-width: 340px;
+}
+
+.navbar__links {
+  display: flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.navbar__link {
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color var(--transition), background var(--transition);
+}
+
+.navbar__link:hover {
+  color: var(--color-ink);
+  background: var(--color-sand);
+}
+
+.navbar__link.is-active {
+  color: var(--color-brand);
+}
+
+.navbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.navbar__cart {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--color-ink);
+}
+
+.navbar__cart:hover {
+  background: var(--color-sand);
+}
+
+.navbar__cart-count {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.navbar__toggle {
+  display: none;
+}
+
+.navbar__mobile {
+  display: none;
+}
+
+@media (max-width: 1080px) {
+  .navbar__links {
+    display: none;
+  }
+
+  .navbar__actions {
+    margin-left: auto;
+  }
+
+  .navbar__toggle {
+    display: inline-grid;
+  }
+
+  .navbar__mobile {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding-block: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--color-line);
+  }
+
+  .navbar__mobile .search-bar {
+    max-width: none;
+  }
+
+  .navbar__mobile nav {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .navbar__mobile .navbar__link {
+    padding: 12px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+@media (max-width: 720px) {
+  .navbar__search {
+    display: none;
+  }
+}

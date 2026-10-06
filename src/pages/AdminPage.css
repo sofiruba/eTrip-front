@@ -1,0 +1,22 @@
+.admin-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-6);
+}
+
+.admin-layout .tabs--vertical {
+  position: sticky;
+  top: calc(var(--navbar-height) + var(--space-5));
+}
+
+@media (max-width: 900px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  .admin-layout .tabs--vertical {
+    position: static;
+  }
+}

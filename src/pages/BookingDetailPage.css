@@ -1,0 +1,57 @@
+.booking-detail {
+  display: flex;
+  gap: var(--space-5);
+}
+
+.booking-detail__image {
+  flex-shrink: 0;
+  width: 200px;
+  height: 160px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+}
+
+.booking-detail__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.booking-detail__info ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.booking-detail__info li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.booking-detail__info svg {
+  color: var(--color-muted);
+}
+
+@media (max-width: 580px) {
+  .booking-detail {
+    flex-direction: column;
+  }
+
+  .booking-detail__image {
+    width: 100%;
+  }
+}
+
+@media print {
+  .navbar,
+  .footer,
+  .page-header__back,
+  .btn {
+    display: none !important;
+  }
+}

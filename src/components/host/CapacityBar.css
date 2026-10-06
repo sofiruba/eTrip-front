@@ -1,0 +1,29 @@
+.capacity {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.capacity__bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-sand);
+}
+
+.capacity__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+}
+
+.capacity small {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+
+.capacity strong {
+  color: var(--color-ink);
+}

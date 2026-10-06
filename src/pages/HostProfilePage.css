@@ -1,0 +1,12 @@
+.host-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+@media (max-width: 580px) {
+  .host-profile {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

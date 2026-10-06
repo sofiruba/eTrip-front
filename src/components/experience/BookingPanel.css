@@ -1,0 +1,114 @@
+.booking-panel {
+  position: sticky;
+  top: calc(var(--navbar-height) + var(--space-5));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  box-shadow: var(--shadow-md);
+}
+
+.booking-panel__price strong {
+  color: var(--color-ink);
+  font-size: var(--text-2xl);
+  font-weight: 800;
+}
+
+.booking-panel__price s {
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+
+.booking-panel__sessions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.booking-panel__sessions legend {
+  margin-bottom: var(--space-2);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.session-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.session-option:hover {
+  border-color: var(--color-ink);
+}
+
+.session-option.is-selected {
+  border-color: var(--color-brand);
+  background: var(--color-brand-soft);
+}
+
+.session-option input {
+  accent-color: var(--color-brand);
+}
+
+.session-option span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font-size: var(--text-sm);
+}
+
+.session-option small {
+  color: var(--color-muted);
+}
+
+.session-option em {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.session-option em.is-low {
+  color: var(--color-brand);
+}
+
+.booking-panel__quantity,
+.booking-panel__total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.booking-panel__total {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-line);
+}
+
+.booking-panel__total strong {
+  color: var(--color-ink);
+  font-size: var(--text-lg);
+}
+
+.booking-panel__hint {
+  text-align: center;
+}
+
+.booking-panel .empty-state {
+  padding: var(--space-5) var(--space-3);
+}
+
+@media (max-width: 900px) {
+  .booking-panel {
+    position: static;
+  }
+}

@@ -1,0 +1,50 @@
+.checkout__coupon {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.checkout__coupon .field {
+  flex: 1;
+}
+
+.checkout__coupon .btn {
+  margin-top: 27px;
+}
+
+.checkout__coupon .field__hint {
+  color: var(--color-success);
+}
+
+.checkout__coupon .field--error .field__hint {
+  color: var(--color-danger);
+}
+
+.checkout__notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-sand);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.checkout__success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.checkout__success-icon {
+  color: var(--color-success);
+}
+
+.checkout__vouchers {
+  width: 100%;
+  margin: var(--space-4) 0;
+  text-align: left;
+}

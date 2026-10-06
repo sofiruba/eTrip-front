@@ -1,0 +1,44 @@
+.voucher {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 2px dashed var(--color-brand-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-brand-soft);
+}
+
+.voucher--compact {
+  padding: var(--space-3) var(--space-4);
+}
+
+.voucher__icon {
+  flex-shrink: 0;
+  color: var(--color-brand);
+}
+
+.voucher .eyebrow {
+  margin-bottom: 2px;
+}
+
+.voucher__code {
+  display: block;
+  color: var(--color-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-2xl);
+  letter-spacing: 0.06em;
+}
+
+.voucher--compact .voucher__code {
+  font-size: var(--text-lg);
+}
+
+.voucher.is-void {
+  border-color: var(--color-line-strong);
+  background: var(--color-sand);
+}
+
+.voucher.is-void .voucher__code {
+  color: var(--color-muted);
+  text-decoration: line-through;
+}

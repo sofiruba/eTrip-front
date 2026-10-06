@@ -1,0 +1,12 @@
+.host-next {
+  display: grid;
+  grid-template-columns: 1fr minmax(180px, 260px) auto;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+@media (max-width: 760px) {
+  .host-next {
+    grid-template-columns: 1fr;
+  }
+}

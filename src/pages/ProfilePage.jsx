@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { CalendarCheck, Heart, MessageSquare, Pencil, Store, Trash2 } from 'lucide-react'
+import { CalendarCheck, CreditCard, Heart, MessageSquare, Pencil, Store, Trash2 } from 'lucide-react'
 import ReviewFormModal from '../components/booking/ReviewFormModal'
+import CardBrandIcon from '../components/checkout/CardBrandIcon'
 import ExperienceCard from '../components/experience/ExperienceCard'
 import ReviewCard from '../components/experience/ReviewCard'
 import EditProfileModal from '../components/profile/EditProfileModal'
@@ -15,8 +16,10 @@ import StatCard from '../components/ui/StatCard'
 import { getReviews, getUserStats } from '../data/selectors'
 import { useAuth } from '../hooks/useAuth'
 import { useFavorites } from '../hooks/useFavorites'
+import { useSavedCards } from '../hooks/useSavedCards'
 import { useStore } from '../hooks/useStore'
 import { useToast } from '../hooks/useToast'
+import { cardExpiry, cardLabel, isCardExpired } from '../utils/cards'
 import { fullName } from '../utils/format'
 import './ProfilePage.css'
 
@@ -24,11 +27,13 @@ function ProfilePage() {
   const { db, experiences, remove } = useStore()
   const { user, updateProfile } = useAuth()
   const { favoriteIds } = useFavorites()
+  const savedCards = useSavedCards()
   const notify = useToast()
   const [editingProfile, setEditingProfile] = useState(false)
   const [interestsDraft, setInterestsDraft] = useState(null) // null = no se está editando
   const [editingReview, setEditingReview] = useState(null)
   const [deletingReview, setDeletingReview] = useState(null)
+  const [deletingCard, setDeletingCard] = useState(null)
 
   const stats = getUserStats(db, user.id)
   const favorites = experiences.filter((experience) => favoriteIds.includes(experience.id))
@@ -102,6 +107,33 @@ function ProfilePage() {
         )}
       </section>
 
+      <section className="section card">
+        <SectionHeader eyebrow="Pagos" title="Medios de pago guardados" />
+        {savedCards.cards.length ? (
+          <ul className="saved-cards">
+            {savedCards.cards.map((card) => (
+              <li key={card.id}>
+                <CardBrandIcon brand={card.brand} />
+                <span className="saved-cards__text">
+                  <strong>{cardLabel(card)}</strong>
+                  <small className={isCardExpired(card) ? 'saved-cards__expired' : 'muted'}>
+                    {isCardExpired(card) ? 'Vencida' : `Vence ${cardExpiry(card)}`} · {card.holder}
+                  </small>
+                </span>
+                <Button size="sm" variant="ghost" icon={Trash2} onClick={() => setDeletingCard(card)}>
+                  Eliminar
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted row">
+            <CreditCard size={18} aria-hidden />
+            Todavía no guardaste tarjetas. Podés hacerlo al pagar tu próxima reserva.
+          </p>
+        )}
+      </section>
+
       <section className="section">
         <SectionHeader eyebrow="Guardados" title="Planes que te gustaron" />
         {favorites.length ? (
@@ -156,6 +188,17 @@ function ProfilePage() {
           review={editingReview}
           experienceTitle={editingReview.experienceTitle}
           onClose={() => setEditingReview(null)}
+        />
+      )}
+      {deletingCard && (
+        <ConfirmDialog
+          title="¿Eliminar tarjeta?"
+          message={`Vas a quitar ${cardLabel(deletingCard)} de tus medios de pago.`}
+          onConfirm={() => {
+            savedCards.removeCard(deletingCard.id)
+            notify('Tarjeta eliminada', 'info')
+          }}
+          onClose={() => setDeletingCard(null)}
         />
       )}
       {deletingReview && (

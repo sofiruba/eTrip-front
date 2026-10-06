@@ -1,6 +1,7 @@
 import AuthProvider from './AuthProvider'
 import CartProvider from './CartProvider'
 import FavoritesProvider from './FavoritesProvider'
+import SavedCardsProvider from './SavedCardsProvider'
 import StoreProvider from './StoreProvider'
 import ToastProvider from './ToastProvider'
 
@@ -11,7 +12,9 @@ function AppProviders({ children }) {
       <StoreProvider>
         <AuthProvider>
           <FavoritesProvider>
-            <CartProvider>{children}</CartProvider>
+            <SavedCardsProvider>
+              <CartProvider>{children}</CartProvider>
+            </SavedCardsProvider>
           </FavoritesProvider>
         </AuthProvider>
       </StoreProvider>

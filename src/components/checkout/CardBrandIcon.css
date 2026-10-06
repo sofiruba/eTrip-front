@@ -1,0 +1,48 @@
+.brand-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.brand-logo {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  transition: opacity var(--transition), filter var(--transition);
+}
+
+.brand-logo.is-dimmed {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.brand-logo svg {
+  width: 24px;
+  height: 16px;
+}
+
+.brand-logo__visa {
+  color: #1a1f71;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+.brand-logo--amex {
+  border-color: #2e77bc;
+  background: #2e77bc;
+}
+
+.brand-logo__amex {
+  color: #fff;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}

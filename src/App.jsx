@@ -1,10 +1,10 @@
+import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import AppLayout from './components/layout/AppLayout'
 import AboutPage from './pages/AboutPage'
 import AdminPage from './pages/AdminPage'
 import BookingDetailPage from './pages/BookingDetailPage'
 import CartPage from './pages/CartPage'
-import CheckoutPage from './pages/CheckoutPage'
 import ExperienceEditorPage from './pages/ExperienceEditorPage'
 import ExperiencePage from './pages/ExperiencePage'
 import HomePage from './pages/HomePage'
@@ -14,6 +14,16 @@ import MyBookingsPage from './pages/MyBookingsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
 import RequireAuth from './routes/RequireAuth'
+
+// El checkout solo se descarga cuando alguien va a pagar.
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'))
+const CheckoutSuccessPage = lazy(() => import('./pages/CheckoutSuccessPage'))
+
+const lazyPage = (Page) => (
+  <Suspense fallback={<div className="container page" aria-busy="true" />}>
+    <Page />
+  </Suspense>
+)
 
 function App() {
   return (
@@ -28,7 +38,8 @@ function App() {
 
         {/* Requieren sesión */}
         <Route element={<RequireAuth />}>
-          <Route path="checkout" element={<CheckoutPage />} />
+          <Route path="checkout" element={lazyPage(CheckoutPage)} />
+          <Route path="checkout/confirmacion/:orderId" element={lazyPage(CheckoutSuccessPage)} />
           <Route path="mis-reservas" element={<MyBookingsPage />} />
           <Route path="mis-reservas/:id" element={<BookingDetailPage />} />
           <Route path="perfil" element={<ProfilePage />} />

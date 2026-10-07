@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarDays, Clock, MapPin, Printer, Star, Undo2, Users } from 'lucide-react'
+import { CalendarDays, Clock, MapPin, Printer, ShieldCheck, ShieldX, Star, Undo2, Users } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { getBookingStatus } from '../components/booking/bookingStatus'
 import OrderSummary from '../components/booking/OrderSummary'
@@ -13,13 +13,17 @@ import ImageWithFallback from '../components/ui/ImageWithFallback'
 import PageHeader from '../components/ui/PageHeader'
 import { findById, toBookingView } from '../data/selectors'
 import { useAuth } from '../hooks/useAuth'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useStore } from '../hooks/useStore'
+import { getCancellationPolicy } from '../utils/cancellation'
 import { formatFullDate, formatLongDate, formatTime, pluralize } from '../utils/format'
+import { getOrderRefunded } from '../utils/orders'
 import NotFoundPage from './NotFoundPage'
 import './BookingDetailPage.css'
 
 function BookingDetailPage() {
   const { id } = useParams()
+  useDocumentTitle(`Reserva #${id}`)
   const { db } = useStore()
   const { user } = useAuth()
   const [modal, setModal] = useState(null) // 'refund' | 'review' | null
@@ -33,7 +37,10 @@ function BookingDetailPage() {
   const order = findById(db.orders, booking.orderId)
   const orderBookings = db.bookings.filter((entry) => entry.orderId === order.id)
   const myReview = db.reviews.find((review) => review.userId === user.id && review.experienceId === booking.experienceId)
-  const canRefund = !booking.isPast && !booking.refunded
+  // Misma regla que se muestra en el checkout: reembolso solo hasta 48 h antes
+  const policy = getCancellationPolicy(booking.startsAt)
+  const showPolicy = !booking.isPast && !booking.refunded
+  const canRefund = showPolicy && policy.refundable
   const canReview = booking.isPast && !booking.refunded && experience
 
   return (
@@ -69,6 +76,16 @@ function BookingDetailPage() {
             </div>
           </section>
 
+          {showPolicy && (
+            <section className={`card booking-policy ${policy.refundable ? '' : 'is-locked'}`}>
+              {policy.refundable ? <ShieldCheck size={20} aria-hidden /> : <ShieldX size={20} aria-hidden />}
+              <div>
+                <strong>{policy.title}</strong>
+                <p className="muted small">{policy.text}</p>
+              </div>
+            </section>
+          )}
+
           <VoucherCard booking={booking} />
 
           <div className="row">
@@ -96,6 +113,7 @@ function BookingDetailPage() {
           discount={order.discountAmount}
           couponCode={order.couponCode}
           totalLabel="Total pagado"
+          refunded={getOrderRefunded(order, db.bookings)}
         >
           <p className="muted small">Comprada el {formatFullDate(order.createdAt)}</p>
           <Button variant="ghost" icon={Printer} full onClick={() => window.print()}>

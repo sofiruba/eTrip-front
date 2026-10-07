@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
-import { pluralize } from '../../utils/format'
+import { normalizeText, pluralize } from '../../utils/format'
 import { getCategoryIcon } from '../experience/categoryIcons'
 import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
 import IconButton from '../ui/IconButton'
-import SectionHeader from '../ui/SectionHeader'
+import AdminToolbar from './AdminToolbar'
 import CategoryFormModal from './CategoryFormModal'
 
 function CategoriesAdmin() {
@@ -16,8 +16,13 @@ function CategoriesAdmin() {
   const notify = useToast()
   const [editing, setEditing] = useState(null) // categoría, 'new' o null
   const [deleting, setDeleting] = useState(null)
+  const [search, setSearch] = useState('')
 
   const usage = (categoryId) => db.experiences.filter((experience) => experience.categoryId === categoryId).length
+
+  const rows = db.categories.filter((category) =>
+    normalizeText(`${category.name} ${category.description ?? ''}`).includes(normalizeText(search.trim())),
+  )
 
   const askDelete = (category) => {
     if (usage(category.id)) return notify('No se puede eliminar: tiene experiencias asociadas.', 'error')
@@ -26,18 +31,19 @@ function CategoriesAdmin() {
 
   return (
     <>
-      <SectionHeader title="Categorías" description="Ordená cómo las personas descubren sus planes.">
+      <AdminToolbar search={search} onSearch={setSearch} placeholder="Buscar categoría" count={`${rows.length} de ${db.categories.length}`}>
         <Button icon={Plus} onClick={() => setEditing('new')}>
           Nueva categoría
         </Button>
-      </SectionHeader>
+      </AdminToolbar>
 
       <DataTable
-        rows={db.categories}
+        rows={rows}
         columns={[
           {
             key: 'name',
             header: 'Categoría',
+            sortValue: (category) => category.name,
             render: (category) => {
               const Icon = getCategoryIcon(category.name)
               return (
@@ -51,7 +57,7 @@ function CategoriesAdmin() {
               )
             },
           },
-          { key: 'usage', header: 'Experiencias', render: (category) => pluralize(usage(category.id), 'experiencia') },
+          { key: 'usage', header: 'Experiencias', sortValue: (category) => usage(category.id), render: (category) => pluralize(usage(category.id), 'experiencia') },
           {
             key: 'actions',
             header: '',

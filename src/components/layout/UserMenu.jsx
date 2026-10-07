@@ -32,12 +32,14 @@ function UserMenu() {
     }
   }, [open])
 
-  const links = [
-    { to: '/perfil', label: 'Mi perfil', icon: User },
-    { to: '/mis-reservas', label: 'Mis reservas', icon: CalendarCheck },
-    { to: '/anfitrion', label: 'Modo anfitrión', icon: Store },
-    ...(isAdmin ? [{ to: '/admin', label: 'Panel de administración', icon: LayoutDashboard }] : []),
-  ]
+  // La cuenta admin no compra ni publica: solo ve el panel
+  const links = isAdmin
+    ? [{ to: '/admin', label: 'Panel de administración', icon: LayoutDashboard }]
+    : [
+        { to: '/perfil', label: 'Mi perfil', icon: User },
+        { to: '/mis-reservas', label: 'Mis reservas', icon: CalendarCheck },
+        { to: '/anfitrion', label: 'Modo anfitrión', icon: Store },
+      ]
 
   const handleLogout = () => {
     setOpen(false)
@@ -58,7 +60,7 @@ function UserMenu() {
           setOpenedAt(pathname)
         }}
       >
-        <Avatar name={fullName(user)} size="sm" />
+        <Avatar name={fullName(user)} src={user.avatarUrl} size="sm" />
         <span className="user-menu__name">{user.firstName}</span>
         <ChevronDown size={16} aria-hidden />
       </button>

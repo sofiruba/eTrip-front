@@ -30,7 +30,7 @@
 
 .tabs__item.is-active {
   border-bottom-color: var(--color-brand);
-  color: var(--color-brand);
+  color: var(--color-brand-text);
 }
 
 .tabs__count {

@@ -1,15 +1,26 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import './PageHeader.css'
 
 /**
- * Encabezado de página: link de volver, eyebrow, título con acento y acciones.
- * Reemplaza a los .page-title / ScreenIntro / ManagementHeader copiados en cada pantalla.
+ * Encabezado de página: link de volver (o migas de pan), eyebrow, título con acento y acciones.
+ * breadcrumbs: [{ label, to }]; el último es la página actual y va sin link.
  */
-function PageHeader({ eyebrow, title, accent, description, actions, back }) {
+function PageHeader({ eyebrow, title, accent, description, actions, back, breadcrumbs }) {
   return (
     <header className="page-header">
-      {back && (
+      {breadcrumbs ? (
+        <nav className="breadcrumbs" aria-label="Migas de pan">
+          <ol>
+            {breadcrumbs.map((crumb, index) => (
+              <li key={crumb.label}>
+                {index > 0 && <ChevronRight size={14} aria-hidden />}
+                {crumb.to ? <Link to={crumb.to}>{crumb.label}</Link> : <span aria-current="page">{crumb.label}</span>}
+              </li>
+            ))}
+          </ol>
+        </nav>
+      ) : back && (
         <Link className="page-header__back" to={back.to}>
           <ArrowLeft size={16} aria-hidden />
           {back.label}

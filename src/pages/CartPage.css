@@ -37,7 +37,7 @@
 }
 
 .cart-line__info a:hover h3 {
-  color: var(--color-brand);
+  color: var(--color-brand-text);
 }
 
 .cart-line__aside {
@@ -49,6 +49,27 @@
 
 .cart-line__aside strong {
   color: var(--color-ink);
+}
+
+.cart-line.has-problem {
+  border-color: var(--color-danger);
+}
+
+.cart-line .notice {
+  align-items: center;
+  width: 100%;
+}
+
+.cart-notice {
+  margin-bottom: var(--space-5);
+}
+
+.cart-savings {
+  margin: 0;
+  color: var(--color-success);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: center;
 }
 
 @media (max-width: 580px) {

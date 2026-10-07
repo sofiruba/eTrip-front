@@ -22,3 +22,110 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+.saved-cards {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.saved-cards li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.saved-cards li:last-child {
+  border-bottom: 0;
+}
+
+.saved-cards__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.saved-cards__expired {
+  color: var(--color-danger);
+}
+
+.profile-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.profile-steps__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.profile-steps__header h2 {
+  font-size: var(--text-lg);
+}
+
+.profile-steps__count {
+  color: var(--color-brand-text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.profile-steps__bar {
+  overflow: hidden;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-sand);
+}
+
+.profile-steps__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-success);
+  transition: width var(--transition);
+}
+
+.profile-steps__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-steps__list button,
+.profile-steps__list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.profile-steps__list button {
+  border: 1px dashed var(--color-line-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.profile-steps__list button:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand-text);
+}
+
+.profile-steps__list .is-done span {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}

@@ -22,16 +22,24 @@ function CartProvider({ children }) {
     const updateQuantity = (sessionId, quantity) =>
       setItems((current) => current.map((item) => (item.sessionId === sessionId ? { ...item, quantity } : item)))
 
-    const add = (sessionId, quantity = 1) =>
+    // Si la sesión ya está en el carrito se suma, sin pasarse de los cupos disponibles
+    const add = (sessionId, quantity = 1) => {
+      const seats = findById(db.sessions, sessionId)?.availableSeats ?? quantity
       setItems((current) =>
         current.some((item) => item.sessionId === sessionId)
-          ? current.map((item) => (item.sessionId === sessionId ? { ...item, quantity } : item))
-          : [...current, { sessionId, quantity }],
+          ? current.map((item) =>
+              item.sessionId === sessionId ? { ...item, quantity: Math.min(item.quantity + quantity, seats) } : item,
+            )
+          : [...current, { sessionId, quantity: Math.min(quantity, seats) }],
       )
+    }
 
     return {
       lines,
-      count: lines.length,
+      // Sesiones del carrito que ya no existen (el anfitrión las borró)
+      missingCount: items.length - lines.length,
+      count: lines.reduce((sum, line) => sum + line.quantity, 0),
+      savings: lines.reduce((sum, line) => sum + (line.experience.price - line.experience.finalPrice) * line.quantity, 0),
       total: lines.reduce((sum, line) => sum + line.subtotal, 0),
       add,
       updateQuantity,

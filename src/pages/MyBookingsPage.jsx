@@ -7,10 +7,12 @@ import PageHeader from '../components/ui/PageHeader'
 import Tabs from '../components/ui/Tabs'
 import { getBookings, splitBookings } from '../data/selectors'
 import { useAuth } from '../hooks/useAuth'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useStore } from '../hooks/useStore'
 import './MyBookingsPage.css'
 
 function MyBookingsPage() {
+  useDocumentTitle('Mis reservas')
   const { db } = useStore()
   const { user } = useAuth()
   const [tab, setTab] = useState('upcoming')

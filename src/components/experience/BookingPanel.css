@@ -77,7 +77,16 @@
 }
 
 .session-option em.is-low {
-  color: var(--color-brand);
+  color: var(--color-brand-text);
+}
+
+.session-option em.is-out {
+  color: var(--color-danger);
+}
+
+.session-option.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .booking-panel__quantity,

@@ -22,4 +22,4 @@ export const initialDatabase = {
 }
 
 export { demoAccounts } from './users'
-export { interestOptions } from './interests'
+export { featuredInterests, interestOptions, MAX_INTERESTS } from './interests'

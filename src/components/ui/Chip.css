@@ -27,5 +27,5 @@
 .chip.is-selected {
   border-color: var(--color-brand);
   background: var(--color-brand-soft);
-  color: var(--color-brand);
+  color: var(--color-brand-text);
 }

@@ -5,21 +5,28 @@ import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
 
+const MAX_BIO = 500
+
+/** Mismos campos que UserUpdateDTO del back (el email no se puede cambiar). */
 function EditProfileModal({ onClose }) {
   const { user, updateProfile } = useAuth()
   const notify = useToast()
   const [form, setForm] = useState({
     firstName: user.firstName,
     lastName: user.lastName,
-    email: user.email,
-    city: user.city,
-    bio: user.bio,
+    city: user.city ?? '',
+    bio: user.bio ?? '',
   })
   const setField = (field) => (event) => setForm({ ...form, [field]: event.target.value })
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    updateProfile({ ...form, firstName: form.firstName.trim(), lastName: form.lastName.trim() })
+    updateProfile({
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      city: form.city.trim(),
+      bio: form.bio.trim(),
+    })
     notify('Perfil actualizado')
     onClose()
   }
@@ -44,7 +51,7 @@ function EditProfileModal({ onClose }) {
           <FormField label="Nombre" value={form.firstName} onChange={setField('firstName')} required />
           <FormField label="Apellido" value={form.lastName} onChange={setField('lastName')} required />
         </div>
-        <FormField label="Email" type="email" value={form.email} onChange={setField('email')} required />
+        <FormField label="Email" type="email" value={user.email} readOnly disabled hint="El email no se puede cambiar." />
         <FormField label="Ciudad" value={form.city} onChange={setField('city')} />
         <FormField
           as="textarea"
@@ -52,8 +59,9 @@ function EditProfileModal({ onClose }) {
           rows={4}
           value={form.bio}
           onChange={setField('bio')}
+          maxLength={MAX_BIO}
           placeholder="Contale algo a la comunidad..."
-          hint="Se muestra en tu perfil público si publicás experiencias."
+          hint={`Se muestra en tu perfil público si publicás experiencias. ${form.bio.length}/${MAX_BIO}`}
         />
       </form>
     </Modal>

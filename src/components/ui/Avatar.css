@@ -3,9 +3,10 @@
   place-items: center;
   flex-shrink: 0;
   border-radius: 50%;
-  background: #dfe9d9;
-  color: #2c533a;
+  background: var(--color-avatar);
+  color: var(--color-avatar-text);
   font-weight: 700;
+  object-fit: cover;
 }
 
 .avatar--sm {

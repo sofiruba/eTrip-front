@@ -1,12 +1,14 @@
 import { CalendarDays, MapPin } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import ExperienceCard from '../components/experience/ExperienceCard'
+import InterestList from '../components/profile/InterestList'
 import Avatar from '../components/ui/Avatar'
 import EmptyState from '../components/ui/EmptyState'
 import PageHeader from '../components/ui/PageHeader'
 import SectionHeader from '../components/ui/SectionHeader'
 import StatCard from '../components/ui/StatCard'
 import { findById } from '../data/selectors'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useStore } from '../hooks/useStore'
 import { fullName } from '../utils/format'
 import NotFoundPage from './NotFoundPage'
@@ -16,6 +18,7 @@ function HostProfilePage() {
   const { id } = useParams()
   const { db, experiences } = useStore()
   const host = findById(db.users, id)
+  useDocumentTitle(host ? fullName(host) : 'Anfitrión')
 
   if (!host) return <NotFoundPage title="No encontramos a este anfitrión" />
 
@@ -30,9 +33,15 @@ function HostProfilePage() {
       <PageHeader back={{ to: '/', label: 'Volver a explorar' }} eyebrow="Anfitrión" title={fullName(host)} />
 
       <section className="host-profile card">
-        <Avatar name={fullName(host)} size="xl" />
+        <Avatar name={fullName(host)} src={host.avatarUrl} size="xl" />
         <div className="stack">
           <p>{host.bio || 'Todavía no escribió su presentación.'}</p>
+          {host.interests?.length > 0 && (
+            <div className="host-profile__interests">
+              <h2 className="eyebrow">Le gusta</h2>
+              <InterestList interests={host.interests} />
+            </div>
+          )}
           <div className="row">
             <span className="meta">
               <MapPin size={16} aria-hidden />

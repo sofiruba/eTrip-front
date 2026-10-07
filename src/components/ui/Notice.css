@@ -1,0 +1,32 @@
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.notice svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.notice__text {
+  flex: 1;
+}
+
+.notice--info {
+  background: var(--color-sand);
+  color: var(--color-text);
+}
+
+.notice--warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.notice--danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}

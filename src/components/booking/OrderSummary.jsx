@@ -5,7 +5,7 @@ import './OrderSummary.css'
  * Resumen de importes reutilizado en carrito, checkout y detalle de reserva.
  * items: [{ id, label, detail, amount }]
  */
-function OrderSummary({ title = 'Resumen', items, discount = 0, couponCode, totalLabel = 'Total', children }) {
+function OrderSummary({ title = 'Resumen', items, discount = 0, couponCode, totalLabel = 'Total', refunded = 0, children }) {
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0)
 
   return (
@@ -39,6 +39,18 @@ function OrderSummary({ title = 'Resumen', items, discount = 0, couponCode, tota
           <dt>{totalLabel}</dt>
           <dd>{formatMoney(subtotal - discount)}</dd>
         </div>
+        {refunded > 0 && (
+          <>
+            <div className="order-summary__refund">
+              <dt>Reembolsado</dt>
+              <dd>-{formatMoney(refunded)}</dd>
+            </div>
+            <div>
+              <dt>Total neto</dt>
+              <dd>{formatMoney(subtotal - discount - refunded)}</dd>
+            </div>
+          </>
+        )}
       </dl>
       {children && <div className="order-summary__actions">{children}</div>}
     </aside>

@@ -12,3 +12,9 @@
   -webkit-line-clamp: 2;
   color: var(--color-text);
 }
+
+/* Reseñas con puntuación baja: borde a la izquierda para encontrarlas rápido */
+.review-cell.is-low {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--color-danger);
+}

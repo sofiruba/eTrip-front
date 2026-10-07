@@ -1,6 +1,7 @@
 import { ArrowRight, Footprints, Sparkles, Users } from 'lucide-react'
 import Button from '../components/ui/Button'
 import SectionHeader from '../components/ui/SectionHeader'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import './AboutPage.css'
 
 const VALUES = [
@@ -22,6 +23,7 @@ const VALUES = [
 ]
 
 function AboutPage() {
+  useDocumentTitle('Sobre nosotros')
   return (
     <div className="container page">
       <section className="about__hero">

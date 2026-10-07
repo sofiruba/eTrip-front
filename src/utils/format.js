@@ -70,3 +70,18 @@ export function initials(name = '') {
 export function isPast(iso) {
   return new Date(iso).getTime() < Date.now()
 }
+
+/** "sábado, 10 de octubre de 2026" */
+export function formatWeekdayDate(iso) {
+  return new Date(iso).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+/** "De 18:30 a 21:30 hs" */
+export function formatTimeRange(startIso, endIso) {
+  return `De ${formatTime(startIso).replace(' hs', '')} a ${formatTime(endIso)}`
+}
+
+/** Minúsculas y sin acentos, para que "ceramica" encuentre "Cerámica". */
+export function normalizeText(text = '') {
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+}

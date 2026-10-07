@@ -1,31 +1,69 @@
-import { Check, Clock, MapPin, Share2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Baby, Check, Clock, MapPin, Share2, Users } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import BookingPanel from '../components/experience/BookingPanel'
 import FavoriteButton from '../components/experience/FavoriteButton'
 import Gallery from '../components/experience/Gallery'
 import HostCard from '../components/experience/HostCard'
+import ExperienceCard from '../components/experience/ExperienceCard'
 import ReviewsSection from '../components/experience/ReviewsSection'
 import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
 import IconButton from '../components/ui/IconButton'
+import Money from '../components/ui/Money'
 import PageHeader from '../components/ui/PageHeader'
 import { Rating } from '../components/ui/Rating'
-import { findById, getReviews, getUpcomingSessions } from '../data/selectors'
+import SectionHeader from '../components/ui/SectionHeader'
+import { findById, getReviews, getUpcomingSessions, isSoldOut } from '../data/selectors'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useStore } from '../hooks/useStore'
+import { describeMinAge } from '../utils/guests'
+import { getCity } from '../utils/location'
 import { useToast } from '../hooks/useToast'
 import NotFoundPage from './NotFoundPage'
 import './ExperiencePage.css'
+
+const MAX_RELATED = 3
+
+/** Misma categoría primero; si no alcanza, se completa con otras que tengan fechas. */
+function getRelated(experiences, experience) {
+  const others = experiences.filter((entry) => entry.id !== experience.id && entry.nextSession)
+  const sameCategory = others.filter((entry) => entry.categoryId === experience.categoryId)
+  const rest = others.filter((entry) => entry.categoryId !== experience.categoryId)
+  return [...sameCategory, ...rest].slice(0, MAX_RELATED)
+}
+
+/**
+ * true cuando el elemento queda fuera de pantalla (para mostrar la barra fija en mobile).
+ * `watchKey` vuelve a engancharse si el elemento se remonta (al pasar a otra experiencia).
+ */
+function useElementOffscreen(id, watchKey) {
+  const [offscreen, setOffscreen] = useState(false)
+  useEffect(() => {
+    const element = document.getElementById(id)
+    if (!element || !('IntersectionObserver' in window)) return undefined
+    const observer = new IntersectionObserver(([entry]) => setOffscreen(!entry.isIntersecting))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [id, watchKey])
+  return offscreen
+}
 
 function ExperiencePage() {
   const { id } = useParams()
   const { db, experiences } = useStore()
   const notify = useToast()
   const experience = findById(experiences, id)
+  const panelOffscreen = useElementOffscreen('reservar', experience?.id)
+  useDocumentTitle(experience?.title ?? 'Experiencia no encontrada')
 
   if (!experience) return <NotFoundPage title="Esta experiencia no existe" text="Puede que el anfitrión la haya despublicado." />
 
   const sessions = getUpcomingSessions(db, experience.id)
   const reviews = getReviews(db, (review) => review.experienceId === experience.id)
   const host = findById(db.users, experience.publisherId)
+  const related = getRelated(experiences, experience)
+  const soldOut = isSoldOut(experience)
 
   const share = async () => {
     try {
@@ -37,9 +75,14 @@ function ExperiencePage() {
   }
 
   return (
-    <div className="container page">
+    <div className="container page experience-page">
       <PageHeader
-        back={{ to: '/', label: 'Volver a explorar' }}
+        breadcrumbs={[
+          { label: 'Inicio', to: '/' },
+          { label: getCity(experience.location), to: `/?location=${encodeURIComponent(getCity(experience.location))}` },
+          { label: experience.categoryName, to: `/?location=${encodeURIComponent(getCity(experience.location))}&categoryId=${experience.categoryId}` },
+          { label: experience.title },
+        ]}
         eyebrow={experience.categoryName}
         title={experience.title}
         description={experience.subtitle}
@@ -60,6 +103,10 @@ function ExperiencePage() {
         <span className="meta">
           <Clock size={16} aria-hidden />
           {experience.durationHours} horas aprox.
+        </span>
+        <span className="meta">
+          {experience.minAge ? <Users size={16} aria-hidden /> : <Baby size={16} aria-hidden />}
+          {describeMinAge(experience.minAge)}
         </span>
         {experience.discountPercentage > 0 && <Badge tone="brand">{experience.discountPercentage}% OFF</Badge>}
       </div>
@@ -105,7 +152,34 @@ function ExperiencePage() {
           <ReviewsSection reviews={reviews} averageRating={experience.averageRating} />
         </div>
 
-        <BookingPanel key={experience.id} experience={experience} sessions={sessions} />
+        <BookingPanel key={experience.id} id="reservar" experience={experience} sessions={sessions} />
+      </div>
+
+      {related.length > 0 && (
+        <section className="section">
+          <SectionHeader eyebrow="Seguí explorando" title="También te puede gustar" />
+          <div className="experience-grid">
+            {related.map((entry) => (
+              <ExperienceCard key={entry.id} experience={entry} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className={`experience__sticky-cta ${panelOffscreen ? 'is-visible' : ''}`} aria-hidden={!panelOffscreen}>
+        <p>
+          <strong>
+            <Money value={experience.finalPrice} original={experience.price} />
+          </strong>
+          <span className="muted small"> / persona</span>
+        </p>
+        <Button
+          tabIndex={panelOffscreen ? 0 : -1}
+          disabled={soldOut}
+          onClick={() => document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+        >
+          {soldOut ? 'Agotado' : 'Ver fechas'}
+        </Button>
       </div>
     </div>
   )

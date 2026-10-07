@@ -27,12 +27,45 @@
   resize: vertical;
 }
 
+.field :disabled {
+  background: var(--color-sand);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
   border-color: var(--color-brand);
   outline: none;
   box-shadow: 0 0 0 3px var(--color-brand-soft);
+}
+
+.field__control {
+  position: relative;
+}
+
+.field__control input {
+  padding-right: 48px;
+}
+
+.field__addon {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-muted);
+  transform: translateY(-50%);
+}
+
+.field__addon:hover {
+  color: var(--color-ink);
 }
 
 .field__hint {

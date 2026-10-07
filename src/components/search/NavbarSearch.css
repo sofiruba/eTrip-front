@@ -1,0 +1,135 @@
+/* Botón "Buscar" del navbar */
+.navbar-search {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-2);
+  height: 44px;
+  padding: 0 18px 0 5px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  transition: box-shadow var(--transition), opacity var(--transition), transform var(--transition);
+}
+
+.navbar-search:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.navbar-search.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.96);
+}
+
+.navbar-search__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  color: var(--color-on-brand);
+}
+
+/* Punto: hay una búsqueda activa */
+.navbar-search__dot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+/* Franja con el buscador completo, debajo del navbar */
+.navbar-search-panel {
+  position: fixed;
+  inset: var(--navbar-height) 0 0;
+  z-index: var(--z-modal);
+  /* Si un desplegable no entra en la pantalla, se puede bajar */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.navbar-search-panel__backdrop {
+  position: fixed;
+  inset: var(--navbar-height) 0 0;
+  border: 0;
+  background: var(--color-scrim);
+  cursor: default;
+  animation: navbar-search-fade 160ms ease-out;
+}
+
+.navbar-search-panel__sheet {
+  position: relative;
+  padding-block: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  animation: navbar-search-drop 180ms ease-out;
+}
+
+.navbar-search-panel__inner {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.navbar-search-panel__inner .hero-search {
+  max-width: 860px;
+  box-shadow: var(--shadow-sm);
+}
+
+.navbar-search-panel__close {
+  position: absolute;
+  top: 50%;
+  right: var(--gutter);
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-ink);
+  transform: translateY(-50%);
+}
+
+.navbar-search-panel__close:hover {
+  background: var(--color-sand);
+}
+
+@keyframes navbar-search-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes navbar-search-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+@media (max-width: 1100px) {
+  /* Sin lugar al costado: la X va arriba de la barra */
+  .navbar-search-panel__inner {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-2);
+  }
+
+  .navbar-search-panel__close {
+    position: static;
+    transform: none;
+  }
+}

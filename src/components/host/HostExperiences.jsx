@@ -1,16 +1,18 @@
 import { useState } from 'react'
-import { CalendarDays, Eye, Pencil, Plus, Store, Trash2 } from 'lucide-react'
+import { CalendarDays, Eye, Pencil, Percent, Plus, Store, Trash2 } from 'lucide-react'
 import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import ExperienceCard from '../experience/ExperienceCard'
 import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import EmptyState from '../ui/EmptyState'
+import DiscountModal from './DiscountModal'
 
 function HostExperiences({ experiences, bookings }) {
   const { removeExperience } = useStore()
   const notify = useToast()
   const [deleting, setDeleting] = useState(null)
+  const [discounting, setDiscounting] = useState(null)
 
   const hasActiveBookings = (experienceId) =>
     bookings.some((booking) => booking.experienceId === experienceId && !booking.isPast && !booking.refunded)
@@ -49,6 +51,7 @@ function HostExperiences({ experiences, bookings }) {
                 <Button size="sm" variant="ghost" icon={CalendarDays} to={`/anfitrion/calendario?experiencia=${experience.id}`}>
                   Fechas
                 </Button>
+                <Button size="sm" variant="ghost" icon={Percent} onClick={() => setDiscounting(experience)} aria-label="Descuento" />
                 <Button size="sm" variant="ghost" icon={Eye} to={`/experiencias/${experience.id}`} aria-label="Ver publicación" />
                 <Button size="sm" variant="ghost" icon={Trash2} onClick={() => askDelete(experience)} aria-label="Eliminar" />
               </>
@@ -56,6 +59,8 @@ function HostExperiences({ experiences, bookings }) {
           />
         ))}
       </div>
+
+      {discounting && <DiscountModal experience={discounting} onClose={() => setDiscounting(null)} />}
 
       {deleting && (
         <ConfirmDialog

@@ -1,4 +1,5 @@
-// Forma de UserResponseDTO (+ datos de perfil que solo usa el front)
+// Forma de UserResponseDTO. `avatarUrl` es la foto como data URL (el back la manda como avatarBase64)
+// y se agrega cuando el usuario sube una; `joinedAt` solo lo usa el front.
 export const users = [
   {
     id: 1,
@@ -89,7 +90,7 @@ export const users = [
     city: 'Rosario',
     joinedAt: '2025-07-19T10:00:00',
     bio: '',
-    interests: ['Gastronomía', 'Música'],
+    interests: ['Gastronomía', 'Música en vivo'],
   },
   {
     id: 8,

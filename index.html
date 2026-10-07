@@ -4,7 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="PLAN: marketplace de experiencias para hacer algo distinto." />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Aplica el tema elegido antes de pintar (ver src/hooks/useTheme.js)
+      try {
+        const theme = JSON.parse(localStorage.getItem('plan:theme'))
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme
+      } catch {
+        // Sin almacenamiento: se usa el tema del sistema
+      }
+    </script>
+    <meta name="description" content="PLAN: experiencias armadas por gente local para hacer un plan distinto, en tu ciudad o en la que visites." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

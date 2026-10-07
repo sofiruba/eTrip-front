@@ -7,7 +7,7 @@ import './HostCard.css'
 function HostCard({ host }) {
   return (
     <Link to={`/anfitriones/${host.id}`} className="host-card">
-      <Avatar name={fullName(host)} size="lg" />
+      <Avatar name={fullName(host)} src={host.avatarUrl} size="lg" />
       <div>
         <span className="eyebrow">Tu anfitrión</span>
         <h3>{fullName(host)}</h3>

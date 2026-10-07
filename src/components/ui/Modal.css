@@ -1,11 +1,11 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: var(--z-modal);
   display: grid;
   place-items: center;
   padding: var(--space-4);
-  background: rgb(28 28 25 / 0.45);
+  background: var(--color-scrim);
   animation: fade-in 160ms ease-out;
 }
 

@@ -5,11 +5,12 @@
   --color-accent: #ff573d;
   --color-brand-soft: #fff1ee;
   --color-brand-line: #f0c9c1;
+  --color-brand-text: #b7230f; /* marca usada como color de texto */
 
   /* Neutros */
   --color-ink: #1c1c19;
   --color-text: #3a3a36;
-  --color-muted: #716f6b;
+  --color-muted: #5f5d59;
   --color-line: #e8e2d9;
   --color-line-strong: #d8d0c4;
   --color-surface: #ffffff;
@@ -24,6 +25,19 @@
   --color-danger: #b3261e;
   --color-danger-soft: #fdeceb;
 
+  /* Superficies especiales */
+  --color-on-brand: #ffffff; /* texto sobre marca, éxito, peligro o fondo invertido */
+  --color-inverse: #1c1c19; /* bloques oscuros: toasts, cuenta regresiva, cita */
+  --color-glass: rgb(255 255 255 / 0.94); /* fondos translúcidos sobre fotos o contenido */
+  --color-scrim: rgb(28 28 25 / 0.45); /* detrás de los modales */
+  --color-map: #e7eee0;
+  --color-map-grid: rgb(255 255 255 / 0.5);
+  --color-avatar: #dfe9d9;
+  --color-avatar-text: #2c533a;
+  --color-danger-line: #f2c4c0;
+  --color-success-solid: #2f6b45; /* fondos de éxito/peligro con texto blanco */
+  --color-danger-solid: #b3261e;
+
   /* Tipografía */
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --text-xs: 0.75rem;
@@ -34,6 +48,10 @@
   --text-2xl: 1.75rem;
   --text-3xl: clamp(2rem, 4vw, 2.75rem);
   --text-hero: clamp(2.5rem, 6vw, 4rem);
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-black: 800;
 
   /* Espaciado */
   --space-1: 4px;
@@ -59,4 +77,94 @@
   --navbar-height: 72px;
   --gutter: clamp(16px, 4vw, 40px);
   --transition: 180ms ease;
+
+  /* Capas (de abajo hacia arriba) */
+  --z-raised: 1;
+  --z-sticky: 20;
+  --z-dropdown: 30;
+  --z-modal: 50;
+  --z-toast: 100;
+  --z-overlay: 200;
+
+  /*
+   * Breakpoints (las custom properties no funcionan dentro de @media, quedan documentados):
+   * 600px mobile · 900px tablet · 1200px desktop
+   */
+}
+
+/*
+ * Modo oscuro: marrones cálidos para mantener la identidad terracota/crema.
+ * Sigue al sistema salvo que el usuario elija un tema (data-theme en <html>).
+ * El bloque se repite porque no se puede combinar la media query con el selector.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --color-brand: #d4503a;
+    --color-brand-strong: #bf4430;
+    --color-accent: #ff7a63;
+    --color-brand-soft: #3a211b;
+    --color-brand-line: #5c3027;
+    --color-brand-text: #ff9a85;
+    --color-ink: #f6efe6;
+    --color-text: #e1d8cc;
+    --color-muted: #ada294;
+    --color-line: #3b322b;
+    --color-line-strong: #4d4238;
+    --color-surface: #1f1a16;
+    --color-cream: #26201b;
+    --color-sand: #2e2620;
+    --color-success: #86c99c;
+    --color-success-soft: #1e2f24;
+    --color-warning: #eabb62;
+    --color-warning-soft: #352a17;
+    --color-danger: #ff8b7e;
+    --color-danger-soft: #3d1f1b;
+    --color-inverse: #3a3029;
+    --color-glass: rgb(31 26 22 / 0.92);
+    --color-scrim: rgb(0 0 0 / 0.6);
+    --color-map: #29321f;
+    --color-map-grid: rgb(255 255 255 / 0.06);
+    --color-avatar: #2b3a2e;
+    --color-avatar-text: #a8d3b4;
+    --color-danger-line: #6a2c26;
+    --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.3);
+    --shadow-md: 0 10px 30px rgb(0 0 0 / 0.35);
+    --shadow-lg: 0 24px 60px rgb(0 0 0 / 0.5);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-brand: #d4503a;
+  --color-brand-strong: #bf4430;
+  --color-accent: #ff7a63;
+  --color-brand-soft: #3a211b;
+  --color-brand-line: #5c3027;
+  --color-brand-text: #ff9a85;
+  --color-ink: #f6efe6;
+  --color-text: #e1d8cc;
+  --color-muted: #ada294;
+  --color-line: #3b322b;
+  --color-line-strong: #4d4238;
+  --color-surface: #1f1a16;
+  --color-cream: #26201b;
+  --color-sand: #2e2620;
+  --color-success: #86c99c;
+  --color-success-soft: #1e2f24;
+  --color-warning: #eabb62;
+  --color-warning-soft: #352a17;
+  --color-danger: #ff8b7e;
+  --color-danger-soft: #3d1f1b;
+  --color-inverse: #3a3029;
+  --color-glass: rgb(31 26 22 / 0.92);
+  --color-scrim: rgb(0 0 0 / 0.6);
+  --color-map: #29321f;
+  --color-map-grid: rgb(255 255 255 / 0.06);
+  --color-avatar: #2b3a2e;
+  --color-avatar-text: #a8d3b4;
+  --color-danger-line: #6a2c26;
+  --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 10px 30px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 24px 60px rgb(0 0 0 / 0.5);
 }

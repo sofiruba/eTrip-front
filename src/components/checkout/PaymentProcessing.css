@@ -1,0 +1,119 @@
+.payment-processing {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--color-glass);
+  backdrop-filter: blur(6px);
+  animation: payment-fade 200ms ease;
+}
+
+.payment-processing__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  width: min(420px, 100%);
+  padding: var(--space-7) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.payment-processing__panel h2 {
+  min-height: 1.3em;
+}
+
+.payment-processing__icon {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  margin-bottom: var(--space-2);
+  border-radius: 50%;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-text);
+}
+
+.is-approved .payment-processing__icon {
+  background: var(--color-success-solid);
+  color: var(--color-on-brand);
+  animation: payment-pop 380ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.is-declined .payment-processing__icon {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  animation: payment-pop 380ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.payment-processing__spinner {
+  animation: payment-spin 900ms linear infinite;
+}
+
+.payment-processing__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.payment-processing__steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  transition: color var(--transition);
+}
+
+.payment-processing__steps span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 50%;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.payment-processing__steps .is-current {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.payment-processing__steps .is-current span {
+  border-color: var(--color-brand);
+  color: var(--color-brand-text);
+}
+
+.payment-processing__steps .is-done span {
+  border-color: var(--color-success);
+  background: var(--color-success-solid);
+  color: var(--color-on-brand);
+}
+
+@keyframes payment-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes payment-pop {
+  from {
+    transform: scale(0.6);
+  }
+}
+
+@keyframes payment-fade {
+  from {
+    opacity: 0;
+  }
+}

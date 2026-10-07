@@ -18,8 +18,8 @@
   margin: 0;
   padding: var(--space-6);
   border-radius: var(--radius-lg);
-  background: var(--color-ink);
-  color: #fff;
+  background: var(--color-inverse);
+  color: var(--color-on-brand);
 }
 
 .about__quote p {
@@ -52,7 +52,7 @@
   height: 44px;
   border-radius: var(--radius-md);
   background: var(--color-brand-soft);
-  color: var(--color-brand);
+  color: var(--color-brand-text);
 }
 
 .about__cta {

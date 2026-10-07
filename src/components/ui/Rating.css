@@ -12,7 +12,7 @@
 }
 
 .rating--new {
-  color: var(--color-brand);
+  color: var(--color-brand-text);
   font-weight: 700;
 }
 

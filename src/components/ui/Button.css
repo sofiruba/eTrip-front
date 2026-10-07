@@ -38,7 +38,7 @@
 
 .btn--primary {
   background: var(--color-brand);
-  color: #fff;
+  color: var(--color-on-brand);
 }
 
 .btn--primary:hover:not(:disabled) {
@@ -48,7 +48,7 @@
 .btn--secondary {
   border-color: var(--color-brand-line);
   background: var(--color-brand-soft);
-  color: var(--color-brand);
+  color: var(--color-brand-text);
 }
 
 .btn--secondary:hover:not(:disabled) {
@@ -65,7 +65,7 @@
 }
 
 .btn--danger {
-  border-color: #f2c4c0;
+  border-color: var(--color-danger-line);
   background: var(--color-surface);
   color: var(--color-danger);
 }

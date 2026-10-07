@@ -53,6 +53,10 @@
   color: var(--color-success);
 }
 
+.order-summary__refund {
+  color: var(--color-danger);
+}
+
 .order-summary__total {
   color: var(--color-ink);
   font-size: var(--text-lg) !important;

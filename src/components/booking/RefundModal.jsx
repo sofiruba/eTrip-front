@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { findById } from '../../data/selectors'
 import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
 import { formatMoney, formatSessionDate } from '../../utils/format'
+import { getRefundAmount } from '../../utils/orders'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
@@ -9,7 +11,7 @@ import Modal from '../ui/Modal'
 const REASONS = ['Tuve un imprevisto', 'No puedo asistir en esa fecha', 'Me equivoqué al reservar', 'Otro motivo']
 
 function RefundModal({ booking, onClose }) {
-  const { refundBooking } = useStore()
+  const { db, refundBooking } = useStore()
   const notify = useToast()
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
@@ -56,7 +58,7 @@ function RefundModal({ booking, onClose }) {
         </FormField>
         <FormField as="textarea" label="Detalle (opcional)" rows={3} placeholder="Contanos un poco más..." />
         <p className="muted small">
-          Vas a recibir {formatMoney(booking.unitPrice * booking.quantity)} y tu voucher {booking.voucherCode} quedará anulado.
+          Vas a recibir {formatMoney(getRefundAmount(booking, findById(db.orders, booking.orderId)))} y tu voucher {booking.voucherCode} quedará anulado.
         </p>
       </form>
     </Modal>

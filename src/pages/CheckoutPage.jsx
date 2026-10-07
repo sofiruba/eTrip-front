@@ -1,17 +1,31 @@
 import { useState } from 'react'
-import { CircleCheck, Lock, ShoppingBag } from 'lucide-react'
-import OrderSummary from '../components/booking/OrderSummary'
-import { toSummaryItems } from '../components/booking/toSummaryItems'
-import VoucherCard from '../components/booking/VoucherCard'
+import { Lock, ShieldCheck, ShoppingBag } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import CheckoutSteps from '../components/checkout/CheckoutSteps'
+import CheckoutSummary from '../components/checkout/CheckoutSummary'
+import PaymentMethods from '../components/checkout/PaymentMethods'
+import { EMPTY_CARD, WALLETS } from '../components/checkout/paymentOptions'
+import PaymentProcessing from '../components/checkout/PaymentProcessing'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
-import FormField from '../components/ui/FormField'
 import PageHeader from '../components/ui/PageHeader'
 import { validateCoupon } from '../data/selectors'
 import { useAuth } from '../hooks/useAuth'
 import { useCart } from '../hooks/useCart'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useSavedCards } from '../hooks/useSavedCards'
 import { useStore } from '../hooks/useStore'
-import { fullName } from '../utils/format'
+import {
+  CARD_BRANDS,
+  DECLINED_TEST_CARD,
+  cardLabel,
+  detectBrand,
+  isCardExpired,
+  onlyDigits,
+  toSavedCard,
+  validateCard,
+} from '../utils/cards'
+import { formatMoney, fullName } from '../utils/format'
 import { calculateDiscount } from '../utils/orders'
 import './CheckoutPage.css'
 
@@ -19,14 +33,22 @@ function CheckoutPage() {
   const { db, placeOrder } = useStore()
   const { user } = useAuth()
   const cart = useCart()
-  const [couponInput, setCouponInput] = useState('')
+  const savedCards = useSavedCards()
+  const navigate = useNavigate()
+  useDocumentTitle('Pago')
+
+  const [method, setMethod] = useState(() => {
+    const usable = savedCards.cards.find((saved) => !isCardExpired(saved))
+    return usable ? `saved:${usable.id}` : 'card'
+  })
+  const [card, setCard] = useState(() => ({ ...EMPTY_CARD, holder: fullName(user) }))
+  const [touched, setTouched] = useState({})
+  const [submitted, setSubmitted] = useState(false)
   const [coupon, setCoupon] = useState(null) // resultado de validateCoupon
   const [error, setError] = useState('')
-  const [placedBookings, setPlacedBookings] = useState(null)
+  const [payment, setPayment] = useState(null) // { provider, label, approved } mientras se procesa
 
-  if (placedBookings) return <CheckoutSuccess bookings={placedBookings} />
-
-  if (!cart.lines.length) {
+  if (!cart.lines.length && !payment) {
     return (
       <div className="container page page--narrow">
         <EmptyState icon={ShoppingBag} title="No hay nada para pagar" text="Agregá una experiencia al carrito para continuar.">
@@ -37,95 +59,137 @@ function CheckoutPage() {
   }
 
   const discount = coupon?.valid ? calculateDiscount(cart.total, coupon) : 0
+  const total = cart.total - discount
+  const cardErrors = method === 'card' ? validateCard(card) : {}
+  const visibleCardErrors = Object.fromEntries(
+    Object.entries(cardErrors).filter(([field]) => submitted || touched[field]),
+  )
 
-  const applyCoupon = () => setCoupon(couponInput.trim() ? validateCoupon(db.coupons, couponInput) : null)
+  const findSoldOut = () => cart.lines.find((line) => line.quantity > line.session.availableSeats)
+
+  const describePayment = () => {
+    if (method === 'card') {
+      const brand = detectBrand(card.number)
+      return {
+        provider: `el banco emisor de tu ${CARD_BRANDS[brand].name}`,
+        label: cardLabel({ brand, last4: onlyDigits(card.number).slice(-4) }),
+        approved: onlyDigits(card.number) !== DECLINED_TEST_CARD,
+      }
+    }
+    if (method.startsWith('saved:')) {
+      const saved = savedCards.cards.find((entry) => `saved:${entry.id}` === method)
+      return { provider: `el banco emisor de tu ${CARD_BRANDS[saved.brand].name}`, label: cardLabel(saved), approved: true }
+    }
+    const wallet = WALLETS.find((entry) => entry.id === method)
+    return { provider: wallet.name, label: wallet.name, approved: true }
+  }
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    const soldOut = cart.lines.find((line) => line.quantity > line.session.availableSeats)
-    if (soldOut) return setError(`No quedan suficientes lugares para “${soldOut.experience.title}”. Ajustá la cantidad en el carrito.`)
+    setError('')
+    const soldOut = findSoldOut()
+    if (soldOut) return setError(`No quedan suficientes lugares para “${soldOut.experience.title}”. Ajustá la cantidad.`)
 
-    const { bookings } = placeOrder({
+    if (Object.keys(cardErrors).length) {
+      setSubmitted(true)
+      // Llevamos el foco al primer campo con error (después de que se pinte).
+      return requestAnimationFrame(() => document.querySelector('.card-form [aria-invalid="true"]')?.focus())
+    }
+    return setPayment(describePayment())
+  }
+
+  const completeOrder = () => {
+    const soldOut = findSoldOut()
+    if (soldOut) {
+      setPayment(null)
+      return setError(`Mientras pagabas se agotaron lugares para “${soldOut.experience.title}”. No se te cobró nada.`)
+    }
+    const { order, bookings } = placeOrder({
       buyer: user,
       items: cart.lines.map(({ sessionId, quantity }) => ({ sessionId, quantity })),
       coupon: coupon?.valid ? db.coupons.find((entry) => entry.code === coupon.code) : null,
     })
+    if (method === 'card' && card.save) savedCards.saveCard(toSavedCard(card))
     cart.clear()
-    return setPlacedBookings(bookings)
+    return navigate(`/checkout/confirmacion/${order.id}`, {
+      replace: true,
+      state: { paymentLabel: payment.label, total: order.total, bookingCount: bookings.length },
+    })
   }
 
   return (
     <div className="container page">
-      <PageHeader back={{ to: '/carrito', label: 'Volver al carrito' }} eyebrow="Checkout" title="Confirmá tu" accent="reserva." />
+      <CheckoutSteps current={1} />
+      <PageHeader back={{ to: '/carrito', label: 'Volver al carrito' }} title="Confirmá y" accent="pagá." />
 
-      <div className="split">
-        <form id="checkout-form" className="card stack" onSubmit={handleSubmit}>
-          <h2>Datos de contacto</h2>
-          <div className="form-grid">
-            <FormField label="Nombre completo" defaultValue={fullName(user)} required />
-            <FormField label="Email" type="email" defaultValue={user.email} required />
-          </div>
-
-          <hr className="divider" />
-
-          <h2>Cupón de descuento</h2>
-          <div className="checkout__coupon">
-            <FormField
-              label="Código"
-              value={couponInput}
-              placeholder="Ej: PLANFINDE10"
-              onChange={(event) => setCouponInput(event.target.value.toUpperCase())}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  applyCoupon()
-                }
+      <div className="checkout">
+        <form className="checkout__main" onSubmit={handleSubmit} noValidate>
+          <section className="checkout__panel">
+            <h2>Método de pago</h2>
+            <PaymentMethods
+              method={method}
+              onMethodChange={(value) => {
+                setMethod(value)
+                setSubmitted(false)
               }}
-              error={coupon && !coupon.valid ? coupon.reason : undefined}
-              hint={coupon?.valid ? `¡Listo! ${coupon.percentage}% de descuento aplicado.` : undefined}
+              savedCards={savedCards.cards}
+              card={card}
+              cardErrors={visibleCardErrors}
+              onCardChange={(patch) => setCard((current) => ({ ...current, ...patch }))}
+              onCardBlur={(field) => setTouched((current) => ({ ...current, [field]: true }))}
             />
-            <Button variant="secondary" onClick={applyCoupon}>
-              Aplicar
-            </Button>
-          </div>
+          </section>
 
-          <p className="checkout__notice">
-            <Lock size={16} aria-hidden />
-            Esta es una demo: no se procesan pagos reales.
+          <p className="checkout__buyer">
+            Pagás como <strong>{fullName(user)}</strong> · {user.email}. Te enviamos los vouchers a ese email.
           </p>
-          {error && <p className="form-error">{error}</p>}
+
+          <p className="checkout__legal">
+            Al seleccionar el botón, aceptás los <Link to="/terminos">términos y condiciones</Link> y la{' '}
+            <Link to="/ayuda#cancelaciones">política de cancelación</Link>. Consultá la{' '}
+            <Link to="/privacidad">política de privacidad</Link> de PLAN.
+          </p>
+
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button type="submit" className="checkout__pay" disabled={Boolean(payment)}>
+            <Lock size={18} aria-hidden />
+            Confirmá y pagá {formatMoney(total)}
+          </button>
+
+          <p className="checkout__secure">
+            <ShieldCheck size={16} aria-hidden />
+            Pago protegido con cifrado de extremo a extremo. Nunca guardamos el número completo ni el CVV.
+          </p>
         </form>
 
-        <OrderSummary items={toSummaryItems(cart.lines)} discount={discount} couponCode={coupon?.code} totalLabel="Total a pagar">
-          <Button type="submit" form="checkout-form" full>
-            Confirmar y pagar
-          </Button>
-        </OrderSummary>
+        <CheckoutSummary
+          lines={cart.lines}
+          subtotal={cart.total}
+          discount={discount}
+          coupon={coupon}
+          onApplyCoupon={(code) => setCoupon(validateCoupon(db, code, user.id))}
+          onRemoveCoupon={() => setCoupon(null)}
+          onQuantityChange={cart.updateQuantity}
+        />
       </div>
-    </div>
-  )
-}
 
-function CheckoutSuccess({ bookings }) {
-  return (
-    <div className="container page page--narrow checkout__success">
-      <CircleCheck size={56} className="checkout__success-icon" aria-hidden />
-      <span className="eyebrow">Reserva confirmada</span>
-      <h1>
-        Tu plan ya <em>es real.</em>
-      </h1>
-      <p className="muted">Guardá tus vouchers: los vas a necesitar al llegar. También los encontrás en Mis reservas.</p>
-      <div className="stack checkout__vouchers">
-        {bookings.map((booking) => (
-          <VoucherCard key={booking.id} booking={booking} compact />
-        ))}
-      </div>
-      <div className="row">
-        <Button to="/mis-reservas">Ver mis reservas</Button>
-        <Button to="/" variant="ghost">
-          Seguir explorando
-        </Button>
-      </div>
+      {payment && (
+        <PaymentProcessing
+          provider={payment.provider}
+          amount={total}
+          approved={payment.approved}
+          onApproved={completeOrder}
+          onDeclined={() => {
+            setPayment(null)
+            setError('El banco rechazó la tarjeta. Probá con otra tarjeta o con otro medio de pago.')
+          }}
+        />
+      )}
     </div>
   )
 }

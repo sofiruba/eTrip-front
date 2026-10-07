@@ -12,7 +12,7 @@ import './Modal.css'
 function Modal({ title, description, onClose, footer, size = 'md', variant = 'dialog', children }) {
   const titleId = useId()
   const panelRef = useRef(null)
-  useModalBehavior(onClose)
+  useModalBehavior(onClose, panelRef)
 
   useEffect(() => {
     panelRef.current?.focus()

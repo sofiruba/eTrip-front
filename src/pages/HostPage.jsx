@@ -9,6 +9,7 @@ import PageHeader from '../components/ui/PageHeader'
 import Tabs from '../components/ui/Tabs'
 import { byStartsAt, getHostBookings } from '../data/selectors'
 import { useAuth } from '../hooks/useAuth'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useStore } from '../hooks/useStore'
 import NotFoundPage from './NotFoundPage'
 import './HostPage.css'
@@ -23,6 +24,7 @@ const TABS = [
 /** Modo anfitrión: reemplaza a las 6 pantallas sueltas que había antes. */
 function HostPage() {
   const { tab = 'resumen' } = useParams()
+  useDocumentTitle('Modo anfitrión')
   const { db, experiences } = useStore()
   const { user } = useAuth()
 

@@ -22,6 +22,57 @@
   text-transform: uppercase;
 }
 
+.data-table__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.data-table__sort svg {
+  opacity: 0.45;
+}
+
+.data-table__sort:hover,
+.data-table__sort.is-active {
+  color: var(--color-ink);
+}
+
+.data-table__sort.is-active svg {
+  opacity: 1;
+}
+
+.data-table__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 16px;
+  border-top: 1px solid var(--color-line);
+}
+
+.data-table__pagination button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.data-table__pagination button:disabled {
+  color: var(--color-line-strong);
+  cursor: default;
+}
+
 .data-table td {
   padding: 14px 16px;
   border-top: 1px solid var(--color-line);
@@ -47,6 +98,53 @@
   color: var(--color-muted);
 }
 
+.cell-thumb {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+/* Usos de un cupón: "3 / 50" + barra */
+.usage-meter {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 90px;
+}
+
+.usage-meter__text {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.usage-meter__text strong {
+  color: var(--color-ink);
+}
+
+.usage-meter__bar {
+  overflow: hidden;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-sand);
+}
+
+.usage-meter__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-success);
+}
+
+.usage-meter__bar.is-high span {
+  background: var(--color-warning);
+}
+
+.usage-meter__bar.is-full span {
+  background: var(--color-danger);
+}
+
 .cell-actions {
   display: flex;
   justify-content: flex-end;
@@ -61,6 +159,11 @@
 
   .data-table thead {
     display: none;
+  }
+
+  .data-table__pagination {
+    padding: var(--space-2) 0;
+    border-top: 0;
   }
 
   .data-table tr {

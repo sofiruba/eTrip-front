@@ -8,7 +8,7 @@ function ReviewCard({ review, showExperience = false, actions }) {
   return (
     <article className="review-card">
       <header className="review-card__header">
-        {!showExperience && <Avatar name={review.userName} size="sm" />}
+        {!showExperience && <Avatar name={review.userName} src={review.userAvatarUrl} size="sm" />}
         <div className="review-card__author">
           <strong>{showExperience ? review.experienceTitle : review.userName}</strong>
           <small className="muted">{formatRelativeDate(review.createdAt)}</small>

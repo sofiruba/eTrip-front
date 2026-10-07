@@ -50,19 +50,54 @@
   padding: var(--space-5);
   border-radius: var(--radius-lg);
   background:
-    linear-gradient(90deg, rgb(255 255 255 / 0.5) 1px, transparent 1px) 0 0 / 32px 32px,
-    linear-gradient(rgb(255 255 255 / 0.5) 1px, transparent 1px) 0 0 / 32px 32px,
-    #e7eee0;
+    linear-gradient(90deg, var(--color-map-grid) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(var(--color-map-grid) 1px, transparent 1px) 0 0 / 32px 32px,
+    var(--color-map);
   text-align: center;
 }
 
 .experience__map svg {
-  color: var(--color-brand);
+  color: var(--color-brand-text);
+}
+
+.experience__sticky-cta {
+  display: none;
 }
 
 /* En mobile, reservar queda a mano apenas después de la galería */
 @media (max-width: 900px) {
   .experience__body .booking-panel {
     order: -1;
+  }
+
+  .experience__sticky-cta {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--gutter);
+    border-top: 1px solid var(--color-line);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-md);
+    transform: translateY(100%);
+    transition: transform var(--transition);
+  }
+
+  /* Lugar para la barra fija, así no tapa el final de la página */
+  .experience-page {
+    padding-bottom: 96px;
+  }
+
+  .experience__sticky-cta.is-visible {
+    transform: none;
+  }
+
+  .experience__sticky-cta p {
+    margin: 0;
   }
 }

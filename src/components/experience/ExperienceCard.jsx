@@ -1,6 +1,8 @@
 import { CalendarDays } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { isSoldOut, LOW_SEATS } from '../../data/selectors'
 import { formatShortDate } from '../../utils/format'
+import { ADULT_AGE } from '../../utils/guests'
 import Badge from '../ui/Badge'
 import ImageWithFallback from '../ui/ImageWithFallback'
 import Money from '../ui/Money'
@@ -15,18 +17,30 @@ import './ExperienceCard.css'
 function ExperienceCard({ experience, to = `/experiencias/${experience.id}`, footer, showFavorite = true }) {
   const { title, subtitle, images, location, publisherName, finalPrice, price, discountPercentage, nextSession } = experience
   const Wrapper = to ? Link : 'div'
+  const soldOut = isSoldOut(experience)
+  const seatsLeft = nextSession?.availableSeats ?? 0
 
   return (
-    <article className="experience-card">
+    <article className={`experience-card ${soldOut ? 'is-sold-out' : ''}`}>
       <Wrapper {...(to ? { to } : {})} className="experience-card__link">
         <div className="experience-card__media">
           <ImageWithFallback src={images[0]} alt={title} />
+          {discountPercentage > 0 && (
+            <div className="experience-card__discount">
+              <Badge tone="brand">-{discountPercentage}%</Badge>
+            </div>
+          )}
           <div className="experience-card__badges">
-            <Badge tone={nextSession ? 'neutral' : 'warning'}>
-              <CalendarDays size={12} aria-hidden />
-              {nextSession ? formatShortDate(nextSession.startsAt) : 'Sin fechas'}
-            </Badge>
-            {discountPercentage > 0 && <Badge tone="brand">-{discountPercentage}%</Badge>}
+            {soldOut ? (
+              <Badge tone="danger">Agotado</Badge>
+            ) : (
+              <Badge tone={nextSession ? 'neutral' : 'warning'}>
+                <CalendarDays size={12} aria-hidden />
+                {nextSession ? formatShortDate(nextSession.startsAt) : 'Sin fechas'}
+              </Badge>
+            )}
+            {nextSession && seatsLeft <= LOW_SEATS && <Badge tone="warning">¡Quedan {seatsLeft}!</Badge>}
+            {experience.minAge >= ADULT_AGE && <Badge tone="neutral">+18</Badge>}
           </div>
         </div>
         <div className="experience-card__body">

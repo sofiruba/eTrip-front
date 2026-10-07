@@ -1,0 +1,112 @@
+.pay-methods {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pay-methods ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pay-option {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.pay-option:last-child {
+  border-bottom: 0;
+}
+
+.pay-option__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  cursor: pointer;
+}
+
+.pay-option__row.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.pay-option__icon {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  color: var(--color-ink);
+}
+
+.pay-option__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pay-option__text strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.pay-option__text small {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.pay-option__expired {
+  color: var(--color-danger) !important;
+}
+
+.pay-option__radio {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--color-ink);
+  cursor: inherit;
+}
+
+.pay-option__body {
+  padding-bottom: var(--space-5);
+  animation: pay-option-in 200ms ease;
+}
+
+@keyframes pay-option-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.wallet-logo {
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.wallet-logo--mercadopago {
+  background: #00b1ea;
+  color: #fff;
+}
+
+.wallet-logo--paypal {
+  background: #003087;
+  color: #fff;
+  font-style: italic;
+  font-size: 14px;
+}
+
+.wallet-logo--gpay {
+  border: 1px solid var(--color-line-strong);
+  background: #fff;
+  color: #3c4043;
+}

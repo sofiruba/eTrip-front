@@ -1,15 +1,21 @@
-import { Mail, Users } from 'lucide-react'
+import { useState } from 'react'
+import { Mail, Users, Undo2 } from 'lucide-react'
 import { findById } from '../../data/selectors'
 import { useStore } from '../../hooks/useStore'
+import { useToast } from '../../hooks/useToast'
 import { formatLongDate, formatTime, fullName, pluralize } from '../../utils/format'
 import Avatar from '../ui/Avatar'
 import EmptyState from '../ui/EmptyState'
 import CapacityBar from './CapacityBar'
 import './HostBookings.css'
+import Button from '../ui/Button'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 /** Huéspedes agrupados por sesión (solo próximas y no reembolsadas). */
 function HostBookings({ bookings }) {
-  const { db } = useStore()
+  const { db, refundBooking } = useStore()
+  const notify = useToast()
+  const [refunding, setRefunding] = useState(null)
   const active = bookings.filter((booking) => !booking.isPast && !booking.refunded)
 
   const groups = Object.values(
@@ -56,12 +62,32 @@ function HostBookings({ bookings }) {
                       Escribir
                     </a>
                   )}
+                  <Button size="sm" variant="danger" icon={Undo2} onClick={() => setRefunding(booking)}>
+                    Reembolsar
+                  </Button>
                 </li>
               )
             })}
           </ul>
         </section>
       ))}
+      {refunding && (
+        <ConfirmDialog
+          title="¿Cancelar y reembolsar reserva?"
+          message={`Se anula el voucher ${refunding.voucherCode} y se le devuelve el dinero a ${refunding.buyerName}.`}
+          confirmLabel="Reembolsar"
+          onConfirm={async () => {
+            try {
+              await refundBooking(refunding.id)
+              setRefunding(null)
+            } catch (error) {
+              notify(error.message, 'error')
+              setRefunding(null)
+            }
+          }}
+          onClose={() => setRefunding(null)}
+        />
+      )}
     </div>
   )
 }

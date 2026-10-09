@@ -36,6 +36,9 @@ function BookingPanel({ id, experience, sessions }) {
   const amount = Math.min(quantity, Math.max(maxQuantity, 1))
 
   const addToCart = () => {
+    if (!user) {
+      return notify('Iniciá sesión para agregar experiencias al carrito', 'info')
+    }
     cart.add(selected.id, amount)
     notify(`${pluralize(amount, 'lugar', 'lugares')} agregado${amount === 1 ? '' : 's'} al carrito`, 'success', {
       label: 'Ver carrito',
@@ -137,6 +140,7 @@ function BookingPanel({ id, experience, sessions }) {
           <Button
             full
             onClick={() => {
+              if (!user) return notify('Iniciá sesión para reservar', 'info')
               if (maxQuantity > 0) cart.add(selected.id, amount)
               navigate('/carrito')
             }}

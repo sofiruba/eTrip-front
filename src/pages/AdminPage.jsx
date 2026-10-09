@@ -1,4 +1,4 @@
-import { CalendarCheck, LayoutGrid, MessageSquare, Receipt, Store, Tags, TicketPercent, Users } from 'lucide-react'
+import { CalendarCheck, CalendarDays, LayoutGrid, MessageSquare, Receipt, Store, Tags, TicketPercent, Users } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import AdminOverview from '../components/admin/AdminOverview'
 import BookingsAdmin from '../components/admin/BookingsAdmin'
@@ -7,6 +7,7 @@ import CouponsAdmin from '../components/admin/CouponsAdmin'
 import ExperiencesAdmin from '../components/admin/ExperiencesAdmin'
 import OrdersAdmin from '../components/admin/OrdersAdmin'
 import ReviewsAdmin from '../components/admin/ReviewsAdmin'
+import SessionsAdmin from '../components/admin/SessionsAdmin'
 import UsersAdmin from '../components/admin/UsersAdmin'
 import Tabs from '../components/ui/Tabs'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -29,6 +30,14 @@ const GROUPS = [
         component: ExperiencesAdmin,
         collection: 'experiences',
         description: 'Todas las publicaciones del sitio. Revisá disponibilidad, ventas y dá de baja las que no cumplan las reglas.',
+      },
+      {
+        id: 'sesiones',
+        label: 'Sesiones',
+        icon: CalendarDays,
+        component: SessionsAdmin,
+        collection: 'sessions',
+        description: 'Todas las fechas publicadas. Podés crear, editar, pausar o quitar sesiones.',
       },
       { id: 'categorias', label: 'Categorías', icon: Tags, component: CategoriesAdmin, collection: 'categories', description: 'Cómo se agrupan las experiencias en el catálogo.' },
     ],

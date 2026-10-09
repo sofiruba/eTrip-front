@@ -41,6 +41,8 @@
 }
 
 .experience__map {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -49,15 +51,59 @@
   min-height: 200px;
   padding: var(--space-5);
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(90deg, var(--color-map-grid) 1px, transparent 1px) 0 0 / 32px 32px,
-    linear-gradient(var(--color-map-grid) 1px, transparent 1px) 0 0 / 32px 32px,
-    var(--color-map);
   text-align: center;
 }
 
-.experience__map svg {
+.experience__map iframe {
+  display: block;
+  width: 100%;
+  height: 280px;
+  border: 0;
+}
+
+.experience__map-fallback {
+  display: flex;
+  min-height: 280px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  background: var(--color-map);
+  text-align: center;
+}
+
+.experience__map-fallback svg {
   color: var(--color-brand-text);
+}
+
+.experience__map-label {
+  position: absolute;
+  top: var(--space-4);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 999px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  color: var(--color-ink);
+  transform: translateX(-50%);
+}
+
+.experience__map-label svg {
+  color: var(--color-brand-text);
+}
+
+.experience__map > small {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+}
+
+.experience__map-fallback + .experience__map-label {
+  display: none;
 }
 
 .experience__sticky-cta {

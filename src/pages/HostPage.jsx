@@ -33,7 +33,7 @@ function HostPage() {
   const myExperiences = experiences.filter((experience) => experience.publisherId === user.id)
   const myExperienceIds = myExperiences.map((experience) => experience.id)
   const mySessions = db.sessions.filter((session) => myExperienceIds.includes(session.experienceId)).sort(byStartsAt)
-  const myBookings = getHostBookings(db, user.id)
+  const myBookings = getHostBookings(db)
 
   const panels = {
     resumen: myExperiences.length ? (

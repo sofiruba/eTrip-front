@@ -59,8 +59,10 @@ export function buildOrder({ orderId, firstBookingId, buyer, items, coupon, crea
 
 /** Lo que se devuelve de una reserva: su parte del total, prorrateando el cupón si hubo. */
 export function getRefundAmount(booking, order) {
-  const gross = booking.unitPrice * booking.quantity
-  return order?.subtotal ? Math.round((gross * order.total) / order.subtotal) : gross
+  const gross = Number(booking.unitPrice ?? 0) * Number(booking.quantity ?? 0)
+  const subtotal = Number(order?.subtotal ?? 0)
+  const total = Number(order?.total ?? 0)
+  return subtotal ? Math.round((gross * total) / subtotal) : gross
 }
 
 /** Total reembolsado de una orden. */
@@ -72,5 +74,5 @@ export function getOrderRefunded(order, bookings) {
 
 /** Ventas netas: lo cobrado menos lo devuelto. */
 export function getNetSales(orders, bookings) {
-  return orders.reduce((sum, order) => sum + order.total - getOrderRefunded(order, bookings), 0)
+  return orders.reduce((sum, order) => sum + Number(order.total ?? 0) - getOrderRefunded(order, bookings), 0)
 }

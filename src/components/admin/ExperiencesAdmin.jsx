@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { ExternalLink, Eye, Store, Trash2 } from 'lucide-react'
+import { ExternalLink, Eye, Power, Store, Trash2 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getUpcomingSessions, isSoldOut } from '../../data/selectors'
 import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
-import { formatMoney, formatSessionDate, isPast, normalizeText, pluralize } from '../../utils/format'
+import { formatMoney, formatSessionDate, normalizeText, pluralize } from '../../utils/format'
 import { getCity } from '../../utils/location'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
@@ -34,7 +34,7 @@ function getStatus(experience) {
 
 /** Todas las experiencias publicadas: para revisar el catálogo y dar de baja publicaciones. */
 function ExperiencesAdmin() {
-  const { db, experiences, removeExperience } = useStore()
+  const { db, experiences, removeExperience, update } = useStore()
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
   const notify = useToast()
@@ -53,8 +53,7 @@ function ExperiencesAdmin() {
         amount: 0,
       })
 
-  const hasActiveBookings = (experienceId) =>
-    db.bookings.some((booking) => booking.experienceId === experienceId && !booking.refunded && !isPast(booking.startsAt))
+  const hasBookings = (experienceId) => db.bookings.some((booking) => booking.experienceId === experienceId)
 
   const query = normalizeText(search.trim())
   const rows = experiences
@@ -70,8 +69,8 @@ function ExperiencesAdmin() {
   const selected = selectedId && rows.find((experience) => experience.id === selectedId)
 
   const askDelete = (experience) => {
-    if (hasActiveBookings(experience.id)) {
-      notify('Tiene reservas próximas: primero hay que reembolsarlas desde Reservas.', 'error')
+    if (hasBookings(experience.id)) {
+      notify('Tiene reservas asociadas y no se puede eliminar para conservar el historial.', 'error')
       return
     }
     setDeleting(experience)
@@ -147,6 +146,19 @@ function ExperiencesAdmin() {
             render: (experience) => (
               <div className="cell-actions">
                 <IconButton icon={Eye} label="Ver detalle" variant="ghost" onClick={() => setSelectedId(experience.id)} />
+                <IconButton
+                  icon={Power}
+                  label={experience.active ? 'Desactivar' : 'Activar'}
+                  variant="ghost"
+                  onClick={async () => {
+                    try {
+                      await update('experiences', experience.id, { active: !experience.active })
+                      notify(experience.active ? 'Experiencia desactivada' : 'Experiencia activada', 'info')
+                    } catch (error) {
+                      notify(error.message, 'error')
+                    }
+                  }}
+                />
                 <IconButton icon={Trash2} label="Dar de baja" variant="ghost" onClick={() => askDelete(experience)} />
               </div>
             ),
@@ -173,8 +185,23 @@ function ExperiencesAdmin() {
               <Button variant="ghost" icon={ExternalLink} to={`/experiencias/${selected.id}`}>
                 Ver publicación
               </Button>
+              <Button
+                variant="secondary"
+                icon={Power}
+                onClick={async () => {
+                  try {
+                    await update('experiences', selected.id, { active: !selected.active })
+                    setSelectedId(null)
+                    notify(selected.active ? 'Experiencia desactivada' : 'Experiencia activada', 'info')
+                  } catch (error) {
+                    notify(error.message, 'error')
+                  }
+                }}
+              >
+                {selected.active ? 'Desactivar' : 'Activar'}
+              </Button>
               <Button variant="danger" icon={Trash2} onClick={() => askDelete(selected)}>
-                Dar de baja
+                Eliminar
               </Button>
             </>
           }
@@ -199,13 +226,18 @@ function ExperiencesAdmin() {
 
       {deleting && (
         <ConfirmDialog
-          title="¿Dar de baja la experiencia?"
-          message={`“${deleting.title}” de ${deleting.publisherName} deja de verse en el sitio, junto con todas sus fechas.`}
-          confirmLabel="Dar de baja"
-          onConfirm={() => {
-            removeExperience(deleting.id)
-            setSelectedId(null)
-            notify('Experiencia dada de baja', 'info')
+          title="¿Eliminar la experiencia?"
+          message={`“${deleting.title}” de ${deleting.publisherName} se eliminará junto con sus fechas.`}
+          confirmLabel="Eliminar"
+          onConfirm={async () => {
+            try {
+              await removeExperience(deleting.id)
+              setSelectedId(null)
+              setDeleting(null)
+              notify('Experiencia eliminada', 'info')
+            } catch (error) {
+              notify(error.message, 'error')
+            }
           }}
           onClose={() => setDeleting(null)}
         />

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { demoAccounts } from '../../data'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
 import InterestPicker from '../profile/InterestPicker'
@@ -32,7 +31,9 @@ function validate(form, isLogin) {
     if (!USERNAME_PATTERN.test(form.username)) errors.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.'
     if (!/^\S+@\S+\.\S+$/.test(form.email)) errors.email = 'Ingresá un email válido.'
   }
-  if (form.password.length < MIN_PASSWORD) errors.password = `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`
+  if (!isLogin && form.password.length < MIN_PASSWORD) {
+    errors.password = `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`
+  }
   return errors
 }
 
@@ -59,7 +60,8 @@ function AuthModal() {
     setFormError('')
   }
 
-  const finish = (result) => {
+  const finish = async (resultPromise) => {
+    const result = await resultPromise
     if (result.error) return setFormError(result.error)
     notify(`¡Hola, ${result.user.firstName}!`)
     if (authRedirect) navigate(authRedirect)
@@ -68,7 +70,7 @@ function AuthModal() {
     return undefined
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     if (mode === 'interests') {
       if (interests.length < MIN_INTERESTS) return setFormError(`Elegí al menos ${MIN_INTERESTS} intereses.`)
@@ -84,14 +86,7 @@ function AuthModal() {
     <Modal title={COPY[mode].title} description={COPY[mode].description} onClose={closeAuth}>
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         {mode === 'login' && (
-          <div className="auth-demo">
-            {demoAccounts.map((account) => (
-              <button type="button" key={account.email} onClick={() => finish(login({ usernameOrEmail: account.email }))}>
-                <strong>{account.label}</strong>
-                <small>{account.email}</small>
-              </button>
-            ))}
-          </div>
+          <p className="auth-divider">Ingresá con la cuenta que registraste en el sistema.</p>
         )}
 
         {mode !== 'interests' && (
@@ -128,7 +123,7 @@ function AuthModal() {
               value={form.password}
               onChange={setField('password')}
               error={errors.password}
-              hint={isLogin ? 'En las cuentas demo cualquier contraseña de 6+ caracteres sirve.' : `Mínimo ${MIN_PASSWORD} caracteres.`}
+              hint={!isLogin ? `Mínimo ${MIN_PASSWORD} caracteres.` : undefined}
               autoComplete={isLogin ? 'current-password' : 'new-password'}
               addon={
                 <button

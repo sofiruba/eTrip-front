@@ -1,4 +1,5 @@
 import { normalizeText } from './format'
+import { cities } from '../data/cities'
 
 /**
  * Las experiencias guardan su ubicación como "Barrio, Ciudad" en un solo texto
@@ -25,6 +26,11 @@ export function getArea(location) {
 
 export function buildLocation(area, city) {
   return [area.trim(), city.trim()].filter(Boolean).join(', ')
+}
+
+export function findKnownCity(value) {
+  const normalized = normalizeText(value?.trim() ?? '')
+  return cities.find((city) => normalizeText(city.name) === normalized) ?? null
 }
 
 /** Igual que el back pero sin acentos: "cordoba" encuentra "Córdoba". */

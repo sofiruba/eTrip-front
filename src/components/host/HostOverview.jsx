@@ -7,7 +7,12 @@ import './HostOverview.css'
 
 function HostOverview({ experiences, sessions, bookings }) {
   const activeBookings = bookings.filter((booking) => !booking.refunded)
-  const income = activeBookings.reduce((sum, booking) => sum + booking.unitPrice * booking.quantity, 0)
+  const income = activeBookings.reduce((sum, booking) => {
+    const experience = experiences.find((item) => item.id === booking.experienceId)
+    const unitPrice = Number(booking.unitPrice ?? experience?.finalPrice ?? experience?.price ?? 0)
+    const quantity = Number(booking.quantity ?? 0)
+    return sum + unitPrice * quantity
+  }, 0)
   const reviewCount = experiences.reduce((sum, experience) => sum + experience.reviewCount, 0)
   const rating = reviewCount
     ? experiences.reduce((sum, experience) => sum + experience.averageRating * experience.reviewCount, 0) / reviewCount

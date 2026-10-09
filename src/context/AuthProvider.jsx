@@ -1,64 +1,82 @@
-import { useMemo, useState } from 'react'
-import { toLocalIso } from '../data/dates'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AuthContext } from '../hooks/useAuth'
-import { usePersistentState } from '../hooks/usePersistentState'
 import { useStore } from '../hooks/useStore'
+import { apiFetch, clearToken, setToken } from '../services/api'
 
 function AuthProvider({ children }) {
-  const { db, create, update } = useStore()
-  const [userId, setUserId] = usePersistentState('plan:userId', null)
+  const { reload } = useStore()
+  const [user, setUser] = useState(null)
   const [authMode, setAuthMode] = useState(null)
-  // A dónde ir después de ingresar (p. ej. el checkout desde el carrito)
   const [authRedirect, setAuthRedirect] = useState(null)
 
-  const value = useMemo(() => {
-    const user = db.users.find((entry) => entry.id === userId && entry.active) ?? null
-    const same = (a = '', b = '') => a.toLowerCase() === b.trim().toLowerCase()
-    const findByEmail = (email) => db.users.find((entry) => same(entry.email, email))
-    const findByUsername = (username) => db.users.find((entry) => same(entry.username, username))
-
-    // Igual que AuthenticationRequest del back: acepta email o nombre de usuario
-    const login = ({ usernameOrEmail, password }) => {
-      const account = findByEmail(usernameOrEmail) ?? findByUsername(usernameOrEmail)
-      if (!account) return { error: 'No encontramos una cuenta con ese email o usuario.' }
-      // Las cuentas semilla no tienen contraseña: en la demo cualquiera sirve
-      if (account.password && account.password !== password) return { error: 'La contraseña no es correcta.' }
-      if (!account.active) return { error: 'Esta cuenta está desactivada. Escribinos para reactivarla.' }
-      setUserId(account.id)
-      setAuthMode(null)
-      return { user: account }
+  const loadUser = useCallback(async () => {
+    try {
+      const current = await apiFetch('/users/me')
+      setUser(current)
+      await reload()
+    } catch {
+      clearToken()
+      setUser(null)
     }
+  }, [reload])
 
-    // Recibe los mismos campos que RegisterRequest del back
-    const register = ({ username, firstname, lastname, email, password, interests }) => {
-      if (findByEmail(email)) return { error: 'Ya existe una cuenta con ese email.' }
-      if (findByUsername(username)) return { error: 'Ese nombre de usuario ya está en uso.' }
-      const account = create('users', {
-        username: username.trim(),
-        firstName: firstname.trim(),
-        lastName: lastname.trim(),
-        email: email.trim(),
-        // Solo en el mock: el back la guarda hasheada y nunca la devuelve
-        password,
-        role: 'CLIENTE',
-        active: true,
-        city: 'Buenos Aires',
-        joinedAt: toLocalIso(new Date()),
-        bio: '',
-        interests,
+  useEffect(() => {
+    if (window.localStorage.getItem('etrip:token')) loadUser()
+  }, [loadUser])
+
+  const login = useCallback(async (credentials) => {
+    try {
+      const response = await apiFetch('/api/v1/auth/authenticate', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
       })
-      setUserId(account.id)
+      setToken(response.access_token)
+      const current = await apiFetch('/users/me')
+      setUser(current)
+      await reload()
       setAuthMode(null)
-      return { user: account }
+      return { user: current }
+    } catch (error) {
+      return {
+        error: [401, 403].includes(error.status)
+          ? 'El email/usuario o la contraseña no son correctos.'
+          : error.message,
+      }
     }
+  }, [reload])
 
-    return {
+  const register = useCallback(async ({ username, firstname, lastname, email, password }) => {
+    try {
+      const response = await apiFetch('/api/v1/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ username, firstname, lastname, email, password }),
+      })
+      setToken(response.access_token)
+      const current = await apiFetch('/users/me')
+      setUser(current)
+      await reload()
+      setAuthMode(null)
+      return { user: current }
+    } catch (error) {
+      return { error: error.message }
+    }
+  }, [reload])
+
+  const value = useMemo(
+    () => ({
       user,
       isAdmin: user?.role === 'ADMIN',
       login,
       register,
-      logout: () => setUserId(null),
-      updateProfile: (patch) => update('users', user.id, patch),
+      logout: () => {
+        clearToken()
+        setUser(null)
+      },
+      updateProfile: async (patch) => {
+        const updated = await apiFetch('/users/me', { method: 'PUT', body: JSON.stringify(patch) })
+        setUser(updated)
+        return updated
+      },
       authMode,
       authRedirect,
       openAuth: (mode = 'login', redirectTo = null) => {
@@ -66,8 +84,9 @@ function AuthProvider({ children }) {
         setAuthRedirect(redirectTo)
       },
       closeAuth: () => setAuthMode(null),
-    }
-  }, [db.users, userId, authMode, authRedirect, create, update, setUserId])
+    }),
+    [user, login, register, authMode, authRedirect],
+  )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

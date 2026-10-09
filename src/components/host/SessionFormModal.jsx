@@ -23,7 +23,7 @@ function SessionFormModal({ session, experiences, defaultExperienceId, onClose }
   const [error, setError] = useState('')
   const setField = (field) => (event) => setForm({ ...form, [field]: event.target.value })
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     const capacity = Number(form.capacity)
     const startsAt = `${form.date}T${form.time}:00`
@@ -31,19 +31,22 @@ function SessionFormModal({ session, experiences, defaultExperienceId, onClose }
     if (capacity < Math.max(1, booked)) return setError(`El cupo no puede ser menor a ${Math.max(1, booked)} (lugares ya reservados).`)
 
     const experience = experiences.find((entry) => entry.id === Number(form.experienceId))
+    if (!experience) return setError('Elegí una experiencia.')
     const data = {
       experienceId: experience.id,
       startsAt,
       endsAt: addHours(startsAt, experience.durationHours),
       capacity,
-      availableSeats: capacity - booked,
-      active: form.active,
     }
 
-    if (session) update('sessions', session.id, data)
-    else create('sessions', data)
-    notify(session ? 'Sesión actualizada' : 'Nueva fecha publicada')
-    return onClose()
+    try {
+      if (session) await update('sessions', session.id, data)
+      else await create('sessions', data)
+      notify(session ? 'Sesión actualizada' : 'Nueva fecha publicada')
+      onClose()
+    } catch (saveError) {
+      setError(saveError.message)
+    }
   }
 
   return (
@@ -83,10 +86,6 @@ function SessionFormModal({ session, experiences, defaultExperienceId, onClose }
           hint={booked ? `Ya hay ${booked} lugares reservados.` : undefined}
           required
         />
-        <label className="checkbox">
-          <input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} />
-          Sesión visible para reservar
-        </label>
         {error && <p className="form-error">{error}</p>}
       </form>
     </Modal>

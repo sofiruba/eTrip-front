@@ -41,7 +41,7 @@ function BookingDetailPage() {
   const policy = getCancellationPolicy(booking.startsAt)
   const showPolicy = !booking.isPast && !booking.refunded
   const canRefund = showPolicy && policy.refundable
-  const canReview = booking.isPast && !booking.refunded && experience
+  const canReview = booking.endsAt && new Date(booking.endsAt).getTime() < Date.now() && !booking.refunded && experience
 
   return (
     <div className="container page">

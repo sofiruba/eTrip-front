@@ -22,7 +22,7 @@ function getSessionStatus(session) {
 }
 
 function HostCalendar({ experiences, sessions }) {
-  const { remove } = useStore()
+  const { remove, reload } = useStore()
   const notify = useToast()
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState(null) // sesión, 'new' o null
@@ -34,7 +34,7 @@ function HostCalendar({ experiences, sessions }) {
 
   const askDelete = (session) => {
     if (session.availableSeats < session.capacity && !isPast(session.startsAt)) {
-      notify('No podés eliminar una sesión con reservas. Podés pausarla.', 'error')
+      notify('No podés cancelar una sesión con reservas que ya comenzó.', 'error')
       return
     }
     setDeleting(session)
@@ -109,10 +109,16 @@ function HostCalendar({ experiences, sessions }) {
       {deleting && (
         <ConfirmDialog
           title="¿Eliminar sesión?"
-          message="La fecha deja de estar disponible para reservar."
-          onConfirm={() => {
-            remove('sessions', deleting.id)
-            notify('Sesión eliminada', 'info')
+          message="La fecha dejará de estar disponible y se reembolsarán automáticamente todas las reservas futuras de esta sesión."
+          onConfirm={async () => {
+            try {
+              await remove('sessions', deleting.id)
+              await reload()
+              notify('Sesión cancelada y reservas reembolsadas', 'info')
+              setDeleting(null)
+            } catch (deleteError) {
+              notify(deleteError.message, 'error')
+            }
           }}
           onClose={() => setDeleting(null)}
         />

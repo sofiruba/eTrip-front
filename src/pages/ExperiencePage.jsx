@@ -18,7 +18,7 @@ import { findById, getReviews, getUpcomingSessions, isSoldOut } from '../data/se
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useStore } from '../hooks/useStore'
 import { describeMinAge } from '../utils/guests'
-import { getCity } from '../utils/location'
+import { getArea, getCity } from '../utils/location'
 import { useToast } from '../hooks/useToast'
 import NotFoundPage from './NotFoundPage'
 import './ExperiencePage.css'
@@ -27,7 +27,7 @@ const MAX_RELATED = 3
 
 /** Misma categoría primero; si no alcanza, se completa con otras que tengan fechas. */
 function getRelated(experiences, experience) {
-  const others = experiences.filter((entry) => entry.id !== experience.id && entry.nextSession)
+  const others = experiences.filter((entry) => entry.id !== experience.id && entry.active !== false && entry.nextSession)
   const sameCategory = others.filter((entry) => entry.categoryId === experience.categoryId)
   const rest = others.filter((entry) => entry.categoryId !== experience.categoryId)
   return [...sameCategory, ...rest].slice(0, MAX_RELATED)
@@ -53,17 +53,25 @@ function ExperiencePage() {
   const { id } = useParams()
   const { db, experiences } = useStore()
   const notify = useToast()
+  const [mapFailed, setMapFailed] = useState(false)
   const experience = findById(experiences, id)
   const panelOffscreen = useElementOffscreen('reservar', experience?.id)
   useDocumentTitle(experience?.title ?? 'Experiencia no encontrada')
 
-  if (!experience) return <NotFoundPage title="Esta experiencia no existe" text="Puede que el anfitrión la haya despublicado." />
+  if (!experience || experience.active === false) {
+    return <NotFoundPage title="Esta experiencia no está disponible" text="Puede que el anfitrión la haya despublicado." />
+  }
 
   const sessions = getUpcomingSessions(db, experience.id)
   const reviews = getReviews(db, (review) => review.experienceId === experience.id)
   const host = findById(db.users, experience.publisherId)
   const related = getRelated(experiences, experience)
   const soldOut = isSoldOut(experience)
+  const area = getArea(experience.location)
+  const city = getCity(experience.location)
+  const mapLabel = [area, city].filter(Boolean).join(', ') || experience.location
+  // Google ubica el marcador en el punto de referencia del barrio, sin exponer una dirección.
+  const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(mapLabel)}&z=14&output=embed`
 
   const share = async () => {
     try {
@@ -137,8 +145,27 @@ function ExperiencePage() {
           <section className="section">
             <h2>Dónde nos encontramos</h2>
             <div className="experience__map">
-              <MapPin size={28} aria-hidden />
-              <strong>{experience.location}</strong>
+              {mapLabel ? (
+                <iframe
+                  title={`Mapa de ${mapLabel}`}
+                  src={mapUrl}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  onError={() => setMapFailed(true)}
+                  hidden={mapFailed}
+                />
+              ) : null}
+              {(!mapLabel || mapFailed) && (
+                <div className="experience__map-fallback">
+                  <MapPin size={24} aria-hidden />
+                  <strong>Ubicación aproximada no disponible</strong>
+                  <small className="muted">Te enviamos el punto exacto al confirmar la reserva.</small>
+                </div>
+              )}
+              <div className="experience__map-label">
+                <MapPin size={18} aria-hidden />
+                <strong>{mapLabel}</strong>
+              </div>
               <small className="muted">Te enviamos el punto exacto al confirmar la reserva.</small>
             </div>
           </section>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Lock, ShieldCheck, ShoppingBag } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import CheckoutSteps from '../components/checkout/CheckoutSteps'
@@ -9,7 +9,7 @@ import PaymentProcessing from '../components/checkout/PaymentProcessing'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import PageHeader from '../components/ui/PageHeader'
-import { validateCoupon } from '../data/selectors'
+import { apiFetch } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import { useCart } from '../hooks/useCart'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -30,7 +30,7 @@ import { calculateDiscount } from '../utils/orders'
 import './CheckoutPage.css'
 
 function CheckoutPage() {
-  const { db, placeOrder } = useStore()
+  const { placeOrder } = useStore()
   const { user } = useAuth()
   const cart = useCart()
   const savedCards = useSavedCards()
@@ -47,6 +47,7 @@ function CheckoutPage() {
   const [coupon, setCoupon] = useState(null) // resultado de validateCoupon
   const [error, setError] = useState('')
   const [payment, setPayment] = useState(null) // { provider, label, approved } mientras se procesa
+  const completingOrder = useRef(false)
 
   if (!cart.lines.length && !payment) {
     return (
@@ -98,23 +99,40 @@ function CheckoutPage() {
     return setPayment(describePayment())
   }
 
-  const completeOrder = () => {
+  const completeOrder = async () => {
+    if (completingOrder.current) return
+    completingOrder.current = true
     const soldOut = findSoldOut()
     if (soldOut) {
-      setPayment(null)
-      return setError(`Mientras pagabas se agotaron lugares para “${soldOut.experience.title}”. No se te cobró nada.`)
+      completingOrder.current = false
+      const message = `Mientras pagabas se agotaron lugares para “${soldOut.experience.title}”. No se te cobró nada.`
+      setError(message)
+      console.error('[eTrip checkout]', { reason: 'sold_out', message })
+      return { ok: false, message }
     }
-    const { order, bookings } = placeOrder({
-      buyer: user,
-      items: cart.lines.map(({ sessionId, quantity }) => ({ sessionId, quantity })),
-      coupon: coupon?.valid ? db.coupons.find((entry) => entry.code === coupon.code) : null,
-    })
-    if (method === 'card' && card.save) savedCards.saveCard(toSavedCard(card))
-    cart.clear()
-    return navigate(`/checkout/confirmacion/${order.id}`, {
-      replace: true,
-      state: { paymentLabel: payment.label, total: order.total, bookingCount: bookings.length },
-    })
+    try {
+      const { order, bookings } = await placeOrder({
+        buyer: user,
+        items: cart.lines.map(({ sessionId, quantity }) => ({ sessionId, quantity })),
+        coupon: coupon?.valid ? coupon : null,
+      })
+      if (method === 'card' && card.save) savedCards.saveCard(toSavedCard(card))
+      await cart.clear()
+      navigate(`/checkout/confirmacion/${order.id}`, {
+        replace: true,
+        state: { paymentLabel: payment.label, total: order.total, bookingCount: bookings.length },
+      })
+    } catch (orderError) {
+      const message = orderError.message || 'No pudimos confirmar la reserva. Revisá el carrito e intentá nuevamente.'
+      setError(message)
+      console.error('[eTrip checkout] Pago aprobado pero orden rechazada', {
+        message,
+        cartLines: cart.lines.map(({ sessionId, quantity }) => ({ sessionId, quantity })),
+      })
+      return { ok: false, message }
+    } finally {
+      completingOrder.current = false
+    }
   }
 
   return (
@@ -172,7 +190,13 @@ function CheckoutPage() {
           subtotal={cart.total}
           discount={discount}
           coupon={coupon}
-          onApplyCoupon={(code) => setCoupon(validateCoupon(db, code, user.id))}
+          onApplyCoupon={async (code) => {
+            try {
+              setCoupon(await apiFetch(`/discount-coupons/validate?code=${encodeURIComponent(code)}`))
+            } catch (couponError) {
+              setError(couponError.message)
+            }
+          }}
           onRemoveCoupon={() => setCoupon(null)}
           onQuantityChange={cart.updateQuantity}
         />

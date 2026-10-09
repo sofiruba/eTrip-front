@@ -35,8 +35,9 @@ function HomePage() {
   const results = sortExperiences(filterExperiences(db, experiences, filters), filters.sort)
   const visible = results.slice(0, (filters.page + 1) * PAGE_SIZE)
   const hasFilters = [...params.keys()].some((key) => !['orden', 'page'].includes(key))
-  const deals = experiences.filter((experience) => experience.discountPercentage > 0 && experience.nextSession).slice(0, MAX_DEALS)
-  const destinations = getDestinations(experiences)
+  const activeExperiences = experiences.filter((experience) => experience.active !== false)
+  const deals = activeExperiences.filter((experience) => experience.discountPercentage > 0 && experience.nextSession).slice(0, MAX_DEALS)
+  const destinations = getDestinations(activeExperiences)
   const availableDates = getAvailableDates(db.sessions)
   // Si se buscó una ciudad donde todavía no hay nada, el vacío invita a publicar
   const placeIsEmpty = Boolean(filters.location) && !experiences.some((experience) => matchesLocation(experience.location, filters.location))

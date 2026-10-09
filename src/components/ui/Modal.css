@@ -42,6 +42,17 @@
   animation-name: drawer-in;
 }
 
+.modal--drawer .modal__footer {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.modal--drawer .modal__footer > .btn {
+  width: 100%;
+}
+
 .modal__header {
   display: flex;
   align-items: flex-start;
@@ -100,5 +111,13 @@
     max-height: 92vh;
     height: auto;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .modal--drawer .modal__body {
+    max-height: min(52vh, 520px);
+  }
+
+  .modal--drawer .modal__footer {
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
   }
 }

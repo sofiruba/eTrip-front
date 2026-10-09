@@ -17,6 +17,7 @@ function PaymentProcessing({ provider, amount, approved, onApproved, onDeclined 
   const steps = [`Conectando con ${provider}…`, 'Procesando el pago…', approved ? 'Confirmando tu reserva…' : 'Esperando respuesta del banco…']
   const [step, setStep] = useState(0)
   const [status, setStatus] = useState('processing') // processing | approved | declined
+  const [failureMessage, setFailureMessage] = useState('')
   const onApprovedRef = useRef(onApproved)
   useModalBehavior(() => {}) // bloquea scroll; Escape no cancela un pago en curso
 
@@ -30,7 +31,17 @@ function PaymentProcessing({ provider, amount, approved, onApproved, onDeclined 
       setTimeout(() => setStep(2), STEP_MS * 2),
       setTimeout(() => setStatus(approved ? 'approved' : 'declined'), STEP_MS * 3),
     ]
-    if (approved) timers.push(setTimeout(() => onApprovedRef.current(), STEP_MS * 3 + APPROVED_MS))
+    if (approved) {
+      timers.push(
+        setTimeout(async () => {
+          const result = await onApprovedRef.current()
+          if (result?.ok === false) {
+            setFailureMessage(result.message || 'No pudimos confirmar la reserva. No se realizó el cobro.')
+            setStatus('declined')
+          }
+        }, STEP_MS * 3 + APPROVED_MS),
+      )
+    }
     return () => timers.forEach(clearTimeout)
   }, [approved])
 
@@ -65,7 +76,9 @@ function PaymentProcessing({ provider, amount, approved, onApproved, onDeclined 
         {status === 'approved' && <p className="muted">Pagaste {formatMoney(amount)}. Estamos generando tus vouchers.</p>}
         {status === 'declined' && (
           <>
-            <p className="muted">La tarjeta no tiene fondos suficientes o el banco no autorizó la operación. No se te cobró nada.</p>
+            <p className="muted">
+              {failureMessage || 'La tarjeta no tiene fondos suficientes o el banco no autorizó la operación. No se te cobró nada.'}
+            </p>
             <Button onClick={onDeclined}>Probar con otro medio de pago</Button>
           </>
         )}

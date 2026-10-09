@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { ImagePlus, X } from 'lucide-react'
+import { CalendarDays, ImagePlus, X } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ExperienceCard from '../components/experience/ExperienceCard'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
+import Button from '../components/ui/Button'
 import FormField, { FormActions } from '../components/ui/FormField'
 import PageHeader from '../components/ui/PageHeader'
 import { cities } from '../data/cities'
@@ -14,7 +15,7 @@ import { useToast } from '../hooks/useToast'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { fullName } from '../utils/format'
 import { MIN_AGE_OPTIONS } from '../utils/guests'
-import { buildLocation, getArea, getCity } from '../utils/location'
+import { buildLocation, findKnownCity, getArea, getCity } from '../utils/location'
 import { getFinalPrice } from '../utils/orders'
 import NotFoundPage from './NotFoundPage'
 import './ExperienceEditorPage.css'
@@ -46,7 +47,12 @@ function validate(form) {
   if (form.description.trim().length < 30) errors.description = 'Contá un poco más (mínimo 30 caracteres).'
   if (!form.city.trim()) errors.city = 'Indicá la ciudad.'
   if (form.city.includes(',')) errors.city = 'Solo el nombre de la ciudad (sin comas).'
+  if (form.city.trim() && !form.city.includes(',') && !findKnownCity(form.city)) {
+    errors.city = 'Elegí una ciudad válida de la lista.'
+  }
   if (!form.area.trim()) errors.area = 'Indicá el barrio o la zona.'
+  if (form.area.trim() && form.area.includes(',')) errors.area = 'Escribí solo el nombre del barrio o zona, sin comas.'
+  if (form.area.trim() && /^[\d\s.-]+$/.test(form.area.trim())) errors.area = 'Ingresá un barrio o zona válida, no una dirección.'
   if (!(Number(form.price) > 0)) errors.price = 'Ingresá un precio mayor a 0.'
   if (Number(form.discountPercentage) < 0 || Number(form.discountPercentage) > 90) errors.discountPercentage = 'Entre 0 y 90%.'
   if (!form.images.length) errors.images = 'Subí al menos una foto.'
@@ -88,14 +94,14 @@ function ExperienceEditorPage() {
     if (valid.length > room) problems.push(`Máximo ${MAX_PHOTOS} fotos: agregamos ${room}.`)
     setErrors({ ...errors, images: problems.join(' ') || undefined })
 
-    const urls = valid.slice(0, room).map((file) => URL.createObjectURL(file))
-    createdUrls.current.push(...urls)
-    setForm({ ...form, images: [...form.images, ...urls] })
+    const photos = valid.slice(0, room).map((file) => ({ file, preview: URL.createObjectURL(file) }))
+    createdUrls.current.push(...photos.map((photo) => photo.preview))
+    setForm({ ...form, images: [...form.images, ...photos] })
   }
 
-  const removePhoto = (url) => setForm({ ...form, images: form.images.filter((image) => image !== url) })
+  const removePhoto = (image) => setForm({ ...form, images: form.images.filter((entry) => entry !== image) })
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     const nextErrors = validate(form)
     setErrors(nextErrors)
@@ -104,6 +110,7 @@ function ExperienceEditorPage() {
     const { city, area, ...fields } = form
     const data = {
       ...fields,
+      images: form.images.filter((image) => image.file).map((image) => image.file),
       title: form.title.trim(),
       subtitle: form.subtitle.trim(),
       description: form.description.trim(),
@@ -116,20 +123,20 @@ function ExperienceEditorPage() {
       includes: form.includes.split('\n').map((line) => line.trim()).filter(Boolean),
     }
 
-    if (existing) {
-      update('experiences', existing.id, data)
-      notify('Cambios guardados')
-    } else {
-      create('experiences', { ...data, publisherId: user.id })
-      notify('¡Experiencia publicada! Ahora sumale fechas desde el calendario.')
+    try {
+      const saved = existing ? await update('experiences', existing.id, data) : await create('experiences', { ...data, publisherId: user.id })
+      notify(existing ? 'Cambios guardados' : '¡Experiencia publicada! Ahora sumale fechas desde el calendario.')
+      createdUrls.current = []
+      allowLeave()
+      navigate(existing ? '/anfitrion/experiencias' : `/anfitrion/calendario?experiencia=${saved.id}`)
+    } catch (saveError) {
+      setErrors({ form: saveError.message })
     }
-    createdUrls.current = [] // las fotos guardadas siguen en uso
-    allowLeave()
-    navigate('/anfitrion/experiencias')
   }
 
   const preview = {
     ...form,
+    images: form.images.map((image) => (typeof image === 'string' ? image : image.preview)),
     id: existing?.id ?? 0,
     price: Number(form.price) || 0,
     discountPercentage: Number(form.discountPercentage) || 0,
@@ -151,7 +158,18 @@ function ExperienceEditorPage() {
         eyebrow={existing ? 'Editar experiencia' : 'Nueva experiencia'}
         title={existing ? 'Editá tu' : 'Creá algo'}
         accent={existing ? 'experiencia.' : 'inolvidable.'}
-        description="Contá qué hace especial a tu plan y ayudá a otras personas a encontrarlo."
+        description={
+          existing
+            ? 'Contá qué hace especial a tu plan y gestioná sus fechas desde el calendario.'
+            : 'Contá qué hace especial a tu plan. Al publicarlo vas a poder agregar sus fechas y horarios.'
+        }
+        actions={
+          existing ? (
+            <Button icon={CalendarDays} variant="secondary" to={`/anfitrion/calendario?experiencia=${existing.id}`}>
+              Gestionar fechas
+            </Button>
+          ) : null
+        }
       />
 
       <div className="split editor">
@@ -162,11 +180,11 @@ function ExperienceEditorPage() {
             description={`Es lo primero que van a ver. Hasta ${MAX_PHOTOS} imágenes; la primera es la portada.`}
           >
             <div className="editor__photos">
-              {form.images.map((url, index) => (
-                <div key={url} className="editor__photo">
-                  <img src={url} alt="" />
+              {form.images.map((image, index) => (
+                <div key={typeof image === 'string' ? image : image.preview} className="editor__photo">
+                  <img src={typeof image === 'string' ? image : image.preview} alt="" />
                   {index === 0 && <span className="editor__cover">Portada</span>}
-                  <button type="button" aria-label="Quitar foto" onClick={() => removePhoto(url)}>
+                  <button type="button" aria-label="Quitar foto" onClick={() => removePhoto(image)}>
                     <X size={14} aria-hidden />
                   </button>
                 </div>
@@ -218,6 +236,7 @@ function ExperienceEditorPage() {
                 error={errors.city}
                 placeholder="Buenos Aires"
                 list="editor-cities"
+                required
                 autoComplete="off"
               />
               <datalist id="editor-cities">
@@ -234,6 +253,7 @@ function ExperienceEditorPage() {
               onChange={setField('area')}
               error={errors.area}
               placeholder="Palermo"
+              required
               hint="El punto exacto se lo mandás a quien reserve. Así se busca: “Palermo, Buenos Aires”."
             />
           </EditorSection>
@@ -269,8 +289,9 @@ function ExperienceEditorPage() {
 
           <FormActions
             onCancel={() => navigate('/anfitrion/experiencias')}
-            submitLabel={existing ? 'Guardar cambios' : 'Publicar experiencia'}
+            submitLabel={existing ? 'Guardar cambios' : 'Publicar y gestionar fechas'}
           />
+          {errors.form && <p className="form-error">{errors.form}</p>}
         </form>
 
         <aside className="editor__preview">

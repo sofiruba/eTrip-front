@@ -60,6 +60,7 @@ export function filterExperiences(db, experiences, filters) {
   const to = dateTo ? new Date(`${dateTo}T23:59:59`) : null
 
   return experiences.filter((experience) => {
+    if (experience.active === false) return false
     if (categoryId && experience.categoryId !== categoryId) return false
     if (location && !matchesLocation(experience.location, location)) return false
     if (minPrice != null && experience.finalPrice < minPrice) return false
@@ -157,11 +158,11 @@ export function splitBookings(bookings) {
   }
 }
 
-export function getHostBookings(db, hostId) {
-  const hostExperienceIds = db.experiences
-    .filter((experience) => experience.publisherId === hostId)
-    .map((experience) => experience.id)
-  return getBookings(db, (booking) => hostExperienceIds.includes(booking.experienceId))
+export function getHostBookings(db) {
+  const sales = db.hostBookings ?? []
+  return sales
+    .map((booking) => toBookingView(db, booking))
+    .sort(byStartsAt)
 }
 
 export function getUserStats(db, userId) {

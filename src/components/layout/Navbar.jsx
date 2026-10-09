@@ -9,6 +9,7 @@ import IconButton from '../ui/IconButton'
 import NavbarSearch from '../search/NavbarSearch'
 import Logo from './Logo'
 import UserMenu from './UserMenu'
+import NotificationBell from './NotificationBell'
 import './Navbar.css'
 
 function Navbar() {
@@ -75,6 +76,7 @@ function Navbar() {
               {count > 0 && <span className="navbar__cart-count">{count}</span>}
             </Link>
           )}
+          {user && <NotificationBell />}
           {user ? (
             <UserMenu />
           ) : (

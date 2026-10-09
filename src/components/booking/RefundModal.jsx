@@ -16,12 +16,16 @@ function RefundModal({ booking, onClose }) {
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     if (!reason) return setError('Elegí un motivo.')
-    refundBooking(booking.id)
-    notify('Reembolso confirmado. Te devolvemos el dinero en 5 a 10 días hábiles.')
-    return onClose()
+    try {
+      await refundBooking(booking.id)
+      notify('Reembolso confirmado. Te devolvemos el dinero en 5 a 10 días hábiles.')
+      onClose()
+    } catch (refundError) {
+      setError(refundError.message)
+    }
   }
 
   return (

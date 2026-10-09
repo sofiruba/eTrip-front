@@ -22,7 +22,7 @@ function HostProfilePage() {
 
   if (!host) return <NotFoundPage title="No encontramos a este anfitrión" />
 
-  const hostExperiences = experiences.filter((experience) => experience.publisherId === host.id)
+  const hostExperiences = experiences.filter((experience) => experience.publisherId === host.id && experience.active !== false)
   const reviewCount = hostExperiences.reduce((sum, experience) => sum + experience.reviewCount, 0)
   const averageRating = reviewCount
     ? hostExperiences.reduce((sum, experience) => sum + experience.averageRating * experience.reviewCount, 0) / reviewCount

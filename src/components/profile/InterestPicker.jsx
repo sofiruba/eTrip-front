@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { featuredInterests, interestOptions, MAX_INTERESTS } from '../../data'
+import { featuredInterests, interestOptions, MAX_INTERESTS } from '../../data/interests'
 import Chip from '../ui/Chip'
 import { getInterestIcon } from './interestIcons'
 import './InterestPicker.css'

@@ -1,0 +1,92 @@
+{
+  "categories": [
+    { "name": "Gastronomía", "description": "Catas, talleres de cocina y mesas compartidas." },
+    { "name": "Arte & salidas", "description": "Recorridos, fotografía y cultura urbana." },
+    { "name": "Talleres", "description": "Aprendé algo nuevo con las manos." },
+    { "name": "Escapadas", "description": "Planes al aire libre cerca de la ciudad." }
+  ],
+  "coupons": [
+    { "code": "PRUEBA10", "percentage": 10 },
+    { "code": "BIENVENIDA20", "percentage": 20 }
+  ],
+  "users": [
+    {
+      "username": "nico.prueba",
+      "firstname": "Nicolás",
+      "lastname": "Ferreyra",
+      "email": "nico@prueba.com",
+      "password": "prueba123",
+      "experiences": [
+        {
+          "title": "Paseo por La Boca",
+          "description": "Recorremos Caminito y los rincones que no salen en las postales, con una cámara analógica en la mano. Cerramos en un bodegón con un vermut.",
+          "price": 28000,
+          "location": "La Boca, Buenos Aires",
+          "category": "Arte & salidas",
+          "image": "/ejemplos/la-boca.jpg",
+          "sessions": [
+            { "inDays": 5, "time": "16:00", "hours": 3, "capacity": 12 },
+            { "inDays": 12, "time": "16:00", "hours": 3, "capacity": 12 }
+          ]
+        },
+        {
+          "title": "Kayak al atardecer en el Delta",
+          "description": "Salimos desde Tigre a recorrer los arroyos del Delta mientras baja el sol. Ideal para principiantes: antes hacemos una práctica en aguas tranquilas.",
+          "price": 32000,
+          "discountPercentage": 10,
+          "location": "Tigre, Buenos Aires",
+          "category": "Escapadas",
+          "image": "/ejemplos/kayak.jpg",
+          "sessions": [{ "inDays": 9, "time": "18:30", "hours": 3, "capacity": 10 }]
+        }
+      ]
+    },
+    {
+      "username": "mica.prueba",
+      "firstname": "Micaela",
+      "lastname": "García",
+      "email": "mica@prueba.com",
+      "password": "prueba123",
+      "experiences": [
+        {
+          "title": "Cata a ciegas de vinos naturales",
+          "description": "Probamos cinco vinos naturales sin ver la etiqueta y jugamos a adivinar cepa, región y precio. Una forma divertida de aprender sin solemnidad.",
+          "price": 18500,
+          "location": "Chacarita, Buenos Aires",
+          "category": "Gastronomía",
+          "image": "/ejemplos/cata.jpg",
+          "sessions": [
+            { "inDays": 3, "time": "20:00", "hours": 2, "capacity": 14 },
+            { "inDays": 10, "time": "20:00", "hours": 2, "capacity": 14 }
+          ]
+        }
+      ]
+    },
+    {
+      "username": "sofi.prueba",
+      "firstname": "Sofía",
+      "lastname": "Rubachin",
+      "email": "sofi@prueba.com",
+      "password": "prueba123",
+      "experiences": [
+        {
+          "title": "Taller de cerámica para principiantes",
+          "description": "Una tarde para desenchufarse y crear tu propia taza o bowl desde cero. No hace falta experiencia: te acompañamos paso a paso.",
+          "price": 24000,
+          "location": "Villa Crespo, Buenos Aires",
+          "category": "Talleres",
+          "image": "/ejemplos/ceramica.jpg",
+          "sessions": [{ "inDays": 6, "time": "18:00", "hours": 2.5, "capacity": 8 }]
+        }
+      ]
+    },
+    {
+      "username": "lucia.prueba",
+      "firstname": "Lucía",
+      "lastname": "Martínez",
+      "email": "lucia@prueba.com",
+      "password": "prueba123",
+      "experiences": []
+    }
+  ]
+}

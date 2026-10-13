@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { formatSessionDate, pluralize } from '../../utils/format'
 import Badge from '../ui/Badge'
 import ImageWithFallback from '../ui/ImageWithFallback'
-import { getBookingStatus } from './bookingStatus'
+import { getBookingStatus } from '../../utils/bookings'
 import './BookingCard.css'
 
 function BookingCard({ booking }) {

@@ -1,0 +1,28 @@
+.editor-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.editor-section__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.editor-section__header > span {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-text);
+  font-size: var(--text-sm);
+  font-weight: 800;
+}
+
+.editor-section .form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}

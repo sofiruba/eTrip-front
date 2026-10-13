@@ -1,22 +1,20 @@
 import { useState } from 'react'
 import { CalendarX, Heart, LayoutDashboard, Pencil, ShoppingBag } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { LOW_SEATS } from '../../data/selectors'
-import { ADULT_AGE, describeMinAge } from '../../utils/guests'
+import { LOW_SEATS } from '../../utils/experiences'
 import { useAuth } from '../../hooks/useAuth'
 import { useCart } from '../../hooks/useCart'
 import { useToast } from '../../hooks/useToast'
 import { formatLongDate, formatMoney, formatTime, pluralize } from '../../utils/format'
 import Button from '../ui/Button'
 import EmptyState from '../ui/EmptyState'
-import Notice from '../ui/Notice'
 import Money from '../ui/Money'
 import QuantityStepper from '../ui/QuantityStepper'
 import './BookingPanel.css'
 
 /** Panel lateral del detalle: elegir sesión + cantidad y reservar. */
 function BookingPanel({ id, experience, sessions }) {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, openAuth } = useAuth()
   const cart = useCart()
   const notify = useToast()
   const navigate = useNavigate()
@@ -31,19 +29,24 @@ function BookingPanel({ id, experience, sessions }) {
   const isOwner = user?.id === experience.publisherId
 
   // Lo que ya está en el carrito para esta sesión cuenta contra los cupos
-  const inCart = cart.lines.find((line) => line.sessionId === selected?.id)?.quantity ?? 0
+  const inCart = selected ? cart.quantityOf(selected.id) : 0
   const maxQuantity = selected ? Math.max(selected.availableSeats - inCart, 0) : 0
   const amount = Math.min(quantity, Math.max(maxQuantity, 1))
 
-  const addToCart = () => {
-    if (!user) {
-      return notify('Iniciá sesión para agregar experiencias al carrito', 'info')
-    }
-    cart.add(selected.id, amount)
-    notify(`${pluralize(amount, 'lugar', 'lugares')} agregado${amount === 1 ? '' : 's'} al carrito`, 'success', {
-      label: 'Ver carrito',
-      to: '/carrito',
-    })
+  // POST al carrito. Recién cuando el back responde avisamos (o mostramos el error que mandó)
+  const addToCart = (goToCart) => {
+    if (!user) return openAuth('login')
+    if (maxQuantity === 0) return goToCart && navigate('/carrito')
+    return cart
+      .add(selected.id, amount)
+      .then(() => {
+        if (goToCart) return navigate('/carrito')
+        return notify(`${pluralize(amount, 'lugar', 'lugares')} agregado${amount === 1 ? '' : 's'} al carrito`, 'success', {
+          label: 'Ver carrito',
+          to: '/carrito',
+        })
+      })
+      .catch((error) => notify(error.message, 'error'))
   }
 
   return (
@@ -137,27 +140,12 @@ function BookingPanel({ id, experience, sessions }) {
             <strong>{formatMoney(experience.finalPrice * amount)}</strong>
           </div>
 
-          <Button
-            full
-            onClick={() => {
-              if (!user) return notify('Iniciá sesión para reservar', 'info')
-              if (maxQuantity > 0) cart.add(selected.id, amount)
-              navigate('/carrito')
-            }}
-          >
+          <Button full onClick={() => addToCart(true)}>
             Reservar
           </Button>
-          <Button full variant="secondary" icon={ShoppingBag} onClick={addToCart} disabled={maxQuantity === 0}>
+          <Button full variant="secondary" icon={ShoppingBag} onClick={() => addToCart(false)} disabled={maxQuantity === 0}>
             Agregar al carrito
           </Button>
-          {experience.minAge > 0 && (
-            <Notice tone="info">
-              {describeMinAge(experience.minAge)}.{' '}
-              {experience.minAge >= ADULT_AGE
-                ? 'Puede que el anfitrión te pida documento.'
-                : 'Todas las personas de la reserva tienen que cumplirla.'}
-            </Notice>
-          )}
           <p className="muted small booking-panel__hint">No se te cobra nada todavía.</p>
         </>
       )}

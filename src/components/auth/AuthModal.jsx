@@ -47,6 +47,7 @@ function AuthModal() {
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [sending, setSending] = useState(false)
 
   const isLogin = mode === 'login'
   const setField = (field) => (event) => {
@@ -60,38 +61,45 @@ function AuthModal() {
     setFormError('')
   }
 
-  const finish = async (resultPromise) => {
-    const result = await resultPromise
-    if (result.error) return setFormError(result.error)
-    notify(`¡Hola, ${result.user.firstName}!`)
+  // Cuando el back confirma el login o el registro: saludamos y llevamos a donde corresponda
+  const goAfterLogin = (user) => {
+    notify(`¡Hola, ${user.firstName}!`)
     if (authRedirect) navigate(authRedirect)
     else if (form.wantsToHost) navigate('/anfitrion')
-    else if (result.user.role === 'ADMIN') navigate('/admin')
-    return undefined
+    else if (user.role === 'ADMIN') navigate('/admin')
   }
 
-  const handleSubmit = async (event) => {
+  const showError = (error) => {
+    // 401/403 en el login = usuario o contraseña incorrectos
+    const wrongCredentials = isLogin && [401, 403].includes(error.status)
+    setFormError(wrongCredentials ? 'El email/usuario o la contraseña no son correctos.' : error.message)
+    setSending(false)
+  }
+
+  const handleSubmit = (event) => {
     event.preventDefault()
+    setFormError('')
+
     if (mode === 'interests') {
       if (interests.length < MIN_INTERESTS) return setFormError(`Elegí al menos ${MIN_INTERESTS} intereses.`)
-      return finish(register({ ...form, interests }))
+      setSending(true)
+      return register(form, interests).then(goAfterLogin).catch(showError)
     }
+
     const nextErrors = validate(form, isLogin)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return undefined
-    return isLogin ? finish(login(form)) : switchMode('interests')
+    if (!isLogin) return switchMode('interests')
+
+    setSending(true)
+    return login(form.usernameOrEmail.trim(), form.password).then(goAfterLogin).catch(showError)
   }
 
   return (
     <Modal title={COPY[mode].title} description={COPY[mode].description} onClose={closeAuth}>
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
-        {mode === 'login' && (
-          <p className="auth-divider">Ingresá con la cuenta que registraste en el sistema.</p>
-        )}
-
         {mode !== 'interests' && (
           <>
-            {isLogin && <p className="auth-divider">o ingresá con tu cuenta</p>}
             {isLogin ? (
               <FormField
                 label="Email o usuario"
@@ -150,7 +158,7 @@ function AuthModal() {
 
         {formError && <p className="form-error">{formError}</p>}
 
-        <Button type="submit" full iconRight={ArrowRight}>
+        <Button type="submit" full iconRight={ArrowRight} disabled={sending}>
           {{ login: 'Iniciar sesión', register: 'Continuar', interests: 'Crear mi cuenta' }[mode]}
         </Button>
 

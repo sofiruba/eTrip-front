@@ -1,183 +1,99 @@
-import { ArrowRight, SearchX } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import UpcomingPlans from '../components/booking/UpcomingPlans'
 import CatalogFilters from '../components/experience/CatalogFilters'
 import CategoryFilter from '../components/experience/CategoryFilter'
-import ExperienceCard from '../components/experience/ExperienceCard'
-import HeroSearch from '../components/search/HeroSearch'
-import Button from '../components/ui/Button'
-import EmptyState from '../components/ui/EmptyState'
+import CatalogResults from '../components/home/CatalogResults'
+import DealsSection from '../components/home/DealsSection'
+import HomeHero from '../components/home/HomeHero'
+import HostInvite from '../components/home/HostInvite'
 import SectionHeader from '../components/ui/SectionHeader'
-import {
-  filterExperiences,
-  getAvailableDates,
-  getBookings,
-  getDestinations,
-  sortExperiences,
-  splitBookings,
-} from '../data/selectors'
 import { useAuth } from '../hooks/useAuth'
+import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useStore } from '../hooks/useStore'
+import { getBookings } from '../services/bookingsService'
+import { addBookingInfo, splitBookings } from '../utils/bookings'
 import { applyFilters, PAGE_SIZE, readFilters } from '../utils/catalogFilters'
+import { filterExperiences, sortExperiences } from '../utils/experiences'
 import { matchesLocation } from '../utils/location'
 import './HomePage.css'
 
 const MAX_DEALS = 4
 
+/** Inicio: buscador, próximos planes, catálogo con filtros (guardados en la URL) y ofertas. */
 function HomePage() {
-  const { db, experiences } = useStore()
-  const { user, isAdmin, openAuth } = useAuth()
+  const { experiences, sessions, categories, loading, error } = useCatalog()
+  const { user, isAdmin } = useAuth()
   const [params, setParams] = useSearchParams()
+  const [myBookings, setMyBookings] = useState([])
   useDocumentTitle(null)
 
+  // Las reservas del usuario se piden cuando inicia sesión (por eso userId va en las dependencias)
+  const userId = user?.id
+  useEffect(() => {
+    if (!userId || isAdmin) return
+    getBookings()
+      .then((data) => setMyBookings(data))
+      .catch((error) => console.error('Error al traer tus reservas:', error))
+  }, [userId, isAdmin])
+
   const filters = readFilters(params)
-  const results = sortExperiences(filterExperiences(db, experiences, filters), filters.sort)
+  const results = sortExperiences(filterExperiences(experiences, sessions, filters), filters.sort)
   const visible = results.slice(0, (filters.page + 1) * PAGE_SIZE)
   const hasFilters = [...params.keys()].some((key) => !['orden', 'page'].includes(key))
-  const activeExperiences = experiences.filter((experience) => experience.active !== false)
-  const deals = activeExperiences.filter((experience) => experience.discountPercentage > 0 && experience.nextSession).slice(0, MAX_DEALS)
-  const destinations = getDestinations(activeExperiences)
-  const availableDates = getAvailableDates(db.sessions)
-  // Si se buscó una ciudad donde todavía no hay nada, el vacío invita a publicar
-  const placeIsEmpty = Boolean(filters.location) && !experiences.some((experience) => matchesLocation(experience.location, filters.location))
-  const upcoming = user ? splitBookings(getBookings(db, (booking) => booking.buyerId === user.id)).upcoming : []
-  // Las tarjetas llevan la cantidad de personas buscada, así el detalle ya la tiene elegida
-  const cardLink = (experience) => `/experiencias/${experience.id}${filters.guests ? `?personas=${filters.guests}` : ''}`
+  const deals = experiences.filter((experience) => experience.discountPercentage > 0 && experience.nextSession).slice(0, MAX_DEALS)
+  const upcoming = user ? splitBookings(addBookingInfo(myBookings, experiences)).upcoming : []
+  const sectionTitle = filters.location ? `Planes en ${filters.location}` : filters.title ? `Resultados para “${filters.title}”` : '¿Qué plan pinta?'
 
   // Cualquier cambio de filtro vuelve a la primera página
-  const updateFilters = (patch, options) =>
-    setParams((current) => applyFilters(current, patch, options), { preventScrollReset: true })
-
+  const updateFilters = (patch, options) => setParams((current) => applyFilters(current, patch, options), { preventScrollReset: true })
   const clearFilters = () => setParams(filters.sort ? { orden: filters.sort } : {}, { preventScrollReset: true })
-
   const scrollToExperiences = () =>
     window.setTimeout(() => document.getElementById('experiencias')?.scrollIntoView({ behavior: 'smooth' }), 50)
 
-  const sectionTitle = filters.location ? `Planes en ${filters.location}` : filters.title ? `Resultados para “${filters.title}”` : '¿Qué plan pinta?'
-
   return (
     <div className="container home">
-      <section className="hero">
-        <span className="eyebrow">Experiencias para salir de la rutina</span>
-        <h1>
-          Hacé un plan <em>distinto.</em>
-        </h1>
-        <p className="hero__lead">
-          Descubrí experiencias nuevas, elegí una fecha y reservá tu lugar. En tu ciudad o en la que estés de viaje, siempre
-          hay algo distinto para hacer.
-        </p>
-        <HeroSearch
-          id="hero-search"
-          value={filters}
-          destinations={destinations}
-          availableDates={availableDates}
-          experiences={experiences}
-          onSearch={(search) => {
-            updateFilters(search)
-            scrollToExperiences()
-          }}
-        />
-      </section>
+      <HomeHero
+        filters={filters}
+        experiences={experiences}
+        sessions={sessions}
+        onSearch={(search) => {
+          updateFilters(search)
+          scrollToExperiences()
+        }}
+      />
 
       {upcoming.length > 0 && <UpcomingPlans bookings={upcoming} />}
 
       <section className="section" id="experiencias">
         <SectionHeader eyebrow="Explorá" title={sectionTitle} />
-
-        <CategoryFilter
-          categories={db.categories}
-          value={filters.categoryId}
-          onChange={(id) => updateFilters({ categoryId: id })}
-        />
-
-        <CatalogFilters
-          filters={filters}
-          categories={db.categories}
-          resultCount={results.length}
-          onChange={updateFilters}
+        <CategoryFilter categories={categories} value={filters.categoryId} onChange={(id) => updateFilters({ categoryId: id })} />
+        <CatalogFilters filters={filters} categories={categories} resultCount={results.length} onChange={updateFilters} onClear={clearFilters} />
+        <CatalogResults
+          loading={loading}
+          error={error}
+          visible={visible}
+          total={results.length}
+          location={filters.location}
+          placeIsEmpty={Boolean(filters.location) && !experiences.some((experience) => matchesLocation(experience.location, filters.location))}
+          // Las tarjetas llevan la cantidad de personas buscada, así el detalle ya la tiene elegida
+          cardLink={(experience) => `/experiencias/${experience.id}${filters.guests ? `?personas=${filters.guests}` : ''}`}
+          onMore={() => updateFilters({ page: filters.page + 1 }, { keepPage: true })}
           onClear={clearFilters}
         />
-
-        {results.length ? (
-          <>
-            <div className="experience-grid home__grid">
-              {visible.map((experience) => (
-                <ExperienceCard key={experience.id} experience={experience} to={cardLink(experience)} />
-              ))}
-            </div>
-            {visible.length < results.length && (
-              <div className="home__more">
-                <p className="muted small">
-                  Viendo {visible.length} de {results.length}
-                </p>
-                <Button variant="secondary" onClick={() => updateFilters({ page: filters.page + 1 }, { keepPage: true })}>
-                  Cargar más
-                </Button>
-              </div>
-            )}
-          </>
-        ) : placeIsEmpty ? (
-          <EmptyState
-            icon={SearchX}
-            title={`Todavía no hay planes en ${filters.location}`}
-            text="Estamos empezando por Buenos Aires. ¿Sos de ahí? Podés publicar la primera experiencia."
-          >
-            <Button to="/anfitrion/experiencias/nueva">Publicar una experiencia</Button>
-            <Button variant="secondary" onClick={clearFilters}>
-              Ver todas
-            </Button>
-          </EmptyState>
-        ) : (
-          <EmptyState icon={SearchX} title="No encontramos ese plan" text="Probá con otras fechas o sacando algún filtro.">
-            <Button variant="secondary" onClick={clearFilters}>
-              Limpiar filtros
-            </Button>
-          </EmptyState>
-        )}
       </section>
 
-      {!hasFilters && deals.length > 0 && (
-        <section className="section">
-          <SectionHeader eyebrow="Ofertas" title="Planes con descuento">
-            <Button
-              variant="ghost"
-              size="sm"
-              iconRight={ArrowRight}
-              onClick={() => {
-                updateFilters({ onlyDiscounted: true })
-                scrollToExperiences()
-              }}
-            >
-              Ver todas
-            </Button>
-          </SectionHeader>
-          <div className="experience-grid">
-            {deals.map((experience) => (
-              <ExperienceCard key={experience.id} experience={experience} />
-            ))}
-          </div>
-        </section>
+      {!hasFilters && (
+        <DealsSection
+          deals={deals}
+          onSeeAll={() => {
+            updateFilters({ onlyDiscounted: true })
+            scrollToExperiences()
+          }}
+        />
       )}
 
-      {!isAdmin && (
-        <section className="section home__host card">
-          <div>
-            <span className="eyebrow">Sé anfitrión</span>
-            <h2>¿Tenés algo para compartir?</h2>
-            <p className="muted">
-              Una terraza linda, un oficio, el barrio que conocés de memoria. Cualquiera puede armar un plan en PLAN y recibir a
-              gente de su ciudad o de visita.
-            </p>
-          </div>
-          <Button
-            iconRight={ArrowRight}
-            {...(user ? { to: '/anfitrion' } : { onClick: () => openAuth('register', '/anfitrion') })}
-          >
-            Publicá tu experiencia
-          </Button>
-        </section>
-      )}
+      {!isAdmin && <HostInvite />}
     </div>
   )
 }

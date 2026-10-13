@@ -15,7 +15,7 @@ function CheckoutSummary({ lines, subtotal, discount, coupon, onApplyCoupon, onR
             key={line.sessionId}
             line={line}
             collapsible={collapsible}
-            onQuantityChange={(quantity) => onQuantityChange(line.sessionId, quantity)}
+            onQuantityChange={(quantity) => onQuantityChange(line, quantity)}
           />
         ))}
       </div>

@@ -9,10 +9,7 @@ import './AvatarUploader.css'
 const MAX_MB = 5
 const TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-/**
- * Foto de perfil editable. En el mock se guarda como data URL; al conectar el back,
- * el archivo va en un multipart a PUT /users/me/avatar (y DELETE para quitarla).
- */
+/** Foto de perfil. El back no guarda fotos de usuario: queda guardada en este navegador. */
 function AvatarUploader() {
   const { user, updateProfile } = useAuth()
   const notify = useToast()

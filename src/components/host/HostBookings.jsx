@@ -1,19 +1,20 @@
 import { useState } from 'react'
-import { Mail, Users, Undo2 } from 'lucide-react'
-import { findById } from '../../data/selectors'
-import { useStore } from '../../hooks/useStore'
+import { Undo2, Users } from 'lucide-react'
 import { useToast } from '../../hooks/useToast'
-import { formatLongDate, formatTime, fullName, pluralize } from '../../utils/format'
+import { refundBooking } from '../../services/bookingsService'
+import { formatLongDate, formatTime, pluralize } from '../../utils/format'
 import Avatar from '../ui/Avatar'
+import Button from '../ui/Button'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import EmptyState from '../ui/EmptyState'
 import CapacityBar from './CapacityBar'
 import './HostBookings.css'
-import Button from '../ui/Button'
-import ConfirmDialog from '../ui/ConfirmDialog'
 
-/** Huéspedes agrupados por sesión (solo próximas y no reembolsadas). */
-function HostBookings({ bookings }) {
-  const { db, refundBooking } = useStore()
+/**
+ * Huéspedes agrupados por sesión (solo próximas y no reembolsadas).
+ * `setBookings` actualiza la lista del padre después de un reembolso.
+ */
+function HostBookings({ bookings, sessions, setBookings }) {
   const notify = useToast()
   const [refunding, setRefunding] = useState(null)
   const active = bookings.filter((booking) => !booking.isPast && !booking.refunded)
@@ -21,7 +22,7 @@ function HostBookings({ bookings }) {
   const groups = Object.values(
     active.reduce((acc, booking) => {
       const key = booking.experienceSessionId
-      acc[key] ??= { session: findById(db.sessions, key), title: booking.experienceTitle, bookings: [] }
+      acc[key] ??= { session: sessions.find((session) => session.id === key), title: booking.experienceTitle, bookings: [] }
       acc[key].bookings.push(booking)
       return acc
     }, {}),
@@ -45,29 +46,20 @@ function HostBookings({ bookings }) {
             <CapacityBar session={session} />
           </header>
           <ul className="guest-list">
-            {guests.map((booking) => {
-              const guest = findById(db.users, booking.buyerId)
-              return (
-                <li key={booking.id}>
-                  <Avatar name={booking.buyerName} size="sm" />
-                  <span className="guest-list__name">
-                    <strong>{booking.buyerName}</strong>
-                    <small className="muted">
-                      {pluralize(booking.quantity, 'persona')} · {booking.voucherCode}
-                    </small>
-                  </span>
-                  {guest && (
-                    <a className="btn btn--ghost btn--sm" href={`mailto:${guest.email}`} aria-label={`Escribirle a ${fullName(guest)}`}>
-                      <Mail size={16} aria-hidden />
-                      Escribir
-                    </a>
-                  )}
-                  <Button size="sm" variant="danger" icon={Undo2} onClick={() => setRefunding(booking)}>
-                    Reembolsar
-                  </Button>
-                </li>
-              )
-            })}
+            {guests.map((booking) => (
+              <li key={booking.id}>
+                <Avatar name={booking.buyerName} size="sm" />
+                <span className="guest-list__name">
+                  <strong>{booking.buyerName}</strong>
+                  <small className="muted">
+                    {pluralize(booking.quantity, 'persona')} · {booking.voucherCode}
+                  </small>
+                </span>
+                <Button size="sm" variant="danger" icon={Undo2} onClick={() => setRefunding(booking)}>
+                  Reembolsar
+                </Button>
+              </li>
+            ))}
           </ul>
         </section>
       ))}
@@ -76,15 +68,14 @@ function HostBookings({ bookings }) {
           title="¿Cancelar y reembolsar reserva?"
           message={`Se anula el voucher ${refunding.voucherCode} y se le devuelve el dinero a ${refunding.buyerName}.`}
           confirmLabel="Reembolsar"
-          onConfirm={async () => {
-            try {
-              await refundBooking(refunding.id)
-              setRefunding(null)
-            } catch (error) {
-              notify(error.message, 'error')
-              setRefunding(null)
-            }
-          }}
+          onConfirm={() =>
+            refundBooking(refunding.id)
+              .then((updated) => {
+                setBookings((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+                notify('Reserva reembolsada')
+              })
+              .catch((error) => notify(error.message, 'error'))
+          }
           onClose={() => setRefunding(null)}
         />
       )}

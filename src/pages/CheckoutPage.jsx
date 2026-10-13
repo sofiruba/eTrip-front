@@ -8,13 +8,17 @@ import { EMPTY_CARD, WALLETS } from '../components/checkout/paymentOptions'
 import PaymentProcessing from '../components/checkout/PaymentProcessing'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
+import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
-import { apiFetch } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import { useCart } from '../hooks/useCart'
+import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useSavedCards } from '../hooks/useSavedCards'
-import { useStore } from '../hooks/useStore'
+import { useToast } from '../hooks/useToast'
+import { validateCoupon } from '../services/couponsService'
+import { createOrder } from '../services/ordersService'
+import { buildCartLines } from '../utils/cart'
 import {
   CARD_BRANDS,
   DECLINED_TEST_CARD,
@@ -30,10 +34,11 @@ import { calculateDiscount } from '../utils/orders'
 import './CheckoutPage.css'
 
 function CheckoutPage() {
-  const { placeOrder } = useStore()
   const { user } = useAuth()
   const cart = useCart()
+  const { experiences, sessions, loading } = useCatalog()
   const savedCards = useSavedCards()
+  const notify = useToast()
   const navigate = useNavigate()
   useDocumentTitle('Pago')
 
@@ -48,8 +53,11 @@ function CheckoutPage() {
   const [error, setError] = useState('')
   const [payment, setPayment] = useState(null) // { provider, label, approved } mientras se procesa
   const completingOrder = useRef(false)
+  const lines = buildCartLines(cart.items, experiences, sessions)
 
-  if (!cart.lines.length && !payment) {
+  if (loading && cart.items.length) return <Loading />
+
+  if (!lines.length && !payment) {
     return (
       <div className="container page page--narrow">
         <EmptyState icon={ShoppingBag} title="No hay nada para pagar" text="Agregá una experiencia al carrito para continuar.">
@@ -66,7 +74,7 @@ function CheckoutPage() {
     Object.entries(cardErrors).filter(([field]) => submitted || touched[field]),
   )
 
-  const findSoldOut = () => cart.lines.find((line) => line.quantity > line.session.availableSeats)
+  const findSoldOut = () => lines.find((line) => line.quantity > line.session.availableSeats)
 
   const describePayment = () => {
     if (method === 'card') {
@@ -99,41 +107,36 @@ function CheckoutPage() {
     return setPayment(describePayment())
   }
 
-  const completeOrder = async () => {
-    if (completingOrder.current) return
+  // POST /orders: el back compra todo lo que hay en el carrito y lo vacía.
+  // Devuelve una promesa: PaymentProcessing muestra el error si sale { ok: false }.
+  const completeOrder = () => {
+    if (completingOrder.current) return Promise.resolve()
     completingOrder.current = true
-    const soldOut = findSoldOut()
-    if (soldOut) {
-      completingOrder.current = false
-      const message = `Mientras pagabas se agotaron lugares para “${soldOut.experience.title}”. No se te cobró nada.`
-      setError(message)
-      console.error('[eTrip checkout]', { reason: 'sold_out', message })
-      return { ok: false, message }
-    }
-    try {
-      const { order, bookings } = await placeOrder({
-        buyer: user,
-        items: cart.lines.map(({ sessionId, quantity }) => ({ sessionId, quantity })),
-        coupon: coupon?.valid ? coupon : null,
+
+    return createOrder(coupon?.valid ? coupon.code : null)
+      .then((order) => {
+        if (method === 'card' && card.save) savedCards.saveCard(toSavedCard(card))
+        cart.reload() // el carrito ahora está vacío en el back
+        navigate(`/checkout/confirmacion/${order.id}`, { replace: true, state: { paymentLabel: payment.label } })
       })
-      if (method === 'card' && card.save) savedCards.saveCard(toSavedCard(card))
-      await cart.clear()
-      navigate(`/checkout/confirmacion/${order.id}`, {
-        replace: true,
-        state: { paymentLabel: payment.label, total: order.total, bookingCount: bookings.length },
+      .catch((orderError) => {
+        setError(orderError.message)
+        return { ok: false, message: orderError.message }
       })
-    } catch (orderError) {
-      const message = orderError.message || 'No pudimos confirmar la reserva. Revisá el carrito e intentá nuevamente.'
-      setError(message)
-      console.error('[eTrip checkout] Pago aprobado pero orden rechazada', {
-        message,
-        cartLines: cart.lines.map(({ sessionId, quantity }) => ({ sessionId, quantity })),
+      .then((result) => {
+        completingOrder.current = false
+        return result
       })
-      return { ok: false, message }
-    } finally {
-      completingOrder.current = false
-    }
   }
+
+  const applyCoupon = (code) => {
+    validateCoupon(code)
+      .then((data) => setCoupon(data))
+      .catch((couponError) => notify(couponError.message, 'error'))
+  }
+
+  const changeQuantity = (line, quantity) =>
+    cart.updateQuantity(line.id, quantity).catch((quantityError) => notify(quantityError.message, 'error'))
 
   return (
     <div className="container page">
@@ -186,19 +189,13 @@ function CheckoutPage() {
         </form>
 
         <CheckoutSummary
-          lines={cart.lines}
+          lines={lines}
           subtotal={cart.total}
           discount={discount}
           coupon={coupon}
-          onApplyCoupon={async (code) => {
-            try {
-              setCoupon(await apiFetch(`/discount-coupons/validate?code=${encodeURIComponent(code)}`))
-            } catch (couponError) {
-              setError(couponError.message)
-            }
-          }}
+          onApplyCoupon={applyCoupon}
           onRemoveCoupon={() => setCoupon(null)}
-          onQuantityChange={cart.updateQuantity}
+          onQuantityChange={changeQuantity}
         />
       </div>
 

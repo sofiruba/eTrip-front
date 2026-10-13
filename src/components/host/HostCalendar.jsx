@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { CalendarPlus, CalendarX, Pencil, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
+import { deleteSession } from '../../services/sessionsService'
 import { formatTime, isPast } from '../../utils/format'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
@@ -21,8 +21,11 @@ function getSessionStatus(session) {
   return { label: 'Publicada', tone: 'success' }
 }
 
-function HostCalendar({ experiences, sessions }) {
-  const { remove, reload } = useStore()
+/**
+ * Fechas de las experiencias. Lo usan el anfitrión y el admin.
+ * `setSessions` actualiza la lista del padre; `onChange` avisa que algo cambió (por ejemplo, para recargar reservas).
+ */
+function HostCalendar({ experiences, sessions, setSessions, onChange }) {
   const notify = useToast()
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState(null) // sesión, 'new' o null
@@ -103,6 +106,12 @@ function HostCalendar({ experiences, sessions }) {
           session={editing === 'new' ? null : editing}
           experiences={experiences}
           defaultExperienceId={experienceId}
+          onSaved={(saved) => {
+            // Si ya existía la reemplazamos; si es nueva la agregamos al final
+            setSessions((current) =>
+              current.some((item) => item.id === saved.id) ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved],
+            )
+          }}
           onClose={() => setEditing(null)}
         />
       )}
@@ -110,16 +119,15 @@ function HostCalendar({ experiences, sessions }) {
         <ConfirmDialog
           title="¿Eliminar sesión?"
           message="La fecha dejará de estar disponible y se reembolsarán automáticamente todas las reservas futuras de esta sesión."
-          onConfirm={async () => {
-            try {
-              await remove('sessions', deleting.id)
-              await reload()
-              notify('Sesión cancelada y reservas reembolsadas', 'info')
-              setDeleting(null)
-            } catch (deleteError) {
-              notify(deleteError.message, 'error')
-            }
-          }}
+          onConfirm={() =>
+            deleteSession(deleting.id)
+              .then(() => {
+                setSessions((current) => current.filter((item) => item.id !== deleting.id))
+                if (onChange) onChange()
+                notify('Sesión cancelada y reservas reembolsadas', 'info')
+              })
+              .catch((deleteError) => notify(deleteError.message, 'error'))
+          }
           onClose={() => setDeleting(null)}
         />
       )}

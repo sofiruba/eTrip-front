@@ -1,60 +1,13 @@
-/**
- * Lógica de órdenes compartida entre los datos semilla y el checkout.
- * Replica lo que hace OrderServiceImpl en el back: una orden agrupa
- * una reserva (booking) por cada sesión comprada.
- */
+import { formatMoney } from './format'
 
-export function getFinalPrice(experience) {
-  return Math.round(experience.price * (1 - (experience.discountPercentage || 0) / 100))
-}
+/** Cálculos de órdenes que muestra el front (el back ya devuelve subtotal, descuento y total). */
 
-export function createVoucherCode(id) {
-  const code = ((id * 7919 + 104729) * 2654435761 % 2176782336).toString(36).toUpperCase()
-  return `ETRIP-${code.padStart(6, '0').slice(-6)}`
+export function getFinalPrice({ price, discountPercentage }) {
+  return Math.round(price * (1 - (discountPercentage || 0) / 100))
 }
 
 export function calculateDiscount(subtotal, coupon) {
   return coupon ? Math.round((subtotal * coupon.percentage) / 100) : 0
-}
-
-export function buildOrder({ orderId, firstBookingId, buyer, items, coupon, createdAt, sessions, experiences }) {
-  const bookings = items.map((item, index) => {
-    const session = sessions.find((entry) => entry.id === item.sessionId)
-    const experience = experiences.find((entry) => entry.id === session.experienceId)
-    const id = firstBookingId + index
-    return {
-      id,
-      voucherCode: createVoucherCode(id),
-      orderId,
-      experienceSessionId: session.id,
-      experienceId: experience.id,
-      experienceTitle: experience.title,
-      startsAt: session.startsAt,
-      endsAt: session.endsAt,
-      quantity: item.quantity,
-      unitPrice: getFinalPrice(experience),
-      createdAt,
-      refunded: false,
-      refundedAt: null,
-      buyerId: buyer.id,
-      buyerName: `${buyer.firstName} ${buyer.lastName}`,
-    }
-  })
-
-  const subtotal = bookings.reduce((sum, booking) => sum + booking.unitPrice * booking.quantity, 0)
-  const discountAmount = calculateDiscount(subtotal, coupon)
-
-  const order = {
-    id: orderId,
-    userId: buyer.id,
-    couponCode: coupon?.code ?? null,
-    createdAt,
-    subtotal,
-    discountAmount,
-    total: subtotal - discountAmount,
-  }
-
-  return { order, bookings }
 }
 
 /** Lo que se devuelve de una reserva: su parte del total, prorrateando el cupón si hubo. */
@@ -65,14 +18,24 @@ export function getRefundAmount(booking, order) {
   return subtotal ? Math.round((gross * total) / subtotal) : gross
 }
 
-/** Total reembolsado de una orden. */
-export function getOrderRefunded(order, bookings) {
-  return bookings
-    .filter((booking) => booking.orderId === order.id && booking.refunded)
+/** Total reembolsado de una orden (usa las reservas que vienen dentro de la orden). */
+export function getOrderRefunded(order) {
+  return (order.bookings ?? [])
+    .filter((booking) => booking.refunded)
     .reduce((sum, booking) => sum + getRefundAmount(booking, order), 0)
 }
 
 /** Ventas netas: lo cobrado menos lo devuelto. */
-export function getNetSales(orders, bookings) {
-  return orders.reduce((sum, order) => sum + Number(order.total ?? 0) - getOrderRefunded(order, bookings), 0)
+export function getNetSales(orders) {
+  return orders.reduce((sum, order) => sum + Number(order.total ?? 0) - getOrderRefunded(order), 0)
+}
+
+/** Convierte líneas de carrito (o reservas) al formato de <OrderSummary>. */
+export function toSummaryItems(lines) {
+  return lines.map((line) => ({
+    id: line.sessionId ?? line.id,
+    label: line.experience?.title ?? line.experienceTitle,
+    detail: `${line.quantity} × ${formatMoney(line.unitPrice ?? line.experience.finalPrice)}`,
+    amount: line.subtotal ?? line.unitPrice * line.quantity,
+  }))
 }

@@ -1,85 +1,102 @@
 import { useEffect, useState } from 'react'
-import { Baby, Check, Clock, MapPin, Share2, Users } from 'lucide-react'
+import { Share2 } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import BookingPanel from '../components/experience/BookingPanel'
+import ExperienceMeta from '../components/experience/ExperienceMeta'
 import FavoriteButton from '../components/experience/FavoriteButton'
 import Gallery from '../components/experience/Gallery'
 import HostCard from '../components/experience/HostCard'
-import ExperienceCard from '../components/experience/ExperienceCard'
+import LocationMap from '../components/experience/LocationMap'
+import RelatedExperiences from '../components/experience/RelatedExperiences'
 import ReviewsSection from '../components/experience/ReviewsSection'
-import Badge from '../components/ui/Badge'
-import Button from '../components/ui/Button'
+import StickyBookingBar from '../components/experience/StickyBookingBar'
 import IconButton from '../components/ui/IconButton'
-import Money from '../components/ui/Money'
+import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
-import { Rating } from '../components/ui/Rating'
-import SectionHeader from '../components/ui/SectionHeader'
-import { findById, getReviews, getUpcomingSessions, isSoldOut } from '../data/selectors'
+import { useAuth } from '../hooks/useAuth'
+import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useStore } from '../hooks/useStore'
-import { describeMinAge } from '../utils/guests'
-import { getArea, getCity } from '../utils/location'
+import { useElementOffscreen } from '../hooks/useElementOffscreen'
 import { useToast } from '../hooks/useToast'
+import { getExperience } from '../services/experiencesService'
+import { getReviewsByExperience } from '../services/reviewsService'
+import { getSessionsByExperience } from '../services/sessionsService'
+import { getUser } from '../services/usersService'
+import { hoursBetween } from '../utils/dates'
+import { byNewest, getUpcomingSessions } from '../utils/experiences'
+import { getCity } from '../utils/location'
 import NotFoundPage from './NotFoundPage'
 import './ExperiencePage.css'
 
-const MAX_RELATED = 3
-
-/** Misma categoría primero; si no alcanza, se completa con otras que tengan fechas. */
-function getRelated(experiences, experience) {
-  const others = experiences.filter((entry) => entry.id !== experience.id && entry.active !== false && entry.nextSession)
-  const sameCategory = others.filter((entry) => entry.categoryId === experience.categoryId)
-  const rest = others.filter((entry) => entry.categoryId !== experience.categoryId)
-  return [...sameCategory, ...rest].slice(0, MAX_RELATED)
-}
-
 /**
- * true cuando el elemento queda fuera de pantalla (para mostrar la barra fija en mobile).
- * `watchKey` vuelve a engancharse si el elemento se remonta (al pasar a otra experiencia).
+ * Al pasar de una experiencia a otra (por ejemplo, desde "También te puede gustar") cambia el id:
+ * con key={id} React monta la página de nuevo y arranca con el estado limpio.
  */
-function useElementOffscreen(id, watchKey) {
-  const [offscreen, setOffscreen] = useState(false)
-  useEffect(() => {
-    const element = document.getElementById(id)
-    if (!element || !('IntersectionObserver' in window)) return undefined
-    const observer = new IntersectionObserver(([entry]) => setOffscreen(!entry.isIntersecting))
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [id, watchKey])
-  return offscreen
+function ExperienceRoute() {
+  const { id } = useParams()
+  return <ExperiencePage key={id} id={id} />
 }
 
-function ExperiencePage() {
-  const { id } = useParams()
-  const { db, experiences } = useStore()
+function ExperiencePage({ id }) {
+  const { user } = useAuth()
   const notify = useToast()
-  const [mapFailed, setMapFailed] = useState(false)
-  const experience = findById(experiences, id)
-  const panelOffscreen = useElementOffscreen('reservar', experience?.id)
-  useDocumentTitle(experience?.title ?? 'Experiencia no encontrada')
+  const catalog = useCatalog() // para "También te puede gustar"
 
-  if (!experience || experience.active === false) {
+  const [experience, setExperience] = useState(null)
+  const [sessions, setSessions] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [host, setHost] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+
+  // Al montar traemos la experiencia, sus fechas y sus reseñas
+  useEffect(() => {
+    getExperience(id)
+      .then((data) => setExperience(data))
+      .catch(() => setNotFound(true))
+      .then(() => setLoading(false))
+
+    getSessionsByExperience(id)
+      .then((data) => setSessions(data))
+      .catch((error) => console.error('Error al traer las fechas:', error))
+
+    getReviewsByExperience(id)
+      .then((data) => setReviews(data.sort(byNewest)))
+      .catch((error) => console.error('Error al traer las reseñas:', error))
+  }, [id])
+
+  // El perfil del anfitrión solo se puede pedir con sesión iniciada
+  const publisherId = experience?.publisherId
+  const userId = user?.id
+  useEffect(() => {
+    if (!publisherId || !userId) return
+    getUser(publisherId)
+      .then((data) => setHost(data))
+      .catch((error) => console.error('Error al traer el anfitrión:', error))
+  }, [publisherId, userId])
+
+  // El panel recién existe cuando terminó de cargar
+  const panelOffscreen = useElementOffscreen('reservar', loading)
+  useDocumentTitle(experience?.title ?? 'Experiencia')
+
+  if (loading) return <Loading text="Cargando la experiencia..." />
+  if (notFound || !experience || !experience.active) {
     return <NotFoundPage title="Esta experiencia no está disponible" text="Puede que el anfitrión la haya despublicado." />
   }
 
-  const sessions = getUpcomingSessions(db, experience.id)
-  const reviews = getReviews(db, (review) => review.experienceId === experience.id)
-  const host = findById(db.users, experience.publisherId)
-  const related = getRelated(experiences, experience)
-  const soldOut = isSoldOut(experience)
-  const area = getArea(experience.location)
-  const city = getCity(experience.location)
-  const mapLabel = [area, city].filter(Boolean).join(', ') || experience.location
-  // Google ubica el marcador en el punto de referencia del barrio, sin exponer una dirección.
-  const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(mapLabel)}&z=14&output=embed`
+  const upcoming = getUpcomingSessions(sessions, experience.id)
+  const soldOut = upcoming.length > 0 && upcoming.every((session) => session.availableSeats === 0)
+  const duration = upcoming[0] && hoursBetween(upcoming[0].startsAt, upcoming[0].endsAt)
+  // Sin sesión no podemos pedir el perfil: armamos uno con el nombre que viene en la experiencia
+  const hostInfo = host ?? { id: experience.publisherId, firstName: experience.publisherName, lastName: '' }
 
-  const share = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      notify('Link copiado. ¡Compartilo con quien quieras!', 'info')
-    } catch {
-      notify('No pudimos copiar el link', 'error')
-    }
+  const city = getCity(experience.location)
+
+  const share = () => {
+    navigator.clipboard
+      .writeText(window.location.href)
+      .then(() => notify('Link copiado. ¡Compartilo con quien quieras!', 'info'))
+      .catch(() => notify('No pudimos copiar el link', 'error'))
   }
 
   return (
@@ -87,13 +104,12 @@ function ExperiencePage() {
       <PageHeader
         breadcrumbs={[
           { label: 'Inicio', to: '/' },
-          { label: getCity(experience.location), to: `/?location=${encodeURIComponent(getCity(experience.location))}` },
-          { label: experience.categoryName, to: `/?location=${encodeURIComponent(getCity(experience.location))}&categoryId=${experience.categoryId}` },
+          { label: city, to: `/?location=${encodeURIComponent(city)}` },
+          { label: experience.categoryName, to: `/?location=${encodeURIComponent(city)}&categoryId=${experience.categoryId}` },
           { label: experience.title },
         ]}
         eyebrow={experience.categoryName}
         title={experience.title}
-        description={experience.subtitle}
         actions={
           <>
             <IconButton icon={Share2} label="Copiar link" onClick={share} />
@@ -102,22 +118,7 @@ function ExperiencePage() {
         }
       />
 
-      <div className="experience__meta">
-        <Rating value={experience.averageRating} count={experience.reviewCount} />
-        <span className="meta">
-          <MapPin size={16} aria-hidden />
-          {experience.location}
-        </span>
-        <span className="meta">
-          <Clock size={16} aria-hidden />
-          {experience.durationHours} horas aprox.
-        </span>
-        <span className="meta">
-          {experience.minAge ? <Users size={16} aria-hidden /> : <Baby size={16} aria-hidden />}
-          {describeMinAge(experience.minAge)}
-        </span>
-        {experience.discountPercentage > 0 && <Badge tone="brand">{experience.discountPercentage}% OFF</Badge>}
-      </div>
+      <ExperienceMeta experience={experience} duration={duration} />
 
       <Gallery images={experience.images} title={experience.title} />
 
@@ -128,88 +129,25 @@ function ExperiencePage() {
             <p className="experience__description">{experience.description}</p>
           </section>
 
-          {experience.includes?.length > 0 && (
-            <section className="section">
-              <h2>Qué incluye</h2>
-              <ul className="experience__includes">
-                {experience.includes.map((item) => (
-                  <li key={item}>
-                    <Check size={18} aria-hidden />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
           <section className="section">
             <h2>Dónde nos encontramos</h2>
-            <div className="experience__map">
-              {mapLabel ? (
-                <iframe
-                  title={`Mapa de ${mapLabel}`}
-                  src={mapUrl}
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  onError={() => setMapFailed(true)}
-                  hidden={mapFailed}
-                />
-              ) : null}
-              {(!mapLabel || mapFailed) && (
-                <div className="experience__map-fallback">
-                  <MapPin size={24} aria-hidden />
-                  <strong>Ubicación aproximada no disponible</strong>
-                  <small className="muted">Te enviamos el punto exacto al confirmar la reserva.</small>
-                </div>
-              )}
-              <div className="experience__map-label">
-                <MapPin size={18} aria-hidden />
-                <strong>{mapLabel}</strong>
-              </div>
-              <small className="muted">Te enviamos el punto exacto al confirmar la reserva.</small>
-            </div>
+            <LocationMap location={experience.location} />
           </section>
 
-          {host && (
-            <section className="section">
-              <HostCard host={host} />
-            </section>
-          )}
+          <section className="section">
+            <HostCard host={hostInfo} />
+          </section>
 
           <ReviewsSection reviews={reviews} averageRating={experience.averageRating} />
         </div>
 
-        <BookingPanel key={experience.id} id="reservar" experience={experience} sessions={sessions} />
+        <BookingPanel key={experience.id} id="reservar" experience={experience} sessions={upcoming} />
       </div>
 
-      {related.length > 0 && (
-        <section className="section">
-          <SectionHeader eyebrow="Seguí explorando" title="También te puede gustar" />
-          <div className="experience-grid">
-            {related.map((entry) => (
-              <ExperienceCard key={entry.id} experience={entry} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      <div className={`experience__sticky-cta ${panelOffscreen ? 'is-visible' : ''}`} aria-hidden={!panelOffscreen}>
-        <p>
-          <strong>
-            <Money value={experience.finalPrice} original={experience.price} />
-          </strong>
-          <span className="muted small"> / persona</span>
-        </p>
-        <Button
-          tabIndex={panelOffscreen ? 0 : -1}
-          disabled={soldOut}
-          onClick={() => document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-        >
-          {soldOut ? 'Agotado' : 'Ver fechas'}
-        </Button>
-      </div>
+      <RelatedExperiences experience={experience} catalog={catalog.experiences} />
+      <StickyBookingBar experience={experience} visible={panelOffscreen} soldOut={soldOut} />
     </div>
   )
 }
 
-export default ExperiencePage
+export default ExperienceRoute

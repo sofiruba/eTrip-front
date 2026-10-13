@@ -1,27 +1,36 @@
+import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { Navigate, useLocation, useParams } from 'react-router-dom'
 import VoucherCard from '../components/booking/VoucherCard'
 import CheckoutSteps from '../components/checkout/CheckoutSteps'
 import Button from '../components/ui/Button'
-import { findById } from '../data/selectors'
+import Loading from '../components/ui/Loading'
 import { useAuth } from '../hooks/useAuth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useStore } from '../hooks/useStore'
+import { getOrder } from '../services/ordersService'
 import { formatMoney, formatSessionDate } from '../utils/format'
 import './CheckoutSuccessPage.css'
 
 function CheckoutSuccessPage() {
   const { orderId } = useParams()
   const { state } = useLocation()
-  const { db } = useStore()
   const { user } = useAuth()
+  const [order, setOrder] = useState(null)
+  const [failed, setFailed] = useState(false)
   useDocumentTitle('Compra confirmada')
 
-  const order = findById(db.orders, orderId)
-  // Orden inexistente (p. ej. se recargó la página) o de otro usuario.
-  if (!order || order.userId !== user.id) return <Navigate to="/mis-reservas" replace />
+  // Traemos la orden recién creada (así funciona aunque se recargue la página)
+  useEffect(() => {
+    getOrder(orderId)
+      .then((data) => setOrder(data))
+      .catch(() => setFailed(true))
+  }, [orderId])
 
-  const bookings = db.bookings.filter((booking) => booking.orderId === order.id)
+  // Orden inexistente o de otro usuario
+  if (failed) return <Navigate to="/mis-reservas" replace />
+  if (!order) return <Loading text="Confirmando tu compra..." />
+
+  const bookings = order.bookings ?? []
 
   return (
     <div className="container page page--narrow checkout-success">

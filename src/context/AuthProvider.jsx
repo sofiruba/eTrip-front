@@ -1,92 +1,80 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AuthContext } from '../hooks/useAuth'
-import { useStore } from '../hooks/useStore'
-import { apiFetch, clearToken, setToken } from '../services/api'
+import { usePersistentState } from '../hooks/usePersistentState'
+import { getToken, removeToken, saveToken } from '../services/api'
+import * as authService from '../services/authService'
+import { getMe, updateMe } from '../services/usersService'
 
+/**
+ * Sesión del usuario. El token se guarda en localStorage y se manda en cada llamada (ver services/api.js).
+ * Bio, ciudad, intereses y foto no existen en el back: se guardan en este navegador, por usuario.
+ */
 function AuthProvider({ children }) {
-  const { reload } = useStore()
   const [user, setUser] = useState(null)
-  const [authMode, setAuthMode] = useState(null)
+  // true mientras revisamos el token guardado (al recargar la página)
+  const [checking, setChecking] = useState(Boolean(getToken()))
+  const [extras, setExtras] = usePersistentState('plan:profileExtras', {})
+  const [authMode, setAuthMode] = useState(null) // 'login' | 'register' | null (modal cerrado)
   const [authRedirect, setAuthRedirect] = useState(null)
 
-  const loadUser = useCallback(async () => {
-    try {
-      const current = await apiFetch('/users/me')
-      setUser(current)
-      await reload()
-    } catch {
-      clearToken()
-      setUser(null)
-    }
-  }, [reload])
-
+  // Al montar la app: si había un token guardado, traemos quién es el usuario
   useEffect(() => {
-    if (window.localStorage.getItem('etrip:token')) loadUser()
-  }, [loadUser])
+    if (!getToken()) return
+    getMe()
+      .then((data) => setUser(data))
+      .catch(() => removeToken()) // token vencido o inválido
+      .then(() => setChecking(false))
+  }, [])
 
-  const login = useCallback(async (credentials) => {
-    try {
-      const response = await apiFetch('/api/v1/auth/authenticate', {
-        method: 'POST',
-        body: JSON.stringify(credentials),
-      })
-      setToken(response.access_token)
-      const current = await apiFetch('/users/me')
-      setUser(current)
-      await reload()
+  // Guarda el token y trae los datos del usuario (lo usan login y registro)
+  const startSession = (response) => {
+    saveToken(response.access_token)
+    return getMe().then((data) => {
+      setUser(data)
       setAuthMode(null)
-      return { user: current }
-    } catch (error) {
-      return {
-        error: [401, 403].includes(error.status)
-          ? 'El email/usuario o la contraseña no son correctos.'
-          : error.message,
-      }
-    }
-  }, [reload])
+      return data
+    })
+  }
 
-  const register = useCallback(async ({ username, firstname, lastname, email, password }) => {
-    try {
-      const response = await apiFetch('/api/v1/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ username, firstname, lastname, email, password }),
-      })
-      setToken(response.access_token)
-      const current = await apiFetch('/users/me')
-      setUser(current)
-      await reload()
-      setAuthMode(null)
-      return { user: current }
-    } catch (error) {
-      return { error: error.message }
-    }
-  }, [reload])
+  const login = (usernameOrEmail, password) =>
+    authService.login(usernameOrEmail, password).then(startSession)
 
-  const value = useMemo(
-    () => ({
-      user,
-      isAdmin: user?.role === 'ADMIN',
-      login,
-      register,
-      logout: () => {
-        clearToken()
-        setUser(null)
-      },
-      updateProfile: async (patch) => {
-        const updated = await apiFetch('/users/me', { method: 'PUT', body: JSON.stringify(patch) })
-        setUser(updated)
-        return updated
-      },
-      authMode,
-      authRedirect,
-      openAuth: (mode = 'login', redirectTo = null) => {
-        setAuthMode(mode)
-        setAuthRedirect(redirectTo)
-      },
-      closeAuth: () => setAuthMode(null),
-    }),
-    [user, login, register, authMode, authRedirect],
-  )
+  const register = (form, interests) =>
+    authService.register(form).then(startSession).then((data) => {
+      setExtras((current) => ({ ...current, [data.id]: { interests } }))
+      return data
+    })
+
+  const logout = () => {
+    removeToken()
+    setUser(null)
+  }
+
+  // Nombre y apellido van al back; el resto queda en el navegador
+  const updateProfile = ({ firstName, lastName, ...extra }) => {
+    if (Object.keys(extra).length) {
+      setExtras((current) => ({ ...current, [user.id]: { ...current[user.id], ...extra } }))
+    }
+    if (firstName === undefined && lastName === undefined) return Promise.resolve(user)
+    return updateMe({ firstName, lastName }).then((data) => setUser(data))
+  }
+
+  const value = {
+    user: user ? { ...user, ...extras[user.id] } : null,
+    isAdmin: user?.role === 'ADMIN',
+    checking,
+    login,
+    register,
+    logout,
+    updateProfile,
+    authMode,
+    authRedirect,
+    openAuth: (mode = 'login', redirectTo = null) => {
+      setAuthMode(mode)
+      setAuthRedirect(redirectTo)
+    },
+    closeAuth: () => setAuthMode(null),
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

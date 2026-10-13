@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Search, X } from 'lucide-react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { getAvailableDates, getDestinations } from '../../data/selectors'
-import { useStore } from '../../hooks/useStore'
+import { useCatalog } from '../../hooks/useCatalog'
+import { getAvailableDates, getDestinations } from '../../utils/experiences'
 import { applyFilters, readFilters } from '../../utils/catalogFilters'
 import { formatShortDate } from '../../utils/format'
 import { describeGuests } from '../../utils/guests'
@@ -24,7 +24,6 @@ function describeDates({ dateFrom, dateTo }) {
  * como Airbnb. Los desplegables flotan sobre la página. Busca siempre en la home.
  */
 function NavbarSearch({ hidden = false }) {
-  const { db, experiences } = useStore()
   const { pathname } = useLocation()
   const [params] = useSearchParams()
   const navigate = useNavigate()
@@ -89,20 +88,28 @@ function NavbarSearch({ hidden = false }) {
                 <button type="button" className="navbar-search-panel__close" aria-label="Cerrar búsqueda" onClick={() => setOpen(false)}>
                   <X size={20} aria-hidden />
                 </button>
-                <HeroSearch
-                  value={filters}
-                  destinations={getDestinations(experiences)}
-                  availableDates={getAvailableDates(db.sessions)}
-                  experiences={experiences}
-                  autoFocus
-                  onSearch={search}
-                />
+                <SearchPanel filters={filters} onSearch={search} />
               </div>
             </div>
           </div>,
           document.body,
         )}
     </>
+  )
+}
+
+/** Se monta recién al abrir el buscador: ahí traemos el catálogo para las sugerencias. */
+function SearchPanel({ filters, onSearch }) {
+  const { experiences, sessions } = useCatalog()
+  return (
+    <HeroSearch
+      value={filters}
+      destinations={getDestinations(experiences)}
+      availableDates={getAvailableDates(sessions)}
+      experiences={experiences}
+      autoFocus
+      onSearch={onSearch}
+    />
   )
 }
 

@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ExternalLink, Eye, Users } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { findById, getUserStats } from '../../data/selectors'
 import { useAuth } from '../../hooks/useAuth'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
-import { formatFullDate, fullName, normalizeText } from '../../utils/format'
+import { getAllExperiences } from '../../services/experiencesService'
+import { getUsers, updateUserRole, updateUserStatus } from '../../services/usersService'
+import { fullName, normalizeText } from '../../utils/format'
 import Avatar from '../ui/Avatar'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
@@ -13,13 +13,16 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
 import EmptyState from '../ui/EmptyState'
 import IconButton from '../ui/IconButton'
+import Loading from '../ui/Loading'
 import AdminToolbar from './AdminToolbar'
 import DetailDrawer from './DetailDrawer'
 
 const ROLE_LABELS = { ADMIN: 'Admin', CLIENTE: 'Cliente' }
 
 function UsersAdmin() {
-  const { db, update } = useStore()
+  const [users, setUsers] = useState([])
+  const [experiences, setExperiences] = useState([])
+  const [loading, setLoading] = useState(true)
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
   const { user: currentUser } = useAuth()
@@ -30,28 +33,47 @@ function UsersAdmin() {
   const [role, setRole] = useState('')
   const [state, setState] = useState(() => params.get('estado') ?? '')
 
+  useEffect(() => {
+    getUsers()
+      .then((data) => setUsers(data))
+      .catch((error) => notify(error.message, 'error'))
+      .then(() => setLoading(false))
+
+    // Para listar las experiencias de cada usuario en el detalle
+    getAllExperiences()
+      .then((data) => setExperiences(data))
+      .catch((error) => console.error('Error al traer las experiencias:', error))
+  }, [notify])
+
   const query = normalizeText(search.trim())
-  const rows = db.users
-    .map((user) => ({ ...user, stats: getUserStats(db, user.id) }))
+  // Los contadores vienen en el UserResponseDTO del back
+  const rows = users
+    .map((user) => ({
+      ...user,
+      stats: { bookings: user.bookingsCount ?? 0, reviews: user.reviewsCount ?? 0, published: user.publishedExperiences ?? 0 },
+    }))
     .filter((user) => normalizeText(`${fullName(user)} ${user.email} ${user.username}`).includes(query))
     .filter((user) => !role || user.role === role)
     .filter((user) => !state || (state === 'activo' ? user.active : !user.active))
 
-  const selected = selectedId && findById(db.users, selectedId)
-  const selectedStats = selected && getUserStats(db, selected.id)
+  const selected = selectedId && rows.find((user) => user.id === selectedId)
   const isSelf = selected?.id === currentUser.id
-  const hostExperiences = selected ? db.experiences.filter((experience) => experience.publisherId === selected.id) : []
+  const hostExperiences = selected ? experiences.filter((experience) => experience.publisherId === selected.id) : []
 
+  // PATCH al back y reemplazamos el usuario en la lista con lo que devuelve
   const applyChange = () => {
-    if (confirming === 'role') {
-      const nextRole = selected.role === 'ADMIN' ? 'CLIENTE' : 'ADMIN'
-      update('users', selected.id, { role: nextRole })
-      notify(`${selected.firstName} ahora es ${nextRole === 'ADMIN' ? 'administrador' : 'cliente'}`)
-    } else {
-      update('users', selected.id, { active: !selected.active })
-      notify(selected.active ? 'Cuenta desactivada: ya no puede ingresar' : 'Cuenta activada', 'info')
-    }
+    const nextRole = selected.role === 'ADMIN' ? 'CLIENTE' : 'ADMIN'
+    const request = confirming === 'role' ? updateUserRole(selected.id, nextRole) : updateUserStatus(selected.id, !selected.active)
+    return request
+      .then((updated) => {
+        setUsers(users.map((user) => (user.id === updated.id ? updated : user)))
+        if (confirming === 'role') notify(`${updated.firstName} ahora es ${nextRole === 'ADMIN' ? 'administrador' : 'cliente'}`)
+        else notify(updated.active ? 'Cuenta activada' : 'Cuenta desactivada: ya no puede ingresar', 'info')
+      })
+      .catch((error) => notify(error.message, 'error'))
   }
+
+  if (loading) return <Loading />
 
   return (
     <>
@@ -59,7 +81,7 @@ function UsersAdmin() {
         search={search}
         onSearch={setSearch}
         placeholder="Buscar por nombre, email o usuario"
-        count={`${rows.length} de ${db.users.length}`}
+        count={`${rows.length} de ${users.length}`}
         filters={[
           {
             id: 'role',
@@ -114,7 +136,6 @@ function UsersAdmin() {
           },
           { key: 'bookings', header: 'Reservas', align: 'center', sortValue: (user) => user.stats.bookings, render: (user) => user.stats.bookings },
           { key: 'published', header: 'Publicadas', align: 'center', sortValue: (user) => user.stats.published, render: (user) => user.stats.published },
-          { key: 'joinedAt', header: 'Alta', sortValue: (user) => user.joinedAt, render: (user) => formatFullDate(user.joinedAt) },
           {
             key: 'active',
             header: 'Estado',
@@ -138,11 +159,9 @@ function UsersAdmin() {
           fields={[
             { label: 'Rol', value: ROLE_LABELS[selected.role] ?? selected.role },
             { label: 'Estado', value: selected.active ? 'Activo' : 'Desactivado' },
-            { label: 'Ciudad', value: selected.city || '—' },
-            { label: 'Alta', value: formatFullDate(selected.joinedAt) },
-            { label: 'Reservas', value: selectedStats.bookings },
-            { label: 'Reseñas', value: selectedStats.reviews },
-            { label: 'Experiencias publicadas', value: selectedStats.published },
+            { label: 'Reservas', value: selected.stats.bookings },
+            { label: 'Reseñas', value: selected.stats.reviews },
+            { label: 'Experiencias publicadas', value: selected.stats.published },
           ]}
           footer={
             isSelf ? (

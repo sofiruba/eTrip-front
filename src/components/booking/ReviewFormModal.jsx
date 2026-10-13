@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { useAuth } from '../../hooks/useAuth'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
-import { toLocalIso } from '../../data/dates'
+import { createReview } from '../../services/reviewsService'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
@@ -11,31 +9,35 @@ import { StarRating } from '../ui/Rating'
 const MIN_LENGTH = 10
 const RATING_LABELS = ['', 'Malo', 'Regular', 'Bueno', 'Muy bueno', '¡Excelente!']
 
-/** Crear o editar una reseña. Si recibe `review`, la edita. */
-function ReviewFormModal({ experienceId, experienceTitle, review, onClose }) {
-  const { user } = useAuth()
-  const { create, update } = useStore()
+/** Escribir una reseña (POST /reviews). Le pasa al padre la reseña creada (onCreated). */
+function ReviewFormModal({ experienceId, experienceTitle, onCreated, onClose }) {
   const notify = useToast()
-  const [rating, setRating] = useState(review?.rating ?? 0)
-  const [comment, setComment] = useState(review?.comment ?? '')
+  const [rating, setRating] = useState(0)
+  const [comment, setComment] = useState('')
   const [error, setError] = useState('')
+  const [sending, setSending] = useState(false)
 
   const handleSubmit = (event) => {
     event.preventDefault()
     if (!rating) return setError('Elegí una calificación de 1 a 5 estrellas.')
     if (comment.trim().length < MIN_LENGTH) return setError(`Escribí al menos ${MIN_LENGTH} caracteres.`)
 
-    const data = { rating, comment: comment.trim() }
-    if (review) update('reviews', review.id, data)
-    else create('reviews', { ...data, experienceId, userId: user.id, createdAt: toLocalIso(new Date()) })
-
-    notify(review ? 'Reseña actualizada' : '¡Gracias! Tu reseña ya está publicada')
-    return onClose()
+    setSending(true)
+    return createReview({ experienceId, rating, comment: comment.trim() })
+      .then((review) => {
+        onCreated(review)
+        notify('¡Gracias! Tu reseña ya está publicada')
+        onClose()
+      })
+      .catch((reviewError) => {
+        setError(reviewError.message)
+        setSending(false)
+      })
   }
 
   return (
     <Modal
-      title={review ? 'Editar reseña' : '¿Cómo estuvo tu plan?'}
+      title="¿Cómo estuvo tu plan?"
       description={experienceTitle}
       onClose={onClose}
       footer={
@@ -43,8 +45,8 @@ function ReviewFormModal({ experienceId, experienceTitle, review, onClose }) {
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" form="review-form">
-            {review ? 'Guardar cambios' : 'Publicar reseña'}
+          <Button type="submit" form="review-form" disabled={sending}>
+            Publicar reseña
           </Button>
         </>
       }
@@ -73,6 +75,7 @@ function ReviewFormModal({ experienceId, experienceTitle, review, onClose }) {
           }}
         />
         {error && <p className="form-error">{error}</p>}
+        <p className="muted small">Una vez publicada no se puede editar, pero sí eliminar desde tu perfil.</p>
       </form>
     </Modal>
   )

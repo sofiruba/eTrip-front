@@ -1,0 +1,14 @@
+.booking-policy {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.booking-policy svg {
+  flex-shrink: 0;
+  color: var(--color-success);
+}
+
+.booking-policy.is-locked svg {
+  color: var(--color-danger);
+}

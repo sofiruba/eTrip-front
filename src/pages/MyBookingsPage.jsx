@@ -1,22 +1,37 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CalendarHeart, History } from 'lucide-react'
 import BookingCard from '../components/booking/BookingCard'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
+import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import Tabs from '../components/ui/Tabs'
-import { getBookings, splitBookings } from '../data/selectors'
-import { useAuth } from '../hooks/useAuth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useStore } from '../hooks/useStore'
+import { getBookings } from '../services/bookingsService'
+import { getExperiences } from '../services/experiencesService'
+import { addBookingInfo, splitBookings } from '../utils/bookings'
 import './MyBookingsPage.css'
 
 function MyBookingsPage() {
   useDocumentTitle('Mis reservas')
-  const { db } = useStore()
-  const { user } = useAuth()
+  const [bookings, setBookings] = useState([])
+  const [experiences, setExperiences] = useState([])
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('upcoming')
-  const groups = splitBookings(getBookings(db, (booking) => booking.buyerId === user.id))
+
+  // Al entrar: mis reservas y las experiencias (para mostrar la foto y el lugar de cada una)
+  useEffect(() => {
+    getBookings()
+      .then((data) => setBookings(data))
+      .catch((error) => console.error('Error al traer tus reservas:', error))
+      .then(() => setLoading(false))
+
+    getExperiences()
+      .then((data) => setExperiences(data))
+      .catch((error) => console.error('Error al traer las experiencias:', error))
+  }, [])
+
+  const groups = splitBookings(addBookingInfo(bookings, experiences))
   const visible = groups[tab]
 
   return (
@@ -34,7 +49,9 @@ function MyBookingsPage() {
       />
 
       <div className="my-bookings__list">
-        {visible.length ? (
+        {loading ? (
+          <Loading />
+        ) : visible.length ? (
           <div className="booking-list">
             {visible.map((booking) => (
               <BookingCard key={booking.id} booking={booking} />

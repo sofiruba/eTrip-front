@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { CalendarDays, Eye, Pencil, Percent, Plus, Store, Trash2 } from 'lucide-react'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
+import { deleteExperience } from '../../services/experiencesService'
 import ExperienceCard from '../experience/ExperienceCard'
 import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import EmptyState from '../ui/EmptyState'
 import DiscountModal from './DiscountModal'
 
-function HostExperiences({ experiences, bookings }) {
-  const { removeExperience } = useStore()
+/** Las experiencias del anfitrión. `setExperiences` es la función del padre para actualizar la lista. */
+function HostExperiences({ experiences, bookings, setExperiences }) {
   const notify = useToast()
   const [deleting, setDeleting] = useState(null)
   const [discounting, setDiscounting] = useState(null)
@@ -60,16 +60,26 @@ function HostExperiences({ experiences, bookings }) {
         ))}
       </div>
 
-      {discounting && <DiscountModal experience={discounting} onClose={() => setDiscounting(null)} />}
+      {discounting && (
+        <DiscountModal
+          experience={discounting}
+          onSaved={(updated) => setExperiences((current) => current.map((item) => (item.id === updated.id ? updated : item)))}
+          onClose={() => setDiscounting(null)}
+        />
+      )}
 
       {deleting && (
         <ConfirmDialog
           title="¿Eliminar experiencia?"
           message={`“${deleting.title}” y todas sus fechas se van a despublicar.`}
-          onConfirm={() => {
-            removeExperience(deleting.id)
-            notify('Experiencia eliminada', 'info')
-          }}
+          onConfirm={() =>
+            deleteExperience(deleting.id)
+              .then(() => {
+                setExperiences((current) => current.filter((item) => item.id !== deleting.id))
+                notify('Experiencia eliminada', 'info')
+              })
+              .catch((error) => notify(error.message, 'error'))
+          }
           onClose={() => setDeleting(null)}
         />
       )}

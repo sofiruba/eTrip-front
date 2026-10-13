@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 
 export const CartContext = createContext(null)
 
-/** { lines, total, count, add, updateQuantity, remove, clear } */
+/** { items, count, total, quantityOf, add, updateQuantity, remove, clear, reload } */
 export function useCart() {
   return useContext(CartContext)
 }

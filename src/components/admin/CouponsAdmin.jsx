@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pencil, Plus, TicketPercent, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
-import { getCouponUsage } from '../../data/selectors'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
+import { deleteCoupon, getCoupons, updateCoupon } from '../../services/couponsService'
+import { getOrders } from '../../services/ordersService'
 import { getCouponStatus } from '../../utils/coupons'
 import { formatShortDate, normalizeText } from '../../utils/format'
 import Badge from '../ui/Badge'
@@ -15,32 +15,11 @@ import IconButton from '../ui/IconButton'
 import AdminToolbar from './AdminToolbar'
 import CouponFormModal from './CouponFormModal'
 
-const STATUS_OPTIONS = ['Activo', 'Programado', 'Agotado', 'Vencido', 'Inactivo']
-
-/** Usos del cupón: "3 / 50" con barra, o "3 usos · sin límite". */
-function CouponUsage({ used, max }) {
-  if (max == null) {
-    return (
-      <span className="muted small">
-        {used} {used === 1 ? 'uso' : 'usos'} · sin límite
-      </span>
-    )
-  }
-  const percent = Math.min((used / max) * 100, 100)
-  return (
-    <span className="usage-meter">
-      <span className="usage-meter__text">
-        <strong>{used}</strong> / {max}
-      </span>
-      <span className={`usage-meter__bar ${percent >= 100 ? 'is-full' : percent >= 80 ? 'is-high' : ''}`} aria-hidden>
-        <span style={{ width: `${percent}%` }} />
-      </span>
-    </span>
-  )
-}
+const STATUS_OPTIONS = ['Activo', 'Programado', 'Vencido', 'Inactivo']
 
 function CouponsAdmin() {
-  const { db, remove, update } = useStore()
+  const [coupons, setCoupons] = useState([])
+  const [orders, setOrders] = useState([])
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
   const notify = useToast()
@@ -49,23 +28,44 @@ function CouponsAdmin() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState(() => params.get('estado') ?? '')
 
-  const rows = db.coupons
-    .map((coupon) => {
-      const used = getCouponUsage(db, coupon)
-      return { ...coupon, used, status: getCouponStatus(coupon, used) }
-    })
+  useEffect(() => {
+    getCoupons()
+      .then((data) => setCoupons(data))
+      .catch((error) => notify(error.message, 'error'))
+
+    // Para contar cuántas órdenes usaron cada cupón
+    getOrders()
+      .then((data) => setOrders(data))
+      .catch((error) => console.error('Error al traer las órdenes:', error))
+  }, [notify])
+
+  const usesOf = (coupon) => orders.filter((order) => order.couponCode === coupon.code).length
+
+  const rows = coupons
+    .map((coupon) => ({ ...coupon, used: usesOf(coupon), status: getCouponStatus(coupon) }))
     .filter((coupon) => normalizeText(coupon.code).includes(normalizeText(search.trim())))
     .filter((coupon) => !status || coupon.status.label === status)
 
-  // Igual que el back: si ya se usó, se desactiva en vez de borrarse (para no romper órdenes viejas)
+  const saveCoupon = (saved) =>
+    setCoupons(coupons.some((item) => item.id === saved.id) ? coupons.map((item) => (item.id === saved.id ? saved : item)) : [...coupons, saved])
+
+  // Si ya se usó, se desactiva en vez de borrarse (para no romper órdenes viejas)
   const confirmDelete = () => {
     if (deleting.used > 0) {
-      update('coupons', deleting.id, { active: false })
-      notify('El cupón ya se había usado: quedó desactivado', 'info')
-    } else {
-      remove('coupons', deleting.id)
-      notify('Cupón eliminado', 'info')
+      const { id, code, percentage, validFrom, validUntil } = deleting
+      return updateCoupon(id, { code, percentage, validFrom, validUntil, active: false })
+        .then((saved) => {
+          saveCoupon(saved)
+          notify('El cupón ya se había usado: quedó desactivado', 'info')
+        })
+        .catch((error) => notify(error.message, 'error'))
     }
+    return deleteCoupon(deleting.id)
+      .then(() => {
+        setCoupons(coupons.filter((item) => item.id !== deleting.id))
+        notify('Cupón eliminado', 'info')
+      })
+      .catch((error) => notify(error.message, 'error'))
   }
 
   return (
@@ -74,7 +74,7 @@ function CouponsAdmin() {
         search={search}
         onSearch={setSearch}
         placeholder="Buscar por código"
-        count={`${rows.length} de ${db.coupons.length}`}
+        count={`${rows.length} de ${coupons.length}`}
         filters={[
           {
             id: 'status',
@@ -110,7 +110,7 @@ function CouponsAdmin() {
             key: 'usage',
             header: 'Usos',
             sortValue: (coupon) => coupon.used,
-            render: (coupon) => <CouponUsage used={coupon.used} max={coupon.maxUses} />,
+            render: (coupon) => `${coupon.used} ${coupon.used === 1 ? 'uso' : 'usos'}`,
           },
           {
             key: 'validity',
@@ -138,7 +138,9 @@ function CouponsAdmin() {
         ]}
       />
 
-      {editing && <CouponFormModal coupon={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && (
+        <CouponFormModal coupon={editing === 'new' ? null : editing} coupons={coupons} onSaved={saveCoupon} onClose={() => setEditing(null)} />
+      )}
       {deleting && (
         <ConfirmDialog
           title={deleting.used > 0 ? '¿Desactivar cupón?' : '¿Eliminar cupón?'}

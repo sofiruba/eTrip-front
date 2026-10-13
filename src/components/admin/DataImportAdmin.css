@@ -1,0 +1,53 @@
+.data-import__file {
+  position: relative;
+  cursor: pointer;
+}
+
+.data-import__file input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.data-import__json textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.data-import__log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 360px;
+  margin: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+  list-style: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+}
+
+.data-import__log li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.data-import__log svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.data-import__log .is-ok svg {
+  color: var(--color-success);
+}
+
+.data-import__log .is-skip {
+  color: var(--color-muted);
+}
+
+.data-import__log .is-error {
+  color: var(--color-danger);
+}

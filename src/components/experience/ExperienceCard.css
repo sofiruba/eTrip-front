@@ -101,10 +101,6 @@
   font-size: var(--text-md);
 }
 
-.experience-card__subtitle {
-  color: var(--color-text);
-  font-size: var(--text-sm);
-}
 
 .experience-card__price {
   margin-top: var(--space-2);

@@ -1,0 +1,31 @@
+.sticky-booking {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .sticky-booking {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--gutter);
+    border-top: 1px solid var(--color-line);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-md);
+    transform: translateY(100%);
+    transition: transform var(--transition);
+  }
+
+  .sticky-booking.is-visible {
+    transform: none;
+  }
+
+  .sticky-booking p {
+    margin: 0;
+  }
+}

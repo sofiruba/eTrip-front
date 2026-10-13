@@ -1,14 +1,31 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Bell, Check } from 'lucide-react'
-import { useStore } from '../../hooks/useStore'
+import { useAuth } from '../../hooks/useAuth'
+import { getNotifications, markNotificationRead } from '../../services/notificationsService'
 import { formatRelativeDate } from '../../utils/format'
 import IconButton from '../ui/IconButton'
 import './NotificationBell.css'
 
 function NotificationBell() {
-  const { db, markNotificationRead } = useStore()
+  const { user } = useAuth()
+  const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
-  const unread = db.notifications.filter((notification) => !notification.read)
+  const unread = notifications.filter((notification) => !notification.read)
+
+  // Se piden cuando hay un usuario (y de nuevo si cambia de cuenta)
+  const userId = user?.id
+  useEffect(() => {
+    if (!userId) return
+    getNotifications()
+      .then((data) => setNotifications(data))
+      .catch((error) => console.error('Error al traer las notificaciones:', error))
+  }, [userId])
+
+  // PATCH y reemplazamos la notificación por la que devuelve el back (ya leída)
+  const markRead = (notification) =>
+    markNotificationRead(notification.id)
+      .then((updated) => setNotifications(notifications.map((item) => (item.id === updated.id ? updated : item))))
+      .catch((error) => console.error('Error al marcar la notificación:', error))
 
   return (
     <div className="notification-bell">
@@ -25,11 +42,11 @@ function NotificationBell() {
             <strong>Notificaciones</strong>
             {unread.length > 0 && <small>{unread.length} sin leer</small>}
           </div>
-          {db.notifications.length ? (
+          {notifications.length ? (
             <ul>
-              {db.notifications.slice(0, 8).map((notification) => (
+              {notifications.slice(0, 8).map((notification) => (
                 <li key={notification.id} className={notification.read ? '' : 'is-unread'}>
-                  <button type="button" onClick={() => !notification.read && markNotificationRead(notification.id)}>
+                  <button type="button" onClick={() => !notification.read && markRead(notification)}>
                     <strong>{notification.title}</strong>
                     <span>{notification.message}</span>
                     <small>{formatRelativeDate(notification.createdAt)}</small>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
+import { updateDiscount } from '../../services/experiencesService'
 import { formatMoney } from '../../utils/format'
 import { getFinalPrice } from '../../utils/orders'
 import Button from '../ui/Button'
@@ -11,9 +11,8 @@ import Modal from '../ui/Modal'
 const MAX_DISCOUNT = 90
 const PRESETS = [0, 10, 15, 20, 30]
 
-/** Cambia solo el descuento de una experiencia (PATCH /experiences/{id}/discount en el back). */
-function DiscountModal({ experience, onClose }) {
-  const { update } = useStore()
+/** Cambia solo el descuento de una experiencia (PATCH /experiences/{id}/discount). */
+function DiscountModal({ experience, onSaved, onClose }) {
   const notify = useToast()
   const [value, setValue] = useState(String(experience.discountPercentage ?? 0))
   const [error, setError] = useState('')
@@ -24,9 +23,13 @@ function DiscountModal({ experience, onClose }) {
   const handleSubmit = (event) => {
     event.preventDefault()
     if (!valid) return setError(`Ingresá un número entero entre 0 y ${MAX_DISCOUNT}.`)
-    update('experiences', experience.id, { discountPercentage: percentage })
-    notify(percentage ? `Descuento del ${percentage}% aplicado` : 'Descuento quitado')
-    return onClose()
+    return updateDiscount(experience.id, percentage)
+      .then((updated) => {
+        onSaved(updated)
+        notify(percentage ? `Descuento del ${percentage}% aplicado` : 'Descuento quitado')
+        onClose()
+      })
+      .catch((discountError) => setError(discountError.message))
   }
 
   return (

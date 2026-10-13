@@ -1,11 +1,3 @@
-.experience__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-5);
-  margin: calc(var(--space-4) * -1) 0 var(--space-5);
-}
-
 .experience__body {
   margin-top: var(--space-6);
 }
@@ -21,129 +13,14 @@
   line-height: 1.7;
 }
 
-.experience__includes {
-  display: grid;
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.experience__includes li {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.experience__includes svg {
-  flex-shrink: 0;
-  color: var(--color-success);
-}
-
-.experience__map {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  min-height: 200px;
-  padding: var(--space-5);
-  border-radius: var(--radius-lg);
-  text-align: center;
-}
-
-.experience__map iframe {
-  display: block;
-  width: 100%;
-  height: 280px;
-  border: 0;
-}
-
-.experience__map-fallback {
-  display: flex;
-  min-height: 280px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-5);
-  background: var(--color-map);
-  text-align: center;
-}
-
-.experience__map-fallback svg {
-  color: var(--color-brand-text);
-}
-
-.experience__map-label {
-  position: absolute;
-  top: var(--space-4);
-  left: 50%;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 999px;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-md);
-  color: var(--color-ink);
-  transform: translateX(-50%);
-}
-
-.experience__map-label svg {
-  color: var(--color-brand-text);
-}
-
-.experience__map > small {
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-}
-
-.experience__map-fallback + .experience__map-label {
-  display: none;
-}
-
-.experience__sticky-cta {
-  display: none;
-}
-
-/* En mobile, reservar queda a mano apenas después de la galería */
 @media (max-width: 900px) {
+  /* En mobile, reservar queda a mano apenas después de la galería */
   .experience__body .booking-panel {
     order: -1;
-  }
-
-  .experience__sticky-cta {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: var(--z-sticky);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--gutter);
-    border-top: 1px solid var(--color-line);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-md);
-    transform: translateY(100%);
-    transition: transform var(--transition);
   }
 
   /* Lugar para la barra fija, así no tapa el final de la página */
   .experience-page {
     padding-bottom: 96px;
-  }
-
-  .experience__sticky-cta.is-visible {
-    transform: none;
-  }
-
-  .experience__sticky-cta p {
-    margin: 0;
   }
 }

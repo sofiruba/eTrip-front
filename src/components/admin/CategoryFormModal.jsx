@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
+import { createCategory, updateCategory } from '../../services/categoriesService'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
 
-function CategoryFormModal({ category, onClose }) {
-  const { db, create, update } = useStore()
+/** Crear o editar una categoría. Le pasa al padre la categoría guardada (onSaved). */
+function CategoryFormModal({ category, categories, onSaved, onClose }) {
   const notify = useToast()
   const [name, setName] = useState(category?.name ?? '')
   const [description, setDescription] = useState(category?.description ?? '')
@@ -17,14 +17,18 @@ function CategoryFormModal({ category, onClose }) {
     const trimmed = name.trim()
     if (!trimmed) return setError('Ingresá un nombre.')
     // Igual que CategoryDuplicateException en el back
-    const duplicated = db.categories.some((entry) => entry.name.toLowerCase() === trimmed.toLowerCase() && entry.id !== category?.id)
+    const duplicated = categories.some((entry) => entry.name.toLowerCase() === trimmed.toLowerCase() && entry.id !== category?.id)
     if (duplicated) return setError('Ya existe una categoría con ese nombre.')
 
     const data = { name: trimmed, description: description.trim() }
-    if (category) update('categories', category.id, data)
-    else create('categories', data)
-    notify(category ? 'Categoría actualizada' : 'Categoría creada')
-    return onClose()
+    const request = category ? updateCategory(category.id, data) : createCategory(data)
+    return request
+      .then((saved) => {
+        onSaved(saved)
+        notify(category ? 'Categoría actualizada' : 'Categoría creada')
+        onClose()
+      })
+      .catch((saveError) => setError(saveError.message))
   }
 
   return (

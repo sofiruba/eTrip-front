@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { CalendarDays, LayoutGrid, Plus, Store, Users } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import HostBookings from '../components/host/HostBookings'
@@ -5,12 +6,16 @@ import HostCalendar from '../components/host/HostCalendar'
 import HostExperiences from '../components/host/HostExperiences'
 import HostOverview from '../components/host/HostOverview'
 import Button from '../components/ui/Button'
+import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import Tabs from '../components/ui/Tabs'
-import { byStartsAt, getHostBookings } from '../data/selectors'
 import { useAuth } from '../hooks/useAuth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useStore } from '../hooks/useStore'
+import { getSales } from '../services/bookingsService'
+import { getMyExperiences } from '../services/experiencesService'
+import { getSessions } from '../services/sessionsService'
+import { addBookingInfo } from '../utils/bookings'
+import { addSessionInfo, byStartsAt } from '../utils/experiences'
 import NotFoundPage from './NotFoundPage'
 import './HostPage.css'
 
@@ -21,29 +26,54 @@ const TABS = [
   { id: 'reservas', label: 'Huéspedes', icon: Users, to: '/anfitrion/reservas' },
 ]
 
-/** Modo anfitrión: reemplaza a las 6 pantallas sueltas que había antes. */
+/**
+ * Modo anfitrión. Esta página es la dueña de los datos: los pide al montarse
+ * y les pasa a cada pestaña los datos y las funciones para actualizarlos.
+ */
 function HostPage() {
   const { tab = 'resumen' } = useParams()
-  useDocumentTitle('Modo anfitrión')
-  const { db, experiences } = useStore()
   const { user } = useAuth()
+  const [experiences, setExperiences] = useState([])
+  const [sessions, setSessions] = useState([])
+  const [sales, setSales] = useState([])
+  const [loading, setLoading] = useState(true)
+  useDocumentTitle('Modo anfitrión')
+
+  const loadSales = () =>
+    getSales()
+      .then((data) => setSales(data))
+      .catch((error) => console.error('Error al traer tus ventas:', error))
+
+  useEffect(() => {
+    getMyExperiences()
+      .then((data) => setExperiences(data))
+      .catch((error) => console.error('Error al traer tus experiencias:', error))
+      .then(() => setLoading(false))
+
+    getSessions()
+      .then((data) => setSessions(data))
+      .catch((error) => console.error('Error al traer las fechas:', error))
+
+    loadSales()
+  }, [])
 
   if (!TABS.some((item) => item.id === tab)) return <NotFoundPage />
 
-  const myExperiences = experiences.filter((experience) => experience.publisherId === user.id)
-  const myExperienceIds = myExperiences.map((experience) => experience.id)
-  const mySessions = db.sessions.filter((session) => myExperienceIds.includes(session.experienceId)).sort(byStartsAt)
-  const myBookings = getHostBookings(db)
+  const myExperiences = addSessionInfo(experiences, sessions)
+  const myIds = experiences.map((experience) => experience.id)
+  const mySessions = sessions.filter((session) => myIds.includes(session.experienceId)).sort(byStartsAt)
+  const myBookings = addBookingInfo(sales, experiences)
 
   const panels = {
-    resumen: myExperiences.length ? (
+    resumen: experiences.length ? (
       <HostOverview experiences={myExperiences} sessions={mySessions} bookings={myBookings} />
     ) : (
-      <HostExperiences experiences={[]} bookings={[]} />
+      <HostExperiences experiences={[]} bookings={[]} setExperiences={setExperiences} />
     ),
-    experiencias: <HostExperiences experiences={myExperiences} bookings={myBookings} />,
-    calendario: <HostCalendar experiences={myExperiences} sessions={mySessions} />,
-    reservas: <HostBookings bookings={myBookings} />,
+    experiencias: <HostExperiences experiences={myExperiences} bookings={myBookings} setExperiences={setExperiences} />,
+    // Cancelar una fecha reembolsa sus reservas: después volvemos a pedir las ventas
+    calendario: <HostCalendar experiences={myExperiences} sessions={mySessions} setSessions={setSessions} onChange={loadSales} />,
+    reservas: <HostBookings bookings={myBookings} sessions={sessions} setBookings={setSales} />,
   }
 
   return (
@@ -59,7 +89,7 @@ function HostPage() {
         }
       />
       <Tabs items={TABS} label="Secciones del modo anfitrión" />
-      <div className="host-page__panel">{panels[tab]}</div>
+      <div className="host-page__panel">{loading ? <Loading /> : panels[tab]}</div>
     </div>
   )
 }

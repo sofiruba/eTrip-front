@@ -1,10 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CalendarCheck } from 'lucide-react'
-import { getBookings } from '../../data/selectors'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
+import { getBookings, refundBooking } from '../../services/bookingsService'
+import { addBookingInfo, getBookingStatus } from '../../utils/bookings'
 import { formatSessionDate, normalizeText } from '../../utils/format'
-import { getBookingStatus } from '../booking/bookingStatus'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -20,14 +19,20 @@ const STATUS_FILTERS = [
 ]
 
 function BookingsAdmin() {
-  const { db, refundBooking } = useStore()
+  const [bookings, setBookings] = useState([])
   const notify = useToast()
   const [refunding, setRefunding] = useState(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
 
+  useEffect(() => {
+    getBookings()
+      .then((data) => setBookings(data))
+      .catch((error) => notify(error.message, 'error'))
+  }, [notify])
+
   const query = normalizeText(search.trim())
-  const all = getBookings(db).reverse()
+  const all = addBookingInfo(bookings).reverse()
   const rows = all
     .map((booking) => ({ ...booking, status: getBookingStatus(booking) }))
     .filter((booking) => normalizeText(`${booking.experienceTitle} ${booking.buyerName} ${booking.voucherCode}`).includes(query))
@@ -88,10 +93,14 @@ function BookingsAdmin() {
           title="¿Reembolsar reserva?"
           message={`Se anula el voucher ${refunding.voucherCode} de ${refunding.buyerName} y se liberan los lugares. Como administrador podés reembolsar aunque falten menos de 48 h.`}
           confirmLabel="Reembolsar"
-          onConfirm={() => {
+          onConfirm={() =>
             refundBooking(refunding.id)
-            notify('Reserva reembolsada')
-          }}
+              .then((updated) => {
+                setBookings(bookings.map((item) => (item.id === updated.id ? updated : item)))
+                notify('Reserva reembolsada')
+              })
+              .catch((error) => notify(error.message, 'error'))
+          }
           onClose={() => setRefunding(null)}
         />
       )}

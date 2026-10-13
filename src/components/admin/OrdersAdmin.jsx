@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Eye, Receipt } from 'lucide-react'
-import { findById, toBookingView } from '../../data/selectors'
-import { useStore } from '../../hooks/useStore'
+import { getOrders } from '../../services/ordersService'
+import { getUsers } from '../../services/usersService'
 import { formatFullDate, formatMoney, fullName, normalizeText, pluralize } from '../../utils/format'
 import { getOrderRefunded } from '../../utils/orders'
 import VoucherCard from '../booking/VoucherCard'
@@ -13,17 +13,32 @@ import AdminToolbar from './AdminToolbar'
 import DetailDrawer from './DetailDrawer'
 
 function OrdersAdmin() {
-  const { db } = useStore()
+  const [orders, setOrders] = useState([])
+  const [users, setUsers] = useState([])
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('')
 
-  const bookingsOf = (orderId) => db.bookings.filter((booking) => booking.orderId === orderId)
-  const buyerOf = (order) => fullName(findById(db.users, order.userId))
+  useEffect(() => {
+    // Cada orden ya trae sus reservas adentro
+    getOrders()
+      .then((data) => setOrders(data))
+      .catch((error) => console.error('Error al traer las órdenes:', error))
+
+    // Para mostrar el nombre de quien compró
+    getUsers()
+      .then((data) => setUsers(data))
+      .catch((error) => console.error('Error al traer los usuarios:', error))
+  }, [])
+
+  const buyerOf = (order) => {
+    const buyer = users.find((user) => user.id === order.userId)
+    return buyer ? fullName(buyer) : `Usuario #${order.userId}`
+  }
 
   const query = normalizeText(search.trim().replace('#', ''))
-  const rows = db.orders
-    .map((order) => ({ ...order, buyer: buyerOf(order), refunded: getOrderRefunded(order, db.bookings) }))
+  const rows = orders
+    .map((order) => ({ ...order, buyer: buyerOf(order), refunded: getOrderRefunded(order) }))
     .filter((order) => normalizeText(`${order.id} ${order.buyer} ${order.couponCode ?? ''}`).includes(query))
     .filter((order) => {
       if (filter === 'cupon') return Boolean(order.couponCode)
@@ -38,7 +53,7 @@ function OrdersAdmin() {
         search={search}
         onSearch={setSearch}
         placeholder="Buscar por número, cliente o cupón"
-        count={`${rows.length} de ${db.orders.length}`}
+        count={`${rows.length} de ${orders.length}`}
         filters={[
           {
             id: 'filter',
@@ -61,7 +76,7 @@ function OrdersAdmin() {
           { key: 'id', header: 'Orden', sortValue: (order) => order.id, render: (order) => <strong>#{order.id}</strong> },
           { key: 'buyer', header: 'Cliente', sortValue: (order) => order.buyer },
           { key: 'date', header: 'Fecha', sortValue: (order) => order.createdAt, render: (order) => formatFullDate(order.createdAt) },
-          { key: 'bookings', header: 'Reservas', render: (order) => pluralize(bookingsOf(order.id).length, 'reserva') },
+          { key: 'bookings', header: 'Reservas', render: (order) => pluralize(order.bookings.length, 'reserva') },
           {
             key: 'coupon',
             header: 'Cupón',
@@ -104,8 +119,8 @@ function OrdersAdmin() {
           ]}
         >
           <div className="drawer-list">
-            {bookingsOf(selected.id).map((booking) => (
-              <VoucherCard key={booking.id} booking={toBookingView(db, booking)} compact />
+            {selected.bookings.map((booking) => (
+              <VoucherCard key={booking.id} booking={booking} compact />
             ))}
           </div>
         </DetailDrawer>

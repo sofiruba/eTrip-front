@@ -1,73 +1,56 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CartContext } from '../hooks/useCart'
 import { useAuth } from '../hooks/useAuth'
-import { useStore } from '../hooks/useStore'
-import { apiFetch } from '../services/api'
+import * as cartService from '../services/cartService'
 
+/**
+ * Carrito del usuario (vive en el back). Es global porque el navbar muestra la cantidad.
+ * Cada acción llama al back y guarda en el estado el carrito que devuelve.
+ */
 function CartProvider({ children }) {
-  const { user } = useAuth()
-  const { experiences, db } = useStore()
+  const { user, isAdmin } = useAuth()
   const [cart, setCart] = useState(null)
+  const userId = user?.id
 
-  const loadCart = useCallback(async () => {
-    if (!user) {
-      setCart(null)
-      return
-    }
-    try {
-      setCart(await apiFetch(`/carts/user/${user.id}`))
-    } catch {
-      setCart(null)
-    }
-  }, [user])
+  // Sin sesión no hay carrito, y los administradores no compran
+  const canBuy = Boolean(userId) && !isAdmin
 
+  const loadCart = () =>
+    cartService
+      .getCart(userId)
+      .then((data) => setCart(data))
+      .catch((error) => console.error('Error al traer el carrito:', error))
+
+  // Cada vez que cambia el usuario (login / logout) traemos su carrito
   useEffect(() => {
-    loadCart()
-  }, [loadCart])
+    if (!userId || isAdmin) return
+    cartService
+      .getCart(userId)
+      .then((data) => setCart(data))
+      .catch((error) => console.error('Error al traer el carrito:', error))
+  }, [userId, isAdmin])
 
-  const lines = (cart?.items ?? []).map((item) => {
-    const experience = experiences.find((entry) => entry.id === item.experienceId)
-    const session = db.sessions.find((entry) => entry.id === item.experienceSessionId)
-    return {
-      ...item,
-      sessionId: item.experienceSessionId,
-      experience,
-      session,
-      subtotal: Number(item.subtotal ?? 0),
-    }
-  }).filter((line) => line.experience && line.session)
+  // Si cerró sesión ignoramos el carrito que había quedado guardado
+  const items = canBuy ? (cart?.items ?? []) : []
 
-  const mutate = async (request) => {
-    const next = await request()
-    if (next) setCart(next)
-    else await loadCart()
+  const value = {
+    items, // [{ id, experienceSessionId, experienceId, experienceTitle, startsAt, quantity, unitPrice, subtotal }]
+    count: items.reduce((sum, item) => sum + item.quantity, 0),
+    total: canBuy ? Number(cart?.total ?? 0) : 0,
+    quantityOf: (sessionId) => items.find((item) => item.experienceSessionId === sessionId)?.quantity ?? 0,
+
+    add: (sessionId, quantity) => cartService.addToCart(sessionId, quantity).then((data) => setCart(data)),
+
+    updateQuantity: (itemId, quantity) =>
+      cartService.updateCartItem(userId, itemId, quantity).then((data) => setCart(data)),
+
+    // DELETE no devuelve el carrito: lo volvemos a pedir para tener el total actualizado
+    remove: (itemId) => cartService.removeCartItem(userId, itemId).then(loadCart),
+
+    clear: () => cartService.clearCart(userId).then(() => setCart({ ...cart, items: [], total: 0 })),
+
+    reload: loadCart,
   }
-
-  const value = useMemo(() => ({
-    lines,
-    missingCount: (cart?.items?.length ?? 0) - lines.length,
-    count: lines.reduce((sum, line) => sum + line.quantity, 0),
-    savings: lines.reduce((sum, line) => sum + ((line.experience.price - line.experience.finalPrice) * line.quantity), 0),
-    total: Number(cart?.total ?? lines.reduce((sum, line) => sum + line.subtotal, 0)),
-    add: (sessionId, quantity = 1) => {
-      if (!user) return false
-      return mutate(() => apiFetch('/carts/items', {
-        method: 'POST',
-        body: JSON.stringify({ experienceSessionId: sessionId, quantity }),
-      }))
-    },
-    updateQuantity: (sessionId, quantity) => {
-      const item = cart?.items?.find((entry) => entry.experienceSessionId === sessionId)
-      if (!item || !user) return false
-      return mutate(() => apiFetch(`/carts/user/${user.id}/items/${item.id}?quantity=${quantity}`, { method: 'PATCH' }))
-    },
-    remove: (sessionId) => {
-      const item = cart?.items?.find((entry) => entry.experienceSessionId === sessionId)
-      if (!item || !user) return false
-      return mutate(() => apiFetch(`/carts/user/${user.id}/items/${item.id}`, { method: 'DELETE' }))
-    },
-    clear: () => user ? mutate(() => apiFetch(`/carts/user/${user.id}`, { method: 'DELETE' })) : false,
-  }), [cart, lines, user, loadCart])
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }

@@ -7,7 +7,7 @@ import Modal from '../ui/Modal'
 
 const MAX_BIO = 500
 
-/** Mismos campos que UserUpdateDTO del back (el email no se puede cambiar). */
+/** Editar perfil. El email no se puede cambiar. */
 function EditProfileModal({ onClose }) {
   const { user, updateProfile } = useAuth()
   const notify = useToast()
@@ -19,6 +19,7 @@ function EditProfileModal({ onClose }) {
   })
   const setField = (field) => (event) => setForm({ ...form, [field]: event.target.value })
 
+  // Nombre y apellido se guardan en el back (PUT /users/me); ciudad y bio, en el navegador
   const handleSubmit = (event) => {
     event.preventDefault()
     updateProfile({
@@ -27,8 +28,11 @@ function EditProfileModal({ onClose }) {
       city: form.city.trim(),
       bio: form.bio.trim(),
     })
-    notify('Perfil actualizado')
-    onClose()
+      .then(() => {
+        notify('Perfil actualizado')
+        onClose()
+      })
+      .catch((error) => notify(error.message, 'error'))
   }
 
   return (

@@ -155,7 +155,7 @@ function HeroSearch({ id, value, destinations, availableDates, experiences = [],
   ]
   const matchingExperiences = typed
     ? experiences
-        .filter((experience) => normalizeText(`${experience.title} ${experience.subtitle}`).includes(typed))
+        .filter((experience) => normalizeText(experience.title).includes(typed))
         .slice(0, MAX_EXPERIENCE_SUGGESTIONS)
     : []
   const suggestions = typed

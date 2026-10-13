@@ -2,22 +2,22 @@ import AuthProvider from './AuthProvider'
 import CartProvider from './CartProvider'
 import FavoritesProvider from './FavoritesProvider'
 import SavedCardsProvider from './SavedCardsProvider'
-import StoreProvider from './StoreProvider'
 import ToastProvider from './ToastProvider'
 
-/** Todos los contextos globales de la app, en orden de dependencia. */
+/**
+ * Contextos globales: solo lo que usan muchas pantallas a la vez.
+ * Los datos de cada página (experiencias, reservas, etc.) los pide cada página en su useEffect.
+ */
 function AppProviders({ children }) {
   return (
     <ToastProvider>
-      <StoreProvider>
-        <AuthProvider>
-          <FavoritesProvider>
-            <SavedCardsProvider>
-              <CartProvider>{children}</CartProvider>
-            </SavedCardsProvider>
-          </FavoritesProvider>
-        </AuthProvider>
-      </StoreProvider>
+      <AuthProvider>
+        <FavoritesProvider>
+          <SavedCardsProvider>
+            <CartProvider>{children}</CartProvider>
+          </SavedCardsProvider>
+        </FavoritesProvider>
+      </AuthProvider>
     </ToastProvider>
   )
 }

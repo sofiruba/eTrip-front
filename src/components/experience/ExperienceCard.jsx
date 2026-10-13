@@ -1,8 +1,7 @@
 import { CalendarDays } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { isSoldOut, LOW_SEATS } from '../../data/selectors'
+import { isSoldOut, LOW_SEATS } from '../../utils/experiences'
 import { formatShortDate } from '../../utils/format'
-import { ADULT_AGE } from '../../utils/guests'
 import Badge from '../ui/Badge'
 import ImageWithFallback from '../ui/ImageWithFallback'
 import Money from '../ui/Money'
@@ -15,7 +14,7 @@ import './ExperienceCard.css'
  * se usa sin link para la vista previa) y `footer` agrega acciones debajo.
  */
 function ExperienceCard({ experience, to = `/experiencias/${experience.id}`, footer, showFavorite = true }) {
-  const { title, subtitle, images, location, publisherName, finalPrice, price, discountPercentage, nextSession } = experience
+  const { title, images, location, publisherName, finalPrice, price, discountPercentage, nextSession } = experience
   const Wrapper = to ? Link : 'div'
   const soldOut = isSoldOut(experience)
   const seatsLeft = nextSession?.availableSeats ?? 0
@@ -40,7 +39,6 @@ function ExperienceCard({ experience, to = `/experiencias/${experience.id}`, foo
               </Badge>
             )}
             {nextSession && seatsLeft <= LOW_SEATS && <Badge tone="warning">¡Quedan {seatsLeft}!</Badge>}
-            {experience.minAge >= ADULT_AGE && <Badge tone="neutral">+18</Badge>}
           </div>
         </div>
         <div className="experience-card__body">
@@ -48,7 +46,6 @@ function ExperienceCard({ experience, to = `/experiencias/${experience.id}`, foo
             <h3>{title || 'El título de tu experiencia'}</h3>
             <Rating value={experience.averageRating} count={experience.reviewCount} />
           </div>
-          <p className="experience-card__subtitle">{subtitle}</p>
           <p className="muted small">
             {publisherName} · {location}
           </p>

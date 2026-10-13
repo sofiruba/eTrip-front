@@ -1,35 +1,42 @@
-import { ArrowRight, ShoppingBag, Trash2 } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight, ShoppingBag } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import OrderSummary from '../components/booking/OrderSummary'
-import { toSummaryItems } from '../components/booking/toSummaryItems'
+import CartLine from '../components/cart/CartLine'
 import CheckoutSteps from '../components/checkout/CheckoutSteps'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
-import IconButton from '../components/ui/IconButton'
+import Loading from '../components/ui/Loading'
 import Notice from '../components/ui/Notice'
-import ImageWithFallback from '../components/ui/ImageWithFallback'
 import PageHeader from '../components/ui/PageHeader'
-import QuantityStepper from '../components/ui/QuantityStepper'
 import { useAuth } from '../hooks/useAuth'
 import { useCart } from '../hooks/useCart'
+import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { formatMoney, formatSessionDate, isPast, pluralize } from '../utils/format'
+import { useToast } from '../hooks/useToast'
+import { buildCartLines, getCartProblem } from '../utils/cart'
+import { formatMoney } from '../utils/format'
+import { toSummaryItems } from '../utils/orders'
 import './CartPage.css'
 
 function CartPage() {
-  const { lines, updateQuantity, remove, missingCount, savings } = useCart()
+  const cart = useCart()
+  const { experiences, sessions, loading } = useCatalog()
   const { user, openAuth } = useAuth()
+  const notify = useToast()
   const navigate = useNavigate()
   useDocumentTitle('Carrito')
 
-  // Problemas que impedirían pagar: avisarlos acá y no recién en el checkout
-  const problemOf = ({ session, quantity }) => {
-    if (isPast(session.startsAt)) return 'Esta fecha ya pasó.'
-    if (session.availableSeats === 0) return 'Se agotaron los lugares de esta fecha.'
-    if (quantity > session.availableSeats) return `Solo quedan ${pluralize(session.availableSeats, 'lugar', 'lugares')}.`
-    return null
-  }
-  const hasProblems = lines.some((line) => problemOf(line))
+  // Cada ítem del carrito con su experiencia (foto, lugar) y su sesión (lugares que quedan)
+  const lines = buildCartLines(cart.items, experiences, sessions)
+  const missingCount = loading ? 0 : cart.items.length - lines.length
+  const savings = lines.reduce((sum, line) => sum + (line.experience.price - line.experience.finalPrice) * line.quantity, 0)
+
+  // Si el back rechaza el cambio, mostramos su mensaje
+  const updateQuantity = (line, quantity) => cart.updateQuantity(line.id, quantity).catch((error) => notify(error.message, 'error'))
+  const remove = (line) => cart.remove(line.id).catch((error) => notify(error.message, 'error'))
+
+  // Problemas que impedirían pagar: se avisan acá y no recién en el checkout
+  const hasProblems = lines.some((line) => getCartProblem(line))
 
   return (
     <div className="container page">
@@ -52,60 +59,23 @@ function CartPage() {
         </div>
       )}
 
-      {!lines.length ? (
+      {loading && cart.items.length > 0 ? (
+        <Loading />
+      ) : !lines.length ? (
         <EmptyState icon={ShoppingBag} title="Tu carrito está vacío" text="Encontrá un plan y reservá tu lugar.">
           <Button to="/">Explorar experiencias</Button>
         </EmptyState>
       ) : (
         <div className="split">
           <ul className="cart-list">
-            {lines.map((line) => {
-              const { sessionId, quantity, session, experience, subtotal } = line
-              const problem = problemOf(line)
-              return (
-                <li key={sessionId} className={`cart-line ${problem ? 'has-problem' : ''}`}>
-                  <ImageWithFallback src={experience.images[0]} alt="" className="cart-line__image" />
-                  <div className="cart-line__info">
-                    <span className="eyebrow">{experience.categoryName}</span>
-                    <Link to={`/experiencias/${experience.id}`}>
-                      <h3>{experience.title}</h3>
-                    </Link>
-                    <p className="muted small">
-                      {formatSessionDate(session.startsAt)} · {experience.location}
-                    </p>
-                    {session.availableSeats > 0 && !isPast(session.startsAt) && (
-                      <QuantityStepper
-                        value={Math.min(quantity, session.availableSeats)}
-                        max={session.availableSeats}
-                        onChange={(value) => updateQuantity(sessionId, value)}
-                      />
-                    )}
-                    {problem && (
-                      <Notice
-                        tone="danger"
-                        action={
-                          quantity > session.availableSeats && session.availableSeats > 0 ? (
-                            <Button size="sm" variant="secondary" onClick={() => updateQuantity(sessionId, session.availableSeats)}>
-                              Ajustar
-                            </Button>
-                          ) : (
-                            <Button size="sm" variant="secondary" onClick={() => remove(sessionId)}>
-                              Quitar
-                            </Button>
-                          )
-                        }
-                      >
-                        {problem}
-                      </Notice>
-                    )}
-                  </div>
-                  <div className="cart-line__aside">
-                    <strong>{formatMoney(subtotal)}</strong>
-                    <IconButton icon={Trash2} label="Quitar del carrito" variant="ghost" onClick={() => remove(sessionId)} />
-                  </div>
-                </li>
-              )
-            })}
+            {lines.map((line) => (
+              <CartLine
+                key={line.sessionId}
+                line={line}
+                onQuantityChange={(value) => updateQuantity(line, value)}
+                onRemove={() => remove(line)}
+              />
+            ))}
           </ul>
 
           <OrderSummary title="Resumen" items={toSummaryItems(lines)}>

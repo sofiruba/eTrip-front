@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ExternalLink, Eye, Power, Store, Trash2 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getUpcomingSessions, isSoldOut } from '../../data/selectors'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
+import { getBookings } from '../../services/bookingsService'
+import { getCategories } from '../../services/categoriesService'
+import { deleteExperience, getAllExperiences, updateExperienceStatus } from '../../services/experiencesService'
+import { getSessions } from '../../services/sessionsService'
+import { addSessionInfo, getUpcomingSessions, isSoldOut } from '../../utils/experiences'
 import { formatMoney, formatSessionDate, normalizeText, pluralize } from '../../utils/format'
 import { getCity } from '../../utils/location'
 import Badge from '../ui/Badge'
@@ -12,6 +15,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
 import EmptyState from '../ui/EmptyState'
 import IconButton from '../ui/IconButton'
+import Loading from '../ui/Loading'
 import ImageWithFallback from '../ui/ImageWithFallback'
 import Money from '../ui/Money'
 import { Rating } from '../ui/Rating'
@@ -34,7 +38,11 @@ function getStatus(experience) {
 
 /** Todas las experiencias publicadas: para revisar el catálogo y dar de baja publicaciones. */
 function ExperiencesAdmin() {
-  const { db, experiences, removeExperience, update } = useStore()
+  const [list, setList] = useState([])
+  const [sessions, setSessions] = useState([])
+  const [bookings, setBookings] = useState([])
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
   const notify = useToast()
@@ -44,16 +52,41 @@ function ExperiencesAdmin() {
   const [selectedId, setSelectedId] = useState(null)
   const [deleting, setDeleting] = useState(null)
 
+  useEffect(() => {
+    getAllExperiences()
+      .then((data) => setList(data))
+      .catch((error) => notify(error.message, 'error'))
+      .then(() => setLoading(false))
+
+    const showError = (error) => console.error('Error al cargar experiencias:', error)
+    getSessions().then((data) => setSessions(data)).catch(showError)
+    getBookings().then((data) => setBookings(data)).catch(showError)
+    getCategories().then((data) => setCategories(data)).catch(showError)
+  }, [notify])
+
+  const experiences = addSessionInfo(list, sessions)
+
+  // Reemplaza en la lista la experiencia que devolvió el back
+  const replace = (updated) => setList(list.map((item) => (item.id === updated.id ? updated : item)))
+
+  const toggleActive = (experience) =>
+    updateExperienceStatus(experience.id, !experience.active)
+      .then((updated) => {
+        replace(updated)
+        notify(updated.active ? 'Experiencia activada' : 'Experiencia desactivada', 'info')
+      })
+      .catch((error) => notify(error.message, 'error'))
+
   // Ventas de cada experiencia (reservas no reembolsadas)
   const salesOf = (experienceId) =>
-    db.bookings
+    bookings
       .filter((booking) => booking.experienceId === experienceId && !booking.refunded)
       .reduce((total, booking) => ({ count: total.count + booking.quantity, amount: total.amount + booking.unitPrice * booking.quantity }), {
         count: 0,
         amount: 0,
       })
 
-  const hasBookings = (experienceId) => db.bookings.some((booking) => booking.experienceId === experienceId)
+  const hasBookings = (experienceId) => bookings.some((booking) => booking.experienceId === experienceId)
 
   const query = normalizeText(search.trim())
   const rows = experiences
@@ -67,6 +100,8 @@ function ExperiencesAdmin() {
     })
 
   const selected = selectedId && rows.find((experience) => experience.id === selectedId)
+
+  if (loading) return <Loading />
 
   const askDelete = (experience) => {
     if (hasBookings(experience.id)) {
@@ -89,7 +124,7 @@ function ExperiencesAdmin() {
             label: 'Categoría',
             value: category,
             onChange: setCategory,
-            options: [{ value: '', label: 'Todas las categorías' }, ...db.categories.map((entry) => ({ value: String(entry.id), label: entry.name }))],
+            options: [{ value: '', label: 'Todas las categorías' }, ...categories.map((entry) => ({ value: String(entry.id), label: entry.name }))],
           },
           { id: 'status', label: 'Estado', value: status, onChange: setStatus, options: STATUS_FILTERS },
         ]}
@@ -150,14 +185,7 @@ function ExperiencesAdmin() {
                   icon={Power}
                   label={experience.active ? 'Desactivar' : 'Activar'}
                   variant="ghost"
-                  onClick={async () => {
-                    try {
-                      await update('experiences', experience.id, { active: !experience.active })
-                      notify(experience.active ? 'Experiencia desactivada' : 'Experiencia activada', 'info')
-                    } catch (error) {
-                      notify(error.message, 'error')
-                    }
-                  }}
+                  onClick={() => toggleActive(experience)}
                 />
                 <IconButton icon={Trash2} label="Dar de baja" variant="ghost" onClick={() => askDelete(experience)} />
               </div>
@@ -188,15 +216,7 @@ function ExperiencesAdmin() {
               <Button
                 variant="secondary"
                 icon={Power}
-                onClick={async () => {
-                  try {
-                    await update('experiences', selected.id, { active: !selected.active })
-                    setSelectedId(null)
-                    notify(selected.active ? 'Experiencia desactivada' : 'Experiencia activada', 'info')
-                  } catch (error) {
-                    notify(error.message, 'error')
-                  }
-                }}
+                onClick={() => toggleActive(selected).then(() => setSelectedId(null))}
               >
                 {selected.active ? 'Desactivar' : 'Activar'}
               </Button>
@@ -207,9 +227,9 @@ function ExperiencesAdmin() {
           }
         >
           <h3 className="drawer-subtitle">Próximas fechas</h3>
-          {getUpcomingSessions(db, selected.id).length ? (
+          {getUpcomingSessions(sessions, selected.id).length ? (
             <ul className="drawer-sessions">
-              {getUpcomingSessions(db, selected.id).map((session) => (
+              {getUpcomingSessions(sessions, selected.id).map((session) => (
                 <li key={session.id}>
                   <span>{formatSessionDate(session.startsAt)}</span>
                   <Badge tone={session.availableSeats ? 'neutral' : 'danger'}>
@@ -229,16 +249,15 @@ function ExperiencesAdmin() {
           title="¿Eliminar la experiencia?"
           message={`“${deleting.title}” de ${deleting.publisherName} se eliminará junto con sus fechas.`}
           confirmLabel="Eliminar"
-          onConfirm={async () => {
-            try {
-              await removeExperience(deleting.id)
-              setSelectedId(null)
-              setDeleting(null)
-              notify('Experiencia eliminada', 'info')
-            } catch (error) {
-              notify(error.message, 'error')
-            }
-          }}
+          onConfirm={() =>
+            deleteExperience(deleting.id)
+              .then(() => {
+                setList(list.filter((item) => item.id !== deleting.id))
+                setSelectedId(null)
+                notify('Experiencia eliminada', 'info')
+              })
+              .catch((error) => notify(error.message, 'error'))
+          }
           onClose={() => setDeleting(null)}
         />
       )}

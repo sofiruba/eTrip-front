@@ -1,10 +1,8 @@
-import { countSeats, getYoungestAge } from './guests'
+import { countSeats } from './guests'
 
 /**
- * Filtros del catálogo guardados en la URL. Los nombres son los mismos
- * parámetros que recibe GET /experiences del back, así al conectarlo se
- * pasan tal cual. `orden`, `disponibles` y los viajeros (`adultos`, `ninos`, `bebes`) son solo
- * del front; de los viajeros se calcula `youngestAge`, que sí va al back.
+ * Filtros del catálogo guardados en la URL (así el link de una búsqueda se puede compartir).
+ * Se aplican en el front sobre el catálogo que ya trajimos (ver utils/experiences.js).
  */
 
 export const PAGE_SIZE = 8
@@ -44,9 +42,8 @@ export function readFilters(params) {
   }
   return {
     ...travelers,
-    // Lugares que necesita el grupo y edad del más chico (para la edad mínima de cada experiencia)
+    // Lugares que necesita el grupo
     guests: countSeats(travelers) || null,
-    youngestAge: getYoungestAge(travelers),
     title: params.get('title') ?? '',
     categoryId: toNumber(params.get('categoryId')),
     location: params.get('location') ?? '',

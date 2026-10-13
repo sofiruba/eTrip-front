@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
+import { deleteCategory, getCategories } from '../../services/categoriesService'
+import { getAllExperiences } from '../../services/experiencesService'
 import { normalizeText, pluralize } from '../../utils/format'
 import { getCategoryIcon } from '../experience/categoryIcons'
 import Button from '../ui/Button'
@@ -12,15 +13,27 @@ import AdminToolbar from './AdminToolbar'
 import CategoryFormModal from './CategoryFormModal'
 
 function CategoriesAdmin() {
-  const { db, remove } = useStore()
+  const [categories, setCategories] = useState([])
+  const [experiences, setExperiences] = useState([])
   const notify = useToast()
   const [editing, setEditing] = useState(null) // categoría, 'new' o null
   const [deleting, setDeleting] = useState(null)
   const [search, setSearch] = useState('')
 
-  const usage = (categoryId) => db.experiences.filter((experience) => experience.categoryId === categoryId).length
+  useEffect(() => {
+    getCategories()
+      .then((data) => setCategories(data))
+      .catch((error) => notify(error.message, 'error'))
 
-  const rows = db.categories.filter((category) =>
+    // Para saber cuántas experiencias usa cada categoría
+    getAllExperiences()
+      .then((data) => setExperiences(data))
+      .catch((error) => console.error('Error al traer las experiencias:', error))
+  }, [notify])
+
+  const usage = (categoryId) => experiences.filter((experience) => experience.categoryId === categoryId).length
+
+  const rows = categories.filter((category) =>
     normalizeText(`${category.name} ${category.description ?? ''}`).includes(normalizeText(search.trim())),
   )
 
@@ -31,7 +44,7 @@ function CategoriesAdmin() {
 
   return (
     <>
-      <AdminToolbar search={search} onSearch={setSearch} placeholder="Buscar categoría" count={`${rows.length} de ${db.categories.length}`}>
+      <AdminToolbar search={search} onSearch={setSearch} placeholder="Buscar categoría" count={`${rows.length} de ${categories.length}`}>
         <Button icon={Plus} onClick={() => setEditing('new')}>
           Nueva categoría
         </Button>
@@ -72,15 +85,32 @@ function CategoriesAdmin() {
         ]}
       />
 
-      {editing && <CategoryFormModal category={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && (
+        <CategoryFormModal
+          category={editing === 'new' ? null : editing}
+          categories={categories}
+          onSaved={(saved) =>
+            setCategories(
+              categories.some((item) => item.id === saved.id)
+                ? categories.map((item) => (item.id === saved.id ? saved : item))
+                : [...categories, saved],
+            )
+          }
+          onClose={() => setEditing(null)}
+        />
+      )}
       {deleting && (
         <ConfirmDialog
           title="¿Eliminar categoría?"
           message={`Vas a eliminar “${deleting.name}”.`}
-          onConfirm={() => {
-            remove('categories', deleting.id)
-            notify('Categoría eliminada', 'info')
-          }}
+          onConfirm={() =>
+            deleteCategory(deleting.id)
+              .then(() => {
+                setCategories(categories.filter((item) => item.id !== deleting.id))
+                notify('Categoría eliminada', 'info')
+              })
+              .catch((error) => notify(error.message, 'error'))
+          }
           onClose={() => setDeleting(null)}
         />
       )}

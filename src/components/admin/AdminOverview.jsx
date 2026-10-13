@@ -1,15 +1,22 @@
+import { useEffect, useState } from 'react'
 import { CalendarCheck, CalendarX, ChevronRight, CircleCheck, MessageSquareWarning, Receipt, Star, Store, TicketPercent, UserX, Users, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { byNewest, findById, getCouponUsage, getReviews, isSoldOut } from '../../data/selectors'
-import { useStore } from '../../hooks/useStore'
+import { getBookings } from '../../services/bookingsService'
+import { getCoupons } from '../../services/couponsService'
+import { getAllExperiences } from '../../services/experiencesService'
+import { getOrders } from '../../services/ordersService'
+import { getReviews } from '../../services/reviewsService'
+import { getSessions } from '../../services/sessionsService'
+import { getUsers } from '../../services/usersService'
 import { getCouponStatus } from '../../utils/coupons'
-import { formatFullDate, formatMoney, fullName, isPast, pluralize } from '../../utils/format'
+import { addSessionInfo, byNewest, isSoldOut } from '../../utils/experiences'
+import { formatFullDate, formatMoney, isPast, pluralize } from '../../utils/format'
 import { getNetSales, getOrderRefunded } from '../../utils/orders'
 import DataTable from '../ui/DataTable'
 import ImageWithFallback from '../ui/ImageWithFallback'
 import SectionHeader from '../ui/SectionHeader'
 import StatCard from '../ui/StatCard'
-import { COUPON_EXPIRY_WARNING_DAYS, COUPON_USES_WARNING, LOW_RATING } from './adminRules'
+import { COUPON_EXPIRY_WARNING_DAYS, LOW_RATING } from './adminRules'
 import './AdminOverview.css'
 
 const RECENT_ORDERS = 5
@@ -17,40 +24,61 @@ const TOP_EXPERIENCES = 5
 const DAY_MS = 86400000
 
 /** Cosas que conviene revisar, cada una con link a su sección ya filtrada. */
-function getAlerts(db, experiences) {
+function getAlerts({ experiences, reviews, users, coupons }) {
   const soldOut = experiences.filter(isSoldOut).length
   const withoutDates = experiences.filter((experience) => !experience.upcomingCount).length
-  const lowReviews = db.reviews.filter((review) => review.rating <= LOW_RATING).length
-  const inactiveUsers = db.users.filter((user) => !user.active).length
-  const couponsAtRisk = db.coupons.filter((coupon) => {
-    const used = getCouponUsage(db, coupon)
-    if (getCouponStatus(coupon, used).label !== 'Activo') return false
-    const nearLimit = coupon.maxUses != null && coupon.maxUses - used <= COUPON_USES_WARNING
-    const nearExpiry = new Date(coupon.validUntil).getTime() - Date.now() <= COUPON_EXPIRY_WARNING_DAYS * DAY_MS
-    return nearLimit || nearExpiry
-  }).length
+  const lowReviews = reviews.filter((review) => review.rating <= LOW_RATING).length
+  const inactiveUsers = users.filter((user) => !user.active).length
+  const couponsExpiring = coupons.filter(
+    (coupon) =>
+      getCouponStatus(coupon).label === 'Activo' &&
+      new Date(coupon.validUntil).getTime() - Date.now() <= COUPON_EXPIRY_WARNING_DAYS * DAY_MS,
+  ).length
 
   return [
-    soldOut && { icon: Store, tone: 'danger', text: `${pluralize(soldOut, 'experiencia agotada', 'experiencias agotadas')}`, to: '/admin/experiencias?estado=agotada' },
+    soldOut && { icon: Store, tone: 'danger', text: pluralize(soldOut, 'experiencia agotada', 'experiencias agotadas'), to: '/admin/experiencias?estado=agotada' },
     withoutDates && { icon: CalendarX, tone: 'warning', text: `${pluralize(withoutDates, 'experiencia', 'experiencias')} sin fechas próximas`, to: '/admin/experiencias?estado=sin-fechas' },
     lowReviews && { icon: MessageSquareWarning, tone: 'danger', text: `${pluralize(lowReviews, 'reseña', 'reseñas')} de ${LOW_RATING}★ o menos para revisar`, to: '/admin/resenas?puntuacion=baja' },
-    couponsAtRisk && { icon: TicketPercent, tone: 'warning', text: `${pluralize(couponsAtRisk, 'cupón', 'cupones')} por agotarse o vencer`, to: '/admin/cupones?estado=Activo' },
-    inactiveUsers && { icon: UserX, tone: 'neutral', text: `${pluralize(inactiveUsers, 'cuenta desactivada', 'cuentas desactivadas')}`, to: '/admin/usuarios?estado=inactivo' },
+    couponsExpiring && { icon: TicketPercent, tone: 'warning', text: `${pluralize(couponsExpiring, 'cupón', 'cupones')} por vencer`, to: '/admin/cupones?estado=Activo' },
+    inactiveUsers && { icon: UserX, tone: 'neutral', text: pluralize(inactiveUsers, 'cuenta desactivada', 'cuentas desactivadas'), to: '/admin/usuarios?estado=inactivo' },
   ].filter(Boolean)
 }
 
 function AdminOverview() {
-  const { db, experiences } = useStore()
-  const upcomingBookings = db.bookings.filter((booking) => !booking.refunded && !isPast(booking.startsAt))
-  const recentOrders = [...db.orders].sort(byNewest).slice(0, RECENT_ORDERS)
-  const reviews = getReviews(db)
-  const averageRating = reviews.length ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1) : '—'
-  const alerts = getAlerts(db, experiences)
+  const [orders, setOrders] = useState([])
+  const [bookings, setBookings] = useState([])
+  const [users, setUsers] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [coupons, setCoupons] = useState([])
+  const [experiences, setExperiences] = useState([])
+  const [sessions, setSessions] = useState([])
 
-  const topExperiences = experiences
+  // Al entrar al resumen pedimos todo lo que necesita (cada llamada guarda su resultado en su estado)
+  useEffect(() => {
+    const showError = (error) => console.error('Error al cargar el resumen:', error)
+    getOrders().then((data) => setOrders(data)).catch(showError)
+    getBookings().then((data) => setBookings(data)).catch(showError)
+    getUsers().then((data) => setUsers(data)).catch(showError)
+    getReviews().then((data) => setReviews(data)).catch(showError)
+    getCoupons().then((data) => setCoupons(data)).catch(showError)
+    getAllExperiences().then((data) => setExperiences(data)).catch(showError)
+    getSessions().then((data) => setSessions(data)).catch(showError)
+  }, [])
+
+  const catalog = addSessionInfo(experiences, sessions)
+  const upcomingBookings = bookings.filter((booking) => !booking.refunded && !isPast(booking.startsAt))
+  const recentOrders = [...orders].sort(byNewest).slice(0, RECENT_ORDERS)
+  const averageRating = reviews.length ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1) : '—'
+  const alerts = getAlerts({ experiences: catalog, reviews, users, coupons })
+  const buyerName = (order) => {
+    const buyer = users.find((user) => user.id === order.userId)
+    return buyer ? `${buyer.firstName} ${buyer.lastName}` : `Usuario #${order.userId}`
+  }
+
+  const topExperiences = catalog
     .map((experience) => ({
       ...experience,
-      sold: db.bookings
+      sold: bookings
         .filter((booking) => booking.experienceId === experience.id && !booking.refunded)
         .reduce((sum, booking) => sum + booking.unitPrice * booking.quantity, 0),
     }))
@@ -61,10 +89,10 @@ function AdminOverview() {
   return (
     <div className="stack admin-overview">
       <div className="stat-grid">
-        <StatCard icon={Wallet} label="Ventas netas" value={formatMoney(getNetSales(db.orders, db.bookings))} hint="Cobrado menos reembolsos" />
-        <StatCard icon={Receipt} label="Órdenes" value={db.orders.length} />
+        <StatCard icon={Wallet} label="Ventas netas" value={formatMoney(getNetSales(orders))} hint="Cobrado menos reembolsos" />
+        <StatCard icon={Receipt} label="Órdenes" value={orders.length} />
         <StatCard icon={CalendarCheck} label="Reservas próximas" value={upcomingBookings.length} />
-        <StatCard icon={Users} label="Usuarios activos" value={db.users.filter((user) => user.active).length} />
+        <StatCard icon={Users} label="Usuarios activos" value={users.filter((user) => user.active).length} />
         <StatCard icon={Store} label="Experiencias" value={experiences.length} />
         <StatCard icon={Star} label="Puntuación promedio" value={averageRating} hint={pluralize(reviews.length, 'reseña')} />
       </div>
@@ -124,14 +152,9 @@ function AdminOverview() {
             pageSize={0}
             columns={[
               { key: 'id', header: 'Orden', render: (order) => <strong>#{order.id}</strong> },
-              { key: 'user', header: 'Cliente', render: (order) => fullName(findById(db.users, order.userId)) },
+              { key: 'user', header: 'Cliente', render: buyerName },
               { key: 'date', header: 'Fecha', render: (order) => formatFullDate(order.createdAt) },
-              {
-                key: 'total',
-                header: 'Total neto',
-                align: 'right',
-                render: (order) => formatMoney(order.total - getOrderRefunded(order, db.bookings)),
-              },
+              { key: 'total', header: 'Total neto', align: 'right', render: (order) => formatMoney(order.total - getOrderRefunded(order)) },
             ]}
           />
         </section>

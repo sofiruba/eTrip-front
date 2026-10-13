@@ -1,47 +1,80 @@
-import { useState } from 'react'
-import { CalendarDays, Clock, MapPin, Printer, ShieldCheck, ShieldX, Star, Undo2, Users } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Printer, Star, Undo2 } from 'lucide-react'
 import { useParams } from 'react-router-dom'
-import { getBookingStatus } from '../components/booking/bookingStatus'
+import BookingInfoCard from '../components/booking/BookingInfoCard'
+import CancellationPolicy from '../components/booking/CancellationPolicy'
 import OrderSummary from '../components/booking/OrderSummary'
 import RefundModal from '../components/booking/RefundModal'
 import ReviewFormModal from '../components/booking/ReviewFormModal'
-import { toSummaryItems } from '../components/booking/toSummaryItems'
 import VoucherCard from '../components/booking/VoucherCard'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
-import ImageWithFallback from '../components/ui/ImageWithFallback'
+import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
-import { findById, toBookingView } from '../data/selectors'
-import { useAuth } from '../hooks/useAuth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useStore } from '../hooks/useStore'
+import { getBooking } from '../services/bookingsService'
+import { getExperience } from '../services/experiencesService'
+import { getOrder } from '../services/ordersService'
+import { getMyReviews } from '../services/reviewsService'
+import { getBookingStatus } from '../utils/bookings'
 import { getCancellationPolicy } from '../utils/cancellation'
-import { formatFullDate, formatLongDate, formatTime, pluralize } from '../utils/format'
-import { getOrderRefunded } from '../utils/orders'
+import { formatFullDate, isPast } from '../utils/format'
+import { getOrderRefunded, toSummaryItems } from '../utils/orders'
 import NotFoundPage from './NotFoundPage'
 import './BookingDetailPage.css'
 
 function BookingDetailPage() {
   const { id } = useParams()
   useDocumentTitle(`Reserva #${id}`)
-  const { db } = useStore()
-  const { user } = useAuth()
+  const [booking, setBooking] = useState(null)
+  const [order, setOrder] = useState(null)
+  const [experience, setExperience] = useState(null)
+  const [myReview, setMyReview] = useState(null)
+  const [notFound, setNotFound] = useState(false)
   const [modal, setModal] = useState(null) // 'refund' | 'review' | null
 
-  const raw = findById(db.bookings, id)
-  if (!raw || raw.buyerId !== user.id) return <NotFoundPage title="No encontramos esta reserva" />
+  // 1) La reserva, apenas entramos (o si cambia el id)
+  useEffect(() => {
+    getBooking(id)
+      .then((data) => setBooking(data))
+      .catch(() => setNotFound(true))
+  }, [id])
 
-  const booking = toBookingView(db, raw)
-  const { experience } = booking
-  const status = getBookingStatus(booking)
-  const order = findById(db.orders, booking.orderId)
-  const orderBookings = db.bookings.filter((entry) => entry.orderId === order.id)
-  const myReview = db.reviews.find((review) => review.userId === user.id && review.experienceId === booking.experienceId)
+  // 2) Cuando ya tenemos la reserva: su orden, su experiencia y si ya la reseñé
+  const orderId = booking?.orderId
+  const experienceId = booking?.experienceId
+  useEffect(() => {
+    if (!orderId) return
+    getOrder(orderId)
+      .then((data) => setOrder(data))
+      .catch((error) => console.error('Error al traer la orden:', error))
+
+    getExperience(experienceId)
+      .then((data) => setExperience(data))
+      .catch((error) => console.error('Error al traer la experiencia:', error))
+
+    getMyReviews()
+      .then((reviews) => setMyReview(reviews.find((review) => review.experienceId === experienceId) ?? null))
+      .catch((error) => console.error('Error al traer tus reseñas:', error))
+  }, [orderId, experienceId])
+
+  if (notFound) return <NotFoundPage title="No encontramos esta reserva" />
+  if (!booking || !order) return <Loading />
+
+  const past = isPast(booking.startsAt)
+  const status = getBookingStatus({ ...booking, isPast: past })
   // Misma regla que se muestra en el checkout: reembolso solo hasta 48 h antes
   const policy = getCancellationPolicy(booking.startsAt)
-  const showPolicy = !booking.isPast && !booking.refunded
+  const showPolicy = !past && !booking.refunded
   const canRefund = showPolicy && policy.refundable
-  const canReview = booking.endsAt && new Date(booking.endsAt).getTime() < Date.now() && !booking.refunded && experience
+  // El back no permite editar reseñas: solo se escribe una vez, cuando la experiencia terminó
+  const canReview = isPast(booking.endsAt) && !booking.refunded && !myReview
+
+  // Después del reembolso el back devuelve la reserva actualizada: la guardamos en el estado
+  const handleRefunded = (updated) => {
+    setBooking(updated)
+    setOrder({ ...order, bookings: order.bookings.map((entry) => (entry.id === updated.id ? updated : entry)) })
+  }
 
   return (
     <div className="container page">
@@ -49,42 +82,8 @@ function BookingDetailPage() {
 
       <div className="split">
         <div className="stack">
-          <section className="card booking-detail">
-            <ImageWithFallback src={experience?.images[0]} alt="" className="booking-detail__image" />
-            <div className="booking-detail__info">
-              <Badge tone={status.tone}>{status.label}</Badge>
-              <ul>
-                <li>
-                  <CalendarDays size={18} aria-hidden />
-                  {formatLongDate(booking.startsAt)}
-                </li>
-                <li>
-                  <Clock size={18} aria-hidden />
-                  {formatTime(booking.startsAt)} a {formatTime(booking.endsAt)}
-                </li>
-                {experience && (
-                  <li>
-                    <MapPin size={18} aria-hidden />
-                    {experience.location}
-                  </li>
-                )}
-                <li>
-                  <Users size={18} aria-hidden />
-                  {pluralize(booking.quantity, 'persona')}
-                </li>
-              </ul>
-            </div>
-          </section>
-
-          {showPolicy && (
-            <section className={`card booking-policy ${policy.refundable ? '' : 'is-locked'}`}>
-              {policy.refundable ? <ShieldCheck size={20} aria-hidden /> : <ShieldX size={20} aria-hidden />}
-              <div>
-                <strong>{policy.title}</strong>
-                <p className="muted small">{policy.text}</p>
-              </div>
-            </section>
-          )}
+          <BookingInfoCard booking={booking} experience={experience} status={status} />
+          {showPolicy && <CancellationPolicy policy={policy} />}
 
           <VoucherCard booking={booking} />
 
@@ -96,9 +95,10 @@ function BookingDetailPage() {
             )}
             {canReview && (
               <Button icon={Star} onClick={() => setModal('review')}>
-                {myReview ? 'Editar mi reseña' : 'Escribir reseña'}
+                Escribir reseña
               </Button>
             )}
+            {myReview && <Badge tone="success">Ya dejaste tu reseña</Badge>}
             {canRefund && (
               <Button variant="danger" icon={Undo2} onClick={() => setModal('refund')}>
                 Pedir reembolso
@@ -109,11 +109,11 @@ function BookingDetailPage() {
 
         <OrderSummary
           title={`Orden #${order.id}`}
-          items={toSummaryItems(orderBookings)}
+          items={toSummaryItems(order.bookings)}
           discount={order.discountAmount}
           couponCode={order.couponCode}
           totalLabel="Total pagado"
-          refunded={getOrderRefunded(order, db.bookings)}
+          refunded={getOrderRefunded(order)}
         >
           <p className="muted small">Comprada el {formatFullDate(order.createdAt)}</p>
           <Button variant="ghost" icon={Printer} full onClick={() => window.print()}>
@@ -122,12 +122,14 @@ function BookingDetailPage() {
         </OrderSummary>
       </div>
 
-      {modal === 'refund' && <RefundModal booking={booking} onClose={() => setModal(null)} />}
+      {modal === 'refund' && (
+        <RefundModal booking={booking} order={order} onRefunded={handleRefunded} onClose={() => setModal(null)} />
+      )}
       {modal === 'review' && (
         <ReviewFormModal
           experienceId={booking.experienceId}
           experienceTitle={booking.experienceTitle}
-          review={myReview}
+          onCreated={(review) => setMyReview(review)}
           onClose={() => setModal(null)}
         />
       )}

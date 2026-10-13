@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MessageSquare, Trash2 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getReviews } from '../../data/selectors'
-import { useStore } from '../../hooks/useStore'
 import { useToast } from '../../hooks/useToast'
+import { deleteReview, getReviews } from '../../services/reviewsService'
+import { byNewest } from '../../utils/experiences'
 import { formatFullDate, normalizeText } from '../../utils/format'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
@@ -25,7 +25,7 @@ const RATING_FILTERS = [
 ]
 
 function ReviewsAdmin() {
-  const { db, remove } = useStore()
+  const [reviews, setReviews] = useState([])
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
   const notify = useToast()
@@ -33,7 +33,13 @@ function ReviewsAdmin() {
   const [search, setSearch] = useState('')
   const [rating, setRating] = useState(() => params.get('puntuacion') ?? '')
 
-  const all = getReviews(db)
+  useEffect(() => {
+    getReviews()
+      .then((data) => setReviews(data))
+      .catch((error) => notify(error.message, 'error'))
+  }, [notify])
+
+  const all = [...reviews].sort(byNewest)
   const query = normalizeText(search.trim())
   const rows = all
     .filter((review) => normalizeText(`${review.comment} ${review.experienceTitle} ${review.userName}`).includes(query))
@@ -89,10 +95,14 @@ function ReviewsAdmin() {
         <ConfirmDialog
           title="¿Eliminar reseña?"
           message={`Vas a eliminar la reseña de ${deleting.userName} sobre “${deleting.experienceTitle}”.`}
-          onConfirm={() => {
-            remove('reviews', deleting.id)
-            notify('Reseña eliminada', 'info')
-          }}
+          onConfirm={() =>
+            deleteReview(deleting.id)
+              .then(() => {
+                setReviews(reviews.filter((item) => item.id !== deleting.id))
+                notify('Reseña eliminada', 'info')
+              })
+              .catch((error) => notify(error.message, 'error'))
+          }
           onClose={() => setDeleting(null)}
         />
       )}

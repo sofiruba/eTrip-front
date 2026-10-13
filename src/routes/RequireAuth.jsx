@@ -2,11 +2,15 @@ import { Lock, ShieldAlert } from 'lucide-react'
 import { Outlet } from 'react-router-dom'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
+import Loading from '../components/ui/Loading'
 import { useAuth } from '../hooks/useAuth'
 
 /** Protege rutas: pide iniciar sesión o, si se pasa `role`, verifica el rol. */
 function RequireAuth({ role }) {
-  const { user, openAuth } = useAuth()
+  const { user, checking, openAuth } = useAuth()
+
+  // Al recargar la página esperamos a saber quién es el usuario antes de decidir
+  if (checking) return <Loading />
 
   if (!user) {
     return (

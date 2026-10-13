@@ -1,174 +1,80 @@
 import { useState } from 'react'
-import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useToast } from '../../hooks/useToast'
-import InterestPicker from '../profile/InterestPicker'
-import Button from '../ui/Button'
-import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
+import ForgotPasswordForm from './ForgotPasswordForm'
+import LoginForm from './LoginForm'
+import RegisterForm from './RegisterForm'
 import './AuthModal.css'
 
-// Mismos nombres que RegisterRequest / AuthenticationRequest del back
-const EMPTY_FORM = { username: '', firstname: '', lastname: '', email: '', usernameOrEmail: '', password: '', wantsToHost: false }
-const MIN_INTERESTS = 2
-const MIN_PASSWORD = 6
-const USERNAME_PATTERN = /^[a-z0-9._]{3,20}$/i
+const FIRST_STEP = { login: null, register: 'account', forgot: 'request' }
 
 const COPY = {
   login: { title: 'Qué bueno verte', description: 'Ingresá para reservar y seguir tus planes.' },
-  register: { title: 'Empezá tu próximo plan', description: 'Creá una cuenta para guardar y reservar experiencias.' },
-  interests: { title: '¿Qué te gusta hacer?', description: `Elegí al menos ${MIN_INTERESTS} intereses y te mostramos planes para vos.` },
+  'register:account': { title: 'Empezá tu próximo plan', description: 'Creá tu cuenta para guardar y reservar experiencias.' },
+  'register:profile': { title: 'Contanos de vos', description: 'Así te van a ver anfitriones y otros viajeros.' },
+  'register:interests': { title: '¿Qué te gusta hacer?', description: 'Elegí algunos intereses y te mostramos planes para vos.' },
+  'forgot:request': { title: 'Recuperá tu contraseña', description: 'Te ayudamos a crear una nueva en un minuto.' },
+  'forgot:code': { title: 'Revisá tu email', description: 'Ingresá el código que te mandamos.' },
+  'forgot:password': { title: 'Elegí una contraseña nueva', description: 'Es la que vas a usar de ahora en más.' },
 }
 
-function validate(form, isLogin) {
-  const errors = {}
-  if (isLogin) {
-    if (!form.usernameOrEmail.trim()) errors.usernameOrEmail = 'Ingresá tu email o nombre de usuario.'
-  } else {
-    if (!form.firstname.trim()) errors.firstname = 'Ingresá tu nombre.'
-    if (!form.lastname.trim()) errors.lastname = 'Ingresá tu apellido.'
-    if (!USERNAME_PATTERN.test(form.username)) errors.username = 'Entre 3 y 20 caracteres: letras, números, punto o guion bajo.'
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) errors.email = 'Ingresá un email válido.'
-  }
-  if (!isLogin && form.password.length < MIN_PASSWORD) {
-    errors.password = `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`
-  }
-  return errors
-}
-
+/** Login, registro y "Olvidé mi contraseña" en un mismo modal. Cada flujo maneja sus pasos. */
 function AuthModal() {
-  const { authMode, authRedirect, login, register, closeAuth } = useAuth()
+  const { authMode, authRedirect, closeAuth } = useAuth()
   const notify = useToast()
   const navigate = useNavigate()
-  const [mode, setMode] = useState(authMode)
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [interests, setInterests] = useState([])
-  const [errors, setErrors] = useState({})
-  const [formError, setFormError] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [sending, setSending] = useState(false)
+  const [view, setView] = useState({ mode: authMode, step: FIRST_STEP[authMode] })
+  // Email o usuario que se comparte entre login y recuperar contraseña (y el email repetido del registro)
+  const [identifier, setIdentifier] = useState('')
 
-  const isLogin = mode === 'login'
-  const setField = (field) => (event) => {
-    setForm({ ...form, [field]: event.target.type === 'checkbox' ? event.target.checked : event.target.value })
-    if (errors[field]) setErrors({ ...errors, [field]: undefined })
-  }
+  const go = (mode, step = FIRST_STEP[mode]) => setView({ mode, step })
+  const setStep = (step) => setView({ ...view, step })
 
-  const switchMode = (next) => {
-    setMode(next)
-    setErrors({})
-    setFormError('')
-  }
-
-  // Cuando el back confirma el login o el registro: saludamos y llevamos a donde corresponda
-  const goAfterLogin = (user) => {
-    notify(`¡Hola, ${user.firstName}!`)
+  // Cuando el back confirma la sesión: saludamos y llevamos a donde corresponda
+  const handleDone = (user, message) => {
+    notify(message)
     if (authRedirect) navigate(authRedirect)
-    else if (form.wantsToHost) navigate('/anfitrion')
     else if (user.role === 'ADMIN') navigate('/admin')
   }
 
-  const showError = (error) => {
-    // 401/403 en el login = usuario o contraseña incorrectos
-    const wrongCredentials = isLogin && [401, 403].includes(error.status)
-    setFormError(wrongCredentials ? 'El email/usuario o la contraseña no son correctos.' : error.message)
-    setSending(false)
-  }
-
-  const handleSubmit = (event) => {
-    event.preventDefault()
-    setFormError('')
-
-    if (mode === 'interests') {
-      if (interests.length < MIN_INTERESTS) return setFormError(`Elegí al menos ${MIN_INTERESTS} intereses.`)
-      setSending(true)
-      return register(form, interests).then(goAfterLogin).catch(showError)
-    }
-
-    const nextErrors = validate(form, isLogin)
-    setErrors(nextErrors)
-    if (Object.keys(nextErrors).length) return undefined
-    if (!isLogin) return switchMode('interests')
-
-    setSending(true)
-    return login(form.usernameOrEmail.trim(), form.password).then(goAfterLogin).catch(showError)
-  }
+  const copy = COPY[view.step ? `${view.mode}:${view.step}` : view.mode]
 
   return (
-    <Modal title={COPY[mode].title} description={COPY[mode].description} onClose={closeAuth}>
-      <form className="auth-form" onSubmit={handleSubmit} noValidate>
-        {mode !== 'interests' && (
-          <>
-            {isLogin ? (
-              <FormField
-                label="Email o usuario"
-                value={form.usernameOrEmail}
-                onChange={setField('usernameOrEmail')}
-                error={errors.usernameOrEmail}
-                autoComplete="username"
-              />
-            ) : (
-              <>
-                <div className="form-grid">
-                  <FormField label="Nombre" value={form.firstname} onChange={setField('firstname')} error={errors.firstname} autoComplete="given-name" />
-                  <FormField label="Apellido" value={form.lastname} onChange={setField('lastname')} error={errors.lastname} autoComplete="family-name" />
-                </div>
-                <FormField
-                  label="Nombre de usuario"
-                  value={form.username}
-                  onChange={setField('username')}
-                  error={errors.username}
-                  hint="Así te van a ver otros usuarios. Letras, números, punto o guion bajo."
-                  autoComplete="username"
-                />
-                <FormField label="Email" type="email" value={form.email} onChange={setField('email')} error={errors.email} autoComplete="email" />
-              </>
-            )}
-            <FormField
-              label="Contraseña"
-              type={showPassword ? 'text' : 'password'}
-              value={form.password}
-              onChange={setField('password')}
-              error={errors.password}
-              hint={!isLogin ? `Mínimo ${MIN_PASSWORD} caracteres.` : undefined}
-              autoComplete={isLogin ? 'current-password' : 'new-password'}
-              addon={
-                <button
-                  type="button"
-                  className="field__addon"
-                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                  aria-pressed={showPassword}
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
-                </button>
-              }
-            />
-            {!isLogin && (
-              <label className="checkbox auth-host">
-                <input type="checkbox" checked={form.wantsToHost} onChange={setField('wantsToHost')} />
-                También quiero publicar mis propias experiencias
-              </label>
-            )}
-          </>
+    <Modal title={copy.title} description={copy.description} onClose={closeAuth}>
+      <div className="auth-view" key={view.mode}>
+        {view.mode === 'login' && (
+          <LoginForm
+            identifier={identifier}
+            onIdentifierChange={setIdentifier}
+            onForgot={() => go('forgot')}
+            onRegister={() => go('register')}
+            onDone={handleDone}
+          />
         )}
-
-        {mode === 'interests' && <InterestPicker value={interests} onChange={setInterests} />}
-
-        {formError && <p className="form-error">{formError}</p>}
-
-        <Button type="submit" full iconRight={ArrowRight} disabled={sending}>
-          {{ login: 'Iniciar sesión', register: 'Continuar', interests: 'Crear mi cuenta' }[mode]}
-        </Button>
-
-        <p className="auth-switch">
-          {isLogin ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
-          <button type="button" onClick={() => switchMode(isLogin ? 'register' : 'login')}>
-            {isLogin ? 'Registrate' : 'Iniciá sesión'}
-          </button>
-        </p>
-      </form>
+        {view.mode === 'register' && (
+          <RegisterForm
+            step={view.step}
+            onStepChange={setStep}
+            onLogin={(email) => {
+              if (email) setIdentifier(email)
+              go('login')
+            }}
+            onDone={handleDone}
+          />
+        )}
+        {view.mode === 'forgot' && (
+          <ForgotPasswordForm
+            step={view.step}
+            onStepChange={setStep}
+            identifier={identifier}
+            onIdentifierChange={setIdentifier}
+            onBack={() => go('login')}
+            onDone={handleDone}
+          />
+        )}
+      </div>
     </Modal>
   )
 }

@@ -4,7 +4,7 @@ Documento de traspaso para una sesión que tenga abiertas **las dos carpetas** (
 
 **Leyenda:** ✅ hecho · 🟡 hecho en parte · ⬜ pendiente
 
-**Última actualización:** 7 de octubre de 2026.
+**Última actualización:** 13 de octubre de 2026.
 
 ## Situación actual
 
@@ -34,7 +34,7 @@ Convenciones: comentarios y textos de UI en español rioplatense (voseo), un `.c
 
 | Tema | Back | Front |
 |---|---|---|
-| Roles | Solo `CLIENTE` y `ADMIN` | No hay rol vendedor: cualquier usuario publica. El registro tiene un check "También quiero publicar" que lleva a `/anfitrion`. |
+| Roles | Solo `CLIENTE` y `ADMIN` | No hay rol vendedor: cualquier usuario publica. Se sacó el check "También quiero publicar" del registro (se puede publicar igual desde el menú; "¿Tenés algo para compartir?" abre el registro con redirect a `/anfitrion`). |
 | Login | `AuthenticationRequest.usernameOrEmail` + `password` | ✅ Campo "Email o usuario". |
 | Registro | `RegisterRequest`: `username, firstname, lastname, email, password` | ✅ El form usa esos nombres (ojo: `firstname`/`lastname` en minúscula; la respuesta usa `firstName`/`lastName`). |
 | Fotos de experiencias | `POST`/`PUT /experiences` en `multipart/form-data` (parte `experience` = JSON en texto, partes `images`) | El editor valida tipo y tamaño. Al conectar: armar un `FormData`. |
@@ -47,6 +47,7 @@ Convenciones: comentarios y textos de UI en español rioplatense (voseo), un `.c
 
 ### Cambios hechos en el back (mínimos)
 
+- Auth: `GET /api/v1/auth/availability?username&email`, `POST /forgot-password`, `/verify-reset-code`, `/reset-password` (código de 6 dígitos hasheado en `User.resetCodeHash`, vence a los 15 min, 5 intentos). El registro ahora dice si lo repetido es el usuario o el email. Detalle en `eTrip-back/insomnia/ENDPOINTS.md`.
 - `utils/ImageCompressor`: la compresión de fotos que estaba en `ExperienceServiceImpl` se movió a una utilidad compartida (misma lógica).
 - `User`: nuevos campos `avatar` (LONGBLOB), `bio`, `city` e `interests` (tabla `user_interests`). Con `ddl-auto=update` se crean solos.
 - `UserUpdateDTO` / `UserResponseDTO`: agregan `bio`, `city`, `interests` y (respuesta) `avatarBase64`.
@@ -125,6 +126,14 @@ Convenciones: comentarios y textos de UI en español rioplatense (voseo), un `.c
 5. ✅ **Roles:** resuelto según el back (ver tabla).
 6. 🟡 **Imágenes:** validadas en el editor y en la foto de perfil. ⬜ Enviar los `File` en un `FormData` al conectar.
 7. ⬜ **Cotejar DTOs** entidad por entidad al conectar.
+
+### Login, registro y recuperar contraseña (13/10/2026)
+
+- ✅ `AuthModal` quedó como orquestador; cada flujo en su componente: `LoginForm`, `RegisterForm`, `ForgotPasswordForm` (+ `PasswordField` con medidor de seguridad y `CodeInput` de 6 cajas).
+- ✅ **Registro en 3 pasos** con barra de progreso: Tu cuenta (email + contraseña) → Sobre vos (nombre, apellido, usuario, tarjeta "así te van a ver") → Intereses (opcional: "Ahora no, los elijo después").
+- ✅ **Email y usuario repetidos se avisan antes de los intereses**: `GET /api/v1/auth/availability`. El usuario se chequea en vivo mientras se escribe y hay sugerencias libres a partir del nombre (sofia.perez, sofiaperez…). Si el email ya existe, ofrece iniciar sesión con ese email precargado.
+- ✅ **Recuperar contraseña**: "¿Olvidaste tu contraseña?" en el login → pedir código → ingresar código (se manda solo al completar los 6 dígitos, reenviar con espera de 30 s) → contraseña nueva + repetir → queda logueado.
+- ⬜ **El código hoy se imprime en la consola del back y en la del navegador** (`devCode`, solo con `app.password-reset.show-code=true`) (`ConsolePasswordResetSender`). Falta preguntar a la profe si alcanza o si hay que mandarlo por mail; para mail, implementar `PasswordResetSender` con `spring-boot-starter-mail`.
 
 ## Prioridad 5 — Sistema de diseño
 

@@ -14,7 +14,7 @@ function AuthProvider({ children }) {
   // true mientras revisamos el token guardado (al recargar la página)
   const [checking, setChecking] = useState(Boolean(getToken()))
   const [extras, setExtras] = usePersistentState('plan:profileExtras', {})
-  const [authMode, setAuthMode] = useState(null) // 'login' | 'register' | null (modal cerrado)
+  const [authMode, setAuthMode] = useState(null) // 'login' | 'register' | 'forgot' | null (modal cerrado)
   const [authRedirect, setAuthRedirect] = useState(null)
 
   // Al montar la app: si había un token guardado, traemos quién es el usuario
@@ -45,6 +45,10 @@ function AuthProvider({ children }) {
       return data
     })
 
+  // Con el código de "Olvidé mi contraseña": cambia la contraseña y deja la sesión iniciada
+  const resetPassword = (usernameOrEmail, code, newPassword) =>
+    authService.resetPassword(usernameOrEmail, code, newPassword).then(startSession)
+
   const logout = () => {
     removeToken()
     setUser(null)
@@ -65,6 +69,7 @@ function AuthProvider({ children }) {
     checking,
     login,
     register,
+    resetPassword,
     logout,
     updateProfile,
     authMode,

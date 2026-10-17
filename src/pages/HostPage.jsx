@@ -13,7 +13,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getSales } from '../services/bookingsService'
 import { getMyExperiences } from '../services/experiencesService'
-import { getSessions } from '../services/sessionsService'
+import { getManagedSessions } from '../services/sessionsService'
 import { addBookingInfo } from '../utils/bookings'
 import { addSessionInfo, byStartsAt } from '../utils/experiences'
 import NotFoundPage from './NotFoundPage'
@@ -50,7 +50,8 @@ function HostPage() {
       .catch((error) => console.error('Error al traer tus experiencias:', error))
       .then(() => setLoading(false))
 
-    getSessions()
+    // Todas las fechas de mis experiencias, también las pasadas y las canceladas
+    getManagedSessions()
       .then((data) => setSessions(data))
       .catch((error) => console.error('Error al traer las fechas:', error))
 

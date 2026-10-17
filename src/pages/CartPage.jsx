@@ -6,12 +6,12 @@ import CheckoutSteps from '../components/checkout/CheckoutSteps'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Loading from '../components/ui/Loading'
-import Notice from '../components/ui/Notice'
 import PageHeader from '../components/ui/PageHeader'
 import { useAuth } from '../hooks/useAuth'
 import { useCart } from '../hooks/useCart'
 import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useFreshSessions } from '../hooks/useFreshSessions'
 import { useToast } from '../hooks/useToast'
 import { buildCartLines, getCartProblem } from '../utils/cart'
 import { formatMoney } from '../utils/format'
@@ -24,12 +24,16 @@ function CartPage() {
   const { user, openAuth } = useAuth()
   const notify = useToast()
   const navigate = useNavigate()
+  // Al entrar se vuelven a pedir las fechas: los lugares que quedan pueden haber cambiado desde que se cargó la app
+  const sessionsReady = useFreshSessions()
   useDocumentTitle('Carrito')
 
   // Cada ítem del carrito con su experiencia (foto, lugar) y su sesión (lugares que quedan)
   const lines = buildCartLines(cart.items, experiences, sessions)
-  const missingCount = loading ? 0 : cart.items.length - lines.length
-  const savings = lines.reduce((sum, line) => sum + (line.experience.price - line.experience.finalPrice) * line.quantity, 0)
+  const savings = lines.reduce(
+    (sum, line) => sum + (line.experience ? (line.experience.price - line.experience.finalPrice) * line.quantity : 0),
+    0,
+  )
 
   // Si el back rechaza el cambio, mostramos su mensaje
   const updateQuantity = (line, quantity) => cart.updateQuantity(line.id, quantity).catch((error) => notify(error.message, 'error'))
@@ -49,18 +53,8 @@ function CartPage() {
         description="Revisá las fechas y la cantidad de personas antes de confirmar."
       />
 
-      {missingCount > 0 && (
-        <div className="cart-notice">
-          <Notice tone="warning">
-            {missingCount === 1
-              ? 'Quitamos 1 fecha de tu carrito porque el anfitrión la dio de baja.'
-              : `Quitamos ${missingCount} fechas de tu carrito porque el anfitrión las dio de baja.`}
-          </Notice>
-        </div>
-      )}
-
-      {loading && cart.items.length > 0 ? (
-        <Loading />
+      {(loading || !sessionsReady) && cart.items.length > 0 ? (
+        <Loading text="Revisando los lugares disponibles..." />
       ) : !lines.length ? (
         <EmptyState icon={ShoppingBag} title="Tu carrito está vacío" text="Encontrá un plan y reservá tu lugar.">
           <Button to="/">Explorar experiencias</Button>

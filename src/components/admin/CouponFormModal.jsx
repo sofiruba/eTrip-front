@@ -17,6 +17,7 @@ function CouponFormModal({ coupon, coupons, onSaved, onClose }) {
     active: coupon?.active ?? true,
   })
   const [errors, setErrors] = useState({})
+  const [sending, setSending] = useState(false) // evita crear el mismo cupón dos veces
   const setField = (field) => (event) => setForm({ ...form, [field]: event.target.value })
 
   const handleSubmit = (event) => {
@@ -38,6 +39,7 @@ function CouponFormModal({ coupon, coupons, onSaved, onClose }) {
       validUntil: `${form.validUntil}T23:59:00`,
       active: form.active,
     }
+    setSending(true)
     const request = coupon ? updateCoupon(coupon.id, data) : createCoupon(data)
     request
       .then((saved) => {
@@ -45,7 +47,10 @@ function CouponFormModal({ coupon, coupons, onSaved, onClose }) {
         notify(coupon ? 'Cupón actualizado' : 'Cupón creado')
         onClose()
       })
-      .catch((saveError) => setErrors({ code: saveError.message }))
+      .catch((saveError) => {
+        setErrors({ code: saveError.message })
+        setSending(false)
+      })
   }
 
   return (
@@ -57,8 +62,8 @@ function CouponFormModal({ coupon, coupons, onSaved, onClose }) {
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" form="coupon-form">
-            Guardar
+          <Button type="submit" form="coupon-form" disabled={sending}>
+            {sending ? 'Guardando…' : 'Guardar'}
           </Button>
         </>
       }

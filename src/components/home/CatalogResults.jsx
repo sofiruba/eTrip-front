@@ -9,13 +9,13 @@ import './CatalogResults.css'
  * Grilla de resultados del catálogo con sus estados: cargando, error, vacío y "Cargar más".
  * `visible` son las que se muestran ahora; `total`, cuántas encontró la búsqueda.
  */
-function CatalogResults({ loading, error, visible, total, location, placeIsEmpty, cardLink, onMore, onClear }) {
+function CatalogResults({ loading, error, onRetry, visible, total, location, placeIsEmpty, cardLink, onMore, onClear }) {
   if (loading) return <Loading text="Buscando experiencias..." />
 
   if (error) {
     return (
       <EmptyState icon={ServerCrash} title="No pudimos cargar las experiencias" text={error}>
-        <Button variant="secondary" onClick={() => window.location.reload()}>
+        <Button variant="secondary" onClick={onRetry}>
           Reintentar
         </Button>
       </EmptyState>

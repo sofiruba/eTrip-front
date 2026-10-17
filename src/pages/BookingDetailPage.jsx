@@ -9,8 +9,10 @@ import ReviewFormModal from '../components/booking/ReviewFormModal'
 import VoucherCard from '../components/booking/VoucherCard'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
+import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getBooking } from '../services/bookingsService'
 import { getExperience } from '../services/experiencesService'
@@ -23,21 +25,24 @@ import { getOrderRefunded, toSummaryItems } from '../utils/orders'
 import NotFoundPage from './NotFoundPage'
 import './BookingDetailPage.css'
 
-function BookingDetailPage() {
+// `onRetry` lo pasa RemountOnParam (App.jsx): vuelve a montar la página para pedir todo de nuevo
+function BookingDetailPage({ onRetry }) {
   const { id } = useParams()
+  const { refreshSessions } = useCatalog()
   useDocumentTitle(`Reserva #${id}`)
   const [booking, setBooking] = useState(null)
   const [order, setOrder] = useState(null)
   const [experience, setExperience] = useState(null)
   const [myReview, setMyReview] = useState(null)
   const [notFound, setNotFound] = useState(false)
+  const [error, setError] = useState('')
   const [modal, setModal] = useState(null) // 'refund' | 'review' | null
 
-  // 1) La reserva, apenas entramos (o si cambia el id)
+  // 1) La reserva, apenas entramos. 404/403 = no existe o no es tuya; otro error = el back falló
   useEffect(() => {
     getBooking(id)
       .then((data) => setBooking(data))
-      .catch(() => setNotFound(true))
+      .catch((bookingError) => ([403, 404].includes(bookingError.status) ? setNotFound(true) : setError(bookingError.message)))
   }, [id])
 
   // 2) Cuando ya tenemos la reserva: su orden, su experiencia y si ya la reseñé
@@ -45,9 +50,10 @@ function BookingDetailPage() {
   const experienceId = booking?.experienceId
   useEffect(() => {
     if (!orderId) return
+    // Sin la orden no se puede mostrar el resumen: si falla, se muestra el error (no un spinner eterno)
     getOrder(orderId)
       .then((data) => setOrder(data))
-      .catch((error) => console.error('Error al traer la orden:', error))
+      .catch((orderError) => setError(orderError.message))
 
     getExperience(experienceId)
       .then((data) => setExperience(data))
@@ -59,6 +65,13 @@ function BookingDetailPage() {
   }, [orderId, experienceId])
 
   if (notFound) return <NotFoundPage title="No encontramos esta reserva" />
+  if (error) {
+    return (
+      <div className="container page page--narrow">
+        <ErrorState title="No pudimos cargar tu reserva" message={error} onRetry={onRetry} />
+      </div>
+    )
+  }
   if (!booking || !order) return <Loading />
 
   const past = isPast(booking.startsAt)
@@ -73,7 +86,8 @@ function BookingDetailPage() {
   // Después del reembolso el back devuelve la reserva actualizada: la guardamos en el estado
   const handleRefunded = (updated) => {
     setBooking(updated)
-    setOrder({ ...order, bookings: order.bookings.map((entry) => (entry.id === updated.id ? updated : entry)) })
+    setOrder((current) => ({ ...current, bookings: current.bookings.map((entry) => (entry.id === updated.id ? updated : entry)) }))
+    refreshSessions() // los lugares liberados vuelven al catálogo
   }
 
   return (

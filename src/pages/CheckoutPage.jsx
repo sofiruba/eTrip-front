@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Lock, ShieldCheck, ShoppingBag } from 'lucide-react'
+import { CalendarX, Lock, ShieldCheck, ShoppingBag } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import CheckoutSteps from '../components/checkout/CheckoutSteps'
 import CheckoutSummary from '../components/checkout/CheckoutSummary'
@@ -14,11 +14,12 @@ import { useAuth } from '../hooks/useAuth'
 import { useCart } from '../hooks/useCart'
 import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useFreshSessions } from '../hooks/useFreshSessions'
 import { useSavedCards } from '../hooks/useSavedCards'
 import { useToast } from '../hooks/useToast'
 import { validateCoupon } from '../services/couponsService'
 import { createOrder } from '../services/ordersService'
-import { buildCartLines } from '../utils/cart'
+import { buildCartLines, getCartProblem } from '../utils/cart'
 import {
   CARD_BRANDS,
   DECLINED_TEST_CARD,
@@ -36,7 +37,8 @@ import './CheckoutPage.css'
 function CheckoutPage() {
   const { user } = useAuth()
   const cart = useCart()
-  const { experiences, sessions, loading } = useCatalog()
+  const { experiences, sessions, loading, refreshSessions } = useCatalog()
+  const sessionsReady = useFreshSessions() // lugares que quedan ahora, no los de cuando se abrió la app
   const savedCards = useSavedCards()
   const notify = useToast()
   const navigate = useNavigate()
@@ -53,9 +55,10 @@ function CheckoutPage() {
   const [error, setError] = useState('')
   const [payment, setPayment] = useState(null) // { provider, label, approved } mientras se procesa
   const completingOrder = useRef(false)
+  const formRef = useRef(null)
   const lines = buildCartLines(cart.items, experiences, sessions)
 
-  if (loading && cart.items.length) return <Loading />
+  if ((loading || !sessionsReady) && cart.items.length && !payment) return <Loading text="Revisando los lugares disponibles..." />
 
   if (!lines.length && !payment) {
     return (
@@ -67,14 +70,27 @@ function CheckoutPage() {
     )
   }
 
+  // Una fecha que ya no existe no se puede pagar ni mostrar acá: se quita desde el carrito
+  if (lines.some((line) => line.unavailable) && !payment) {
+    return (
+      <div className="container page page--narrow">
+        <EmptyState
+          icon={CalendarX}
+          title="Hay fechas que ya no están disponibles"
+          text="Pasaron, el anfitrión las canceló o pausó la experiencia. Quitalas del carrito para seguir."
+        >
+          <Button to="/carrito">Volver al carrito</Button>
+        </EmptyState>
+      </div>
+    )
+  }
+
   const discount = coupon?.valid ? calculateDiscount(cart.total, coupon) : 0
   const total = cart.total - discount
   const cardErrors = method === 'card' ? validateCard(card) : {}
   const visibleCardErrors = Object.fromEntries(
     Object.entries(cardErrors).filter(([field]) => submitted || touched[field]),
   )
-
-  const findSoldOut = () => lines.find((line) => line.quantity > line.session.availableSeats)
 
   const describePayment = () => {
     if (method === 'card') {
@@ -96,37 +112,49 @@ function CheckoutPage() {
   const handleSubmit = (event) => {
     event.preventDefault()
     setError('')
-    const soldOut = findSoldOut()
-    if (soldOut) return setError(`No quedan suficientes lugares para “${soldOut.experience.title}”. Ajustá la cantidad.`)
+    // Chequeo rápido con los lugares que ya trajimos; la validación real la hace el back al crear la orden
+    const problemLine = lines.find((line) => getCartProblem(line))
+    if (problemLine) return setError(`“${problemLine.experience.title}”: ${getCartProblem(problemLine)} Ajustá la cantidad.`)
 
     if (Object.keys(cardErrors).length) {
       setSubmitted(true)
-      // Llevamos el foco al primer campo con error (después de que se pinte).
-      return requestAnimationFrame(() => document.querySelector('.card-form [aria-invalid="true"]')?.focus())
+      // Llevamos el foco al primer campo con error, buscándolo solo dentro de este formulario (ref)
+      return requestAnimationFrame(() => formRef.current?.querySelector('[aria-invalid="true"]')?.focus())
     }
     return setPayment(describePayment())
   }
 
-  // POST /orders: el back compra todo lo que hay en el carrito y lo vacía.
-  // Devuelve una promesa: PaymentProcessing muestra el error si sale { ok: false }.
-  const completeOrder = () => {
-    if (completingOrder.current) return Promise.resolve()
+  // POST /orders: el back compra todo lo que hay en el carrito, descuenta los cupos y vacía el carrito.
+  // Devuelve una promesa con { ok, order } o { ok: false, message }: PaymentProcessing decide qué mostrar.
+  const confirmOrder = () => {
+    if (completingOrder.current) return Promise.resolve({ ok: false, message: 'La compra ya se está confirmando.' })
     completingOrder.current = true
 
     return createOrder(coupon?.valid ? coupon.code : null)
       .then((order) => {
         if (method === 'card' && card.save) savedCards.saveCard(toSavedCard(card))
-        cart.reload() // el carrito ahora está vacío en el back
-        navigate(`/checkout/confirmacion/${order.id}`, { replace: true, state: { paymentLabel: payment.label } })
+        return { ok: true, order }
       })
-      .catch((orderError) => {
-        setError(orderError.message)
-        return { ok: false, message: orderError.message }
-      })
+      .catch((orderError) => ({ ok: false, message: orderError.message }))
       .then((result) => {
         completingOrder.current = false
         return result
       })
+  }
+
+  // El carrito quedó vacío y los cupos cambiaron: actualizamos los dos y vamos a la confirmación
+  const finishOrder = (order) => {
+    cart.reload()
+    refreshSessions()
+    navigate(`/checkout/confirmacion/${order.id}`, { replace: true, state: { paymentLabel: payment.label } })
+  }
+
+  // El back rechazó la compra: mostramos su motivo y traemos de nuevo carrito y lugares para que se vea qué cambió
+  const handleOrderFailed = (message) => {
+    setPayment(null)
+    setError(message)
+    cart.reload()
+    refreshSessions()
   }
 
   const applyCoupon = (code) => {
@@ -144,7 +172,7 @@ function CheckoutPage() {
       <PageHeader back={{ to: '/carrito', label: 'Volver al carrito' }} title="Confirmá y" accent="pagá." />
 
       <div className="checkout">
-        <form className="checkout__main" onSubmit={handleSubmit} noValidate>
+        <form className="checkout__main" onSubmit={handleSubmit} noValidate ref={formRef}>
           <section className="checkout__panel">
             <h2>Método de pago</h2>
             <PaymentMethods
@@ -162,7 +190,7 @@ function CheckoutPage() {
           </section>
 
           <p className="checkout__buyer">
-            Pagás como <strong>{fullName(user)}</strong> · {user.email}. Te enviamos los vouchers a ese email.
+            Pagás como <strong>{fullName(user)}</strong> · {user.email}. Tus vouchers van a quedar en Mis reservas.
           </p>
 
           <p className="checkout__legal">
@@ -184,7 +212,7 @@ function CheckoutPage() {
 
           <p className="checkout__secure">
             <ShieldCheck size={16} aria-hidden />
-            Pago protegido con cifrado de extremo a extremo. Nunca guardamos el número completo ni el CVV.
+            Pago simulado: no se hace ningún cobro real. Nunca guardamos el número completo ni el CVV.
           </p>
         </form>
 
@@ -204,7 +232,9 @@ function CheckoutPage() {
           provider={payment.provider}
           amount={total}
           approved={payment.approved}
-          onApproved={completeOrder}
+          onConfirm={confirmOrder}
+          onDone={finishOrder}
+          onFailed={handleOrderFailed}
           onDeclined={() => {
             setPayment(null)
             setError('El banco rechazó la tarjeta. Probá con otra tarjeta o con otro medio de pago.')

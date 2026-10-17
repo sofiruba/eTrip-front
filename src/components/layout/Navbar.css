@@ -7,7 +7,9 @@
   backdrop-filter: blur(12px);
 }
 
+/* Más ancho que el contenido de la página: en pantallas grandes le deja más lugar a la barra de búsqueda */
 .navbar__inner {
+  max-width: 1440px;
   display: flex;
   align-items: center;
   gap: var(--space-5);
@@ -19,6 +21,8 @@
   flex: 1;
   justify-content: center;
   min-width: 0;
+  /* La barra de búsqueda se arma según el lugar que queda acá (ver NavbarSearch.css) */
+  container: navbar-search / inline-size;
 }
 
 .navbar__links {
@@ -124,14 +128,5 @@
 @media (max-width: 580px) {
   .navbar__inner {
     gap: var(--space-3);
-  }
-
-  /* En el celular queda solo la lupa */
-  .navbar-search__label {
-    display: none;
-  }
-
-  .navbar-search {
-    padding: 0 4px;
   }
 }

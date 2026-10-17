@@ -1,16 +1,36 @@
-# React + Vite
+# PLAN (eTrip) · Front
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Marketplace de experiencias armadas por gente local: se publican, se buscan, se reservan y se pagan (pago simulado).
+TPO de Aplicaciones Interactivas (UADE, 2° cuatrimestre 2026). El back es el proyecto `eTrip-back` (Spring Boot).
 
-Currently, two official plugins are available:
+**Tecnologías:** React 19 · Vite · react-router-dom 7 · lucide-react · CSS con variables (modo claro y oscuro). Sin TypeScript.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Cómo levantarlo
 
-## React Compiler
+1. Levantar el back (`eTrip-back`): MySQL corriendo y `./mvnw spring-boot:run`. Queda en `http://localhost:4002`.
+2. En esta carpeta:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev      # http://localhost:5173
+```
 
-## Expanding the Oxlint configuration
+Si el back está en otra URL, copiá `.env.example` como `.env.local` y cambiá `VITE_API_URL`.
+Al desplegar en Vercel, `VITE_API_URL` se carga como variable de entorno del proyecto, y en el back hay que sumar la URL de Vercel a `CORS_ALLOWED_ORIGINS`.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Otros comandos: `npm run build` (versión de producción en `dist/`), `npm run lint` (oxlint).
+
+## Cómo está armado
+
+```
+src/services/   llamadas al back con fetch (.then / .catch); api.js agrega el token y maneja errores
+src/context/    estado global: sesión, catálogo público, carrito, favoritos, toasts
+src/hooks/      hooks propios (useCatalog, useCart, useAuth…)
+src/routes/     rutas protegidas (RequireAuth, CustomerOnly) y RemountOnParam
+src/pages/      una página por ruta (las rutas están en App.jsx)
+src/components/ componentes por sección (home, experience, checkout, host, admin…) y ui/ (base)
+src/utils/      funciones puras (filtros, fechas, carrito, órdenes, cupones…)
+```
+
+Más detalle (decisiones, reglas de negocio, pendientes) en [CONTEXTO-MEJORAS.md](CONTEXTO-MEJORAS.md).
+Los endpoints del back están en `eTrip-back/insomnia/ENDPOINTS.md`.

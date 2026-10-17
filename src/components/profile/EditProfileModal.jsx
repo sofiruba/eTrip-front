@@ -17,11 +17,13 @@ function EditProfileModal({ onClose }) {
     city: user.city ?? '',
     bio: user.bio ?? '',
   })
+  const [sending, setSending] = useState(false)
   const setField = (field) => (event) => setForm({ ...form, [field]: event.target.value })
 
   // Nombre y apellido se guardan en el back (PUT /users/me); ciudad y bio, en el navegador
   const handleSubmit = (event) => {
     event.preventDefault()
+    setSending(true)
     updateProfile({
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
@@ -32,7 +34,10 @@ function EditProfileModal({ onClose }) {
         notify('Perfil actualizado')
         onClose()
       })
-      .catch((error) => notify(error.message, 'error'))
+      .catch((error) => {
+        notify(error.message, 'error')
+        setSending(false)
+      })
   }
 
   return (
@@ -44,8 +49,8 @@ function EditProfileModal({ onClose }) {
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" form="profile-form">
-            Guardar cambios
+          <Button type="submit" form="profile-form" disabled={sending}>
+            {sending ? 'Guardando…' : 'Guardar cambios'}
           </Button>
         </>
       }

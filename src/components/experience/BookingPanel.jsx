@@ -12,8 +12,8 @@ import Money from '../ui/Money'
 import QuantityStepper from '../ui/QuantityStepper'
 import './BookingPanel.css'
 
-/** Panel lateral del detalle: elegir sesión + cantidad y reservar. */
-function BookingPanel({ id, experience, sessions }) {
+/** Panel lateral del detalle: elegir sesión + cantidad y reservar. `ref` (React 19) apunta al panel, para scrollear hasta él. */
+function BookingPanel({ id, ref, experience, sessions }) {
   const { user, isAdmin, openAuth } = useAuth()
   const cart = useCart()
   const notify = useToast()
@@ -21,6 +21,7 @@ function BookingPanel({ id, experience, sessions }) {
   const [params] = useSearchParams()
   const bookable = sessions.filter((session) => session.availableSeats > 0)
   const [sessionId, setSessionId] = useState(bookable[0]?.id ?? null)
+  const [adding, setAdding] = useState(false) // mientras el back responde, los botones quedan deshabilitados
   // Si viene del buscador con cantidad de personas, arranca con esa cantidad
   const [quantity, setQuantity] = useState(() => Math.max(Number(params.get('personas')) || 1, 1))
 
@@ -37,6 +38,8 @@ function BookingPanel({ id, experience, sessions }) {
   const addToCart = (goToCart) => {
     if (!user) return openAuth('login')
     if (maxQuantity === 0) return goToCart && navigate('/carrito')
+    if (adding) return undefined
+    setAdding(true)
     return cart
       .add(selected.id, amount)
       .then(() => {
@@ -47,10 +50,11 @@ function BookingPanel({ id, experience, sessions }) {
         })
       })
       .catch((error) => notify(error.message, 'error'))
+      .then(() => setAdding(false))
   }
 
   return (
-    <aside id={id} className="booking-panel card">
+    <aside id={id} ref={ref} className="booking-panel card">
       <p className="booking-panel__price">
         <strong>
           <Money value={experience.finalPrice} original={experience.price} />
@@ -140,10 +144,10 @@ function BookingPanel({ id, experience, sessions }) {
             <strong>{formatMoney(experience.finalPrice * amount)}</strong>
           </div>
 
-          <Button full onClick={() => addToCart(true)}>
+          <Button full onClick={() => addToCart(true)} disabled={adding}>
             Reservar
           </Button>
-          <Button full variant="secondary" icon={ShoppingBag} onClick={() => addToCart(false)} disabled={maxQuantity === 0}>
+          <Button full variant="secondary" icon={ShoppingBag} onClick={() => addToCart(false)} disabled={maxQuantity === 0 || adding}>
             Agregar al carrito
           </Button>
           <p className="muted small booking-panel__hint">No se te cobra nada todavía.</p>

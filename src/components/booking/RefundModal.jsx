@@ -4,21 +4,20 @@ import { refundBooking } from '../../services/bookingsService'
 import { formatMoney, formatSessionDate } from '../../utils/format'
 import { getRefundAmount } from '../../utils/orders'
 import Button from '../ui/Button'
-import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
+import Notice from '../ui/Notice'
 
-const REASONS = ['Tuve un imprevisto', 'No puedo asistir en esa fecha', 'Me equivoqué al reservar', 'Otro motivo']
-
-/** Pide el reembolso al back y le pasa al padre la reserva actualizada (onRefunded). */
+/**
+ * Pide el reembolso al back (POST /bookings/{id}/refund) y le pasa al padre la reserva actualizada (onRefunded).
+ * El back vuelve a chequear la política de 48 h: si ya pasó el plazo, se muestra su mensaje.
+ */
 function RefundModal({ booking, order, onRefunded, onClose }) {
   const notify = useToast()
-  const [reason, setReason] = useState('')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    if (!reason) return setError('Elegí un motivo.')
     setSending(true)
     return refundBooking(booking.id)
       .then((updated) => {
@@ -40,34 +39,20 @@ function RefundModal({ booking, order, onRefunded, onClose }) {
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancelar
+            Volver
           </Button>
           <Button type="submit" form="refund-form" disabled={sending}>
-            Confirmar reembolso
+            {sending ? 'Cancelando…' : 'Cancelar y pedir reembolso'}
           </Button>
         </>
       }
     >
       <form id="refund-form" className="stack" onSubmit={handleSubmit}>
-        <FormField
-          as="select"
-          label="Motivo"
-          value={reason}
-          error={error}
-          onChange={(event) => {
-            setReason(event.target.value)
-            setError('')
-          }}
-        >
-          <option value="">Elegí una opción</option>
-          {REASONS.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </FormField>
-        <FormField as="textarea" label="Detalle (opcional)" rows={3} placeholder="Contanos un poco más..." />
-        <p className="muted small">
+        <p>
           Vas a recibir {formatMoney(getRefundAmount(booking, order))} y tu voucher {booking.voucherCode} quedará anulado.
+          Los lugares vuelven a estar disponibles para otras personas.
         </p>
+        {error && <Notice tone="danger">{error}</Notice>}
       </form>
     </Modal>
   )

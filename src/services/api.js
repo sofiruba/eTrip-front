@@ -6,16 +6,42 @@
  *   - si sale mal   → .catch(error => ...) (razón de rechazo, con error.message)
  */
 
-const URL = 'http://localhost:4002'
+// URL base del back. En desarrollo es localhost; al desplegar (Vercel) se define VITE_API_URL (ver .env.example).
+const URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4002'
 const TOKEN_KEY = 'etrip:token'
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY)
 export const saveToken = (token) => localStorage.setItem(TOKEN_KEY, token)
 export const removeToken = () => localStorage.removeItem(TOKEN_KEY)
 
+/** true si el token ya venció. El JWT trae su vencimiento (`exp`, en segundos) en la parte del medio, en base64. */
+export function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload.exp * 1000 < Date.now()
+  } catch {
+    return true
+  }
+}
+
+// Qué hacer cuando la sesión vence en medio del uso. Lo define AuthProvider (cerrar sesión y pedir login).
+let onSessionExpired = () => {}
+export const setSessionExpiredHandler = (handler) => {
+  onSessionExpired = handler
+}
+
 // `token` es opcional: por defecto se usa el de la sesión. El cargador de datos de prueba
 // lo usa para hacer llamadas como otro usuario (sin cerrar la sesión del admin).
 export function request(endpoint, method = 'GET', body, token = getToken()) {
+  // Token vencido (dura 24 h): no lo mandamos y avisamos una sola vez que hay que volver a ingresar
+  if (token && isTokenExpired(token)) {
+    if (token === getToken()) {
+      removeToken()
+      onSessionExpired()
+    }
+    token = null
+  }
+
   const options = { method, headers: {} }
 
   if (token) options.headers.Authorization = `Bearer ${token}`

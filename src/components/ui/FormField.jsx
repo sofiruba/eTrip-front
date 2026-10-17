@@ -34,7 +34,8 @@ function FormField({ label, hint, error, as: Control = 'input', addon, children,
   )
 }
 
-export function FormActions({ onCancel, cancelLabel = 'Cancelar', submitLabel = 'Guardar cambios', children }) {
+/** Botones de un formulario. Con `submitting` el botón de guardar queda deshabilitado (no se puede mandar dos veces). */
+export function FormActions({ onCancel, cancelLabel = 'Cancelar', submitLabel = 'Guardar cambios', submitting = false, children }) {
   return (
     <div className="form-actions">
       {children}
@@ -43,8 +44,8 @@ export function FormActions({ onCancel, cancelLabel = 'Cancelar', submitLabel = 
           {cancelLabel}
         </button>
       )}
-      <button type="submit" className="btn btn--primary btn--md">
-        {submitLabel}
+      <button type="submit" className="btn btn--primary btn--md" disabled={submitting}>
+        {submitting ? 'Guardando…' : submitLabel}
       </button>
     </div>
   )

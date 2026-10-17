@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CalendarDays, Eye, Pencil, Percent, Plus, Store, Trash2 } from 'lucide-react'
+import { useCatalog } from '../../hooks/useCatalog'
 import { useToast } from '../../hooks/useToast'
 import { deleteExperience } from '../../services/experiencesService'
 import ExperienceCard from '../experience/ExperienceCard'
@@ -11,6 +12,7 @@ import DiscountModal from './DiscountModal'
 /** Las experiencias del anfitrión. `setExperiences` es la función del padre para actualizar la lista. */
 function HostExperiences({ experiences, bookings, setExperiences }) {
   const notify = useToast()
+  const { reload: reloadCatalog } = useCatalog() // lo que cambia acá también cambia el catálogo público
   const [deleting, setDeleting] = useState(null)
   const [discounting, setDiscounting] = useState(null)
 
@@ -63,7 +65,10 @@ function HostExperiences({ experiences, bookings, setExperiences }) {
       {discounting && (
         <DiscountModal
           experience={discounting}
-          onSaved={(updated) => setExperiences((current) => current.map((item) => (item.id === updated.id ? updated : item)))}
+          onSaved={(updated) => {
+            setExperiences((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+            reloadCatalog()
+          }}
           onClose={() => setDiscounting(null)}
         />
       )}
@@ -76,6 +81,7 @@ function HostExperiences({ experiences, bookings, setExperiences }) {
             deleteExperience(deleting.id)
               .then(() => {
                 setExperiences((current) => current.filter((item) => item.id !== deleting.id))
+                reloadCatalog()
                 notify('Experiencia eliminada', 'info')
               })
               .catch((error) => notify(error.message, 'error'))

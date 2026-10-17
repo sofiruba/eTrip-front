@@ -1,0 +1,122 @@
+/* Capa de fotos detrás del texto del hero. Más ancha que el container para usar los costados de la pantalla. */
+.hero-collage {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  z-index: 0;
+  width: min(100vw - 32px, 1440px);
+  overflow-x: clip;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.hero-card {
+  --card-w: 160px;
+  --scale: 1;
+  position: absolute;
+  width: var(--card-w);
+  color: var(--color-ink);
+  text-align: left;
+  pointer-events: auto;
+  /* --mx / --my van de -1 a 1 según dónde esté el mouse (los pone HomeHero) */
+  transform: translate(calc(var(--mx) * var(--depth) * 28px), calc(var(--my) * var(--depth) * 20px)) rotate(var(--rot))
+    scale(var(--scale));
+  transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.hero-card--left {
+  right: calc(50% + var(--x));
+}
+
+.hero-card--right {
+  left: calc(50% + var(--x));
+}
+
+.hero-card:hover {
+  --rot: 0deg;
+  --scale: 1.07;
+  z-index: 1;
+}
+
+/* Flotan solas aunque no se mueva el mouse */
+.hero-card__float {
+  display: block;
+  animation: hero-card-float 6s ease-in-out var(--delay) infinite;
+}
+
+.hero-card__body {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  animation: hero-card-in 600ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--enter) both;
+  transition: box-shadow var(--transition);
+}
+
+.hero-card:hover .hero-card__body {
+  box-shadow: var(--shadow-lg);
+}
+
+.hero-card__photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.hero-card__info {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px 10px;
+  font-size: var(--text-xs);
+}
+
+.hero-card__info strong,
+.hero-card__info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero-card__info strong {
+  font-size: var(--text-sm);
+}
+
+.hero-card__info span {
+  color: var(--color-muted);
+}
+
+@keyframes hero-card-float {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes hero-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.9);
+  }
+}
+
+/* Pantallas medianas: tarjetas más chicas y sin las de abajo (al lado del buscador no entran) */
+@media (max-width: 1319px) {
+  .hero-card {
+    --card-w: 140px;
+  }
+
+  .hero-card--slot-4,
+  .hero-card--slot-5 {
+    display: none;
+  }
+}
+
+/* No hay lugar a los costados del título: el hero queda solo con el texto */
+@media (max-width: 1039px) {
+  .hero-collage {
+    display: none;
+  }
+}

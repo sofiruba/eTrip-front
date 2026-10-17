@@ -19,7 +19,7 @@ function describeDates({ dateFrom, dateTo }) {
 }
 
 /**
- * Buscador compacto del navbar: un botón "Buscar" (con un punto si hay una búsqueda activa) que, al tocarlo,
+ * Buscador compacto del navbar: una barra con lugar, fechas y personas (o "Buscar" / la lupa si no hay lugar) que, al tocarla,
  * despliega el buscador completo (el mismo de la home) en una franja debajo del navbar,
  * como Airbnb. Los desplegables flotan sobre la página. Busca siempre en la home.
  */
@@ -33,6 +33,7 @@ function NavbarSearch({ hidden = false }) {
   // Cerrar al navegar (por ejemplo, al elegir una experiencia sugerida)
   if (open && openedAt !== pathname) setOpen(false)
 
+  // Mientras está abierto: Escape lo cierra y se bloquea el scroll del <body> (que está fuera del árbol de React)
   useEffect(() => {
     if (!open) return undefined
     const close = (event) => event.key === 'Escape' && !document.querySelector('.hero-search__popover') && setOpen(false)
@@ -51,6 +52,7 @@ function NavbarSearch({ hidden = false }) {
     const next = applyFilters(new URLSearchParams(onHome ? params : undefined), patch)
     setOpen(false)
     navigate({ pathname: '/', search: next.toString() })
+    // La sección de resultados es del Home (otra rama del árbol): se la busca por id después de navegar
     window.setTimeout(() => document.getElementById('experiencias')?.scrollIntoView({ behavior: 'smooth' }), 80)
   }
 
@@ -72,11 +74,17 @@ function NavbarSearch({ hidden = false }) {
           setOpenedAt(pathname)
         }}
       >
+        {/* Con lugar se ven los tres campos; si no entra, quedan "Buscar" o solo la lupa (ver NavbarSearch.css) */}
+        <span className="navbar-search__fields" aria-hidden>
+          <span className="navbar-search__field">{filters.location || 'Cualquier lugar'}</span>
+          <span className="navbar-search__field">{describeDates(filters) || 'Cualquier fecha'}</span>
+          <span className="navbar-search__field navbar-search__field--guests">{describeGuests(filters) || '¿Cuántos?'}</span>
+        </span>
+        <span className="navbar-search__label">Buscar</span>
         <span className="navbar-search__icon">
           <Search size={16} aria-hidden />
           {summary && <i className="navbar-search__dot" aria-hidden />}
         </span>
-        <span className="navbar-search__label">Buscar</span>
       </button>
 
       {open &&
@@ -98,7 +106,7 @@ function NavbarSearch({ hidden = false }) {
   )
 }
 
-/** Se monta recién al abrir el buscador: ahí traemos el catálogo para las sugerencias. */
+/** Se monta recién al abrir el buscador. Las sugerencias salen del catálogo que ya está cargado (CatalogProvider). */
 function SearchPanel({ filters, onSearch }) {
   const { experiences, sessions } = useCatalog()
   return (

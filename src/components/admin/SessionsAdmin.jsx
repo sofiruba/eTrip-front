@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getAllExperiences } from '../../services/experiencesService'
-import { getSessions } from '../../services/sessionsService'
+import { getManagedSessions } from '../../services/sessionsService'
 import HostCalendar from '../host/HostCalendar'
 import Loading from '../ui/Loading'
 
@@ -16,7 +16,8 @@ function SessionsAdmin() {
       .catch((error) => console.error('Error al traer las experiencias:', error))
       .then(() => setLoading(false))
 
-    getSessions()
+    // Como admin, todas las fechas del sitio (también las pasadas y las canceladas)
+    getManagedSessions()
       .then((data) => setSessions(data))
       .catch((error) => console.error('Error al traer las fechas:', error))
   }, [])

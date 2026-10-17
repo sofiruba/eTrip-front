@@ -1,21 +1,44 @@
 import { useEffect, useState } from 'react'
 import { AuthContext } from '../hooks/useAuth'
 import { usePersistentState } from '../hooks/usePersistentState'
-import { getToken, removeToken, saveToken } from '../services/api'
+import { useToast } from '../hooks/useToast'
+import { getToken, isTokenExpired, removeToken, saveToken, setSessionExpiredHandler } from '../services/api'
 import * as authService from '../services/authService'
 import { getMe, updateMe } from '../services/usersService'
+
+// Token guardado de una visita anterior, si todavía sirve
+function getSavedToken() {
+  const token = getToken()
+  if (token && isTokenExpired(token)) {
+    removeToken()
+    return null
+  }
+  return token
+}
 
 /**
  * Sesión del usuario. El token se guarda en localStorage y se manda en cada llamada (ver services/api.js).
  * Bio, ciudad, intereses y foto no existen en el back: se guardan en este navegador, por usuario.
  */
 function AuthProvider({ children }) {
+  const notify = useToast()
   const [user, setUser] = useState(null)
   // true mientras revisamos el token guardado (al recargar la página)
-  const [checking, setChecking] = useState(Boolean(getToken()))
+  const [checking, setChecking] = useState(() => Boolean(getSavedToken()))
   const [extras, setExtras] = usePersistentState('plan:profileExtras', {})
   const [authMode, setAuthMode] = useState(null) // 'login' | 'register' | 'forgot' | null (modal cerrado)
   const [authRedirect, setAuthRedirect] = useState(null)
+
+  // Si el token vence mientras se usa la app: se cierra la sesión y se pide ingresar de nuevo
+  // (el modal se abre sobre la página actual, así después del login sigue donde estaba)
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      setUser(null)
+      setAuthRedirect(null)
+      setAuthMode('login')
+      notify('Tu sesión venció. Ingresá de nuevo para seguir.', 'info')
+    })
+  }, [notify])
 
   // Al montar la app: si había un token guardado, traemos quién es el usuario
   useEffect(() => {

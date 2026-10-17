@@ -2,7 +2,10 @@ import { countSeats } from './guests'
 
 /**
  * Filtros del catálogo guardados en la URL (así el link de una búsqueda se puede compartir).
- * Se aplican en el front sobre el catálogo que ya trajimos (ver utils/experiences.js).
+ * Categoría, ciudad/zona y "solo ofertas" los resuelve el back (GET /experiences?...).
+ * El resto se aplica en el front (ver utils/experiences.js) porque el back no los tiene igual:
+ * texto (busca en título, lugar y anfitrión, sin acentos), precio final con descuento,
+ * fechas con lugar para el grupo, "solo con lugares", viajeros y orden.
  */
 
 export const PAGE_SIZE = 8
@@ -57,6 +60,18 @@ export function readFilters(params) {
     page: Math.max(toNumber(params.get('page')) ?? 0, 0),
   }
 }
+
+/** Query string con los filtros que resuelve el back, o '' si no hay ninguno (entonces se usa el catálogo completo). */
+export function toBackQuery(filters) {
+  const params = new URLSearchParams()
+  if (filters.categoryId) params.set('categoryId', filters.categoryId)
+  if (filters.location.trim()) params.set('location', filters.location.trim())
+  if (filters.onlyDiscounted) params.set('onlyDiscounted', 'true')
+  return params.toString()
+}
+
+/** Los mismos filtros sin los que ya aplicó el back (para no repetirlos en el front). */
+export const withoutBackFilters = (filters) => ({ ...filters, categoryId: null, location: '', onlyDiscounted: false })
 
 /** Fecha local como "2026-10-07" (formato de <input type="date">). */
 export function toDateParam(date) {

@@ -4,6 +4,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom'
 import VoucherCard from '../components/booking/VoucherCard'
 import CheckoutSteps from '../components/checkout/CheckoutSteps'
 import Button from '../components/ui/Button'
+import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
 import { useAuth } from '../hooks/useAuth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -17,17 +18,28 @@ function CheckoutSuccessPage() {
   const { user } = useAuth()
   const [order, setOrder] = useState(null)
   const [failed, setFailed] = useState(false)
+  const [error, setError] = useState('')
   useDocumentTitle('Compra confirmada')
 
   // Traemos la orden recién creada (así funciona aunque se recargue la página)
   useEffect(() => {
     getOrder(orderId)
       .then((data) => setOrder(data))
-      .catch(() => setFailed(true))
+      .catch((orderError) => ([403, 404].includes(orderError.status) ? setFailed(true) : setError(orderError.message)))
   }, [orderId])
 
   // Orden inexistente o de otro usuario
   if (failed) return <Navigate to="/mis-reservas" replace />
+  // La compra ya se hizo: si no podemos mostrar el detalle, igual se puede ver en Mis reservas
+  if (error) {
+    return (
+      <div className="container page page--narrow">
+        <ErrorState title="Tu compra se hizo, pero no pudimos mostrar el detalle" message={error}>
+          <Button to="/mis-reservas">Ver mis reservas</Button>
+        </ErrorState>
+      </div>
+    )
+  }
   if (!order) return <Loading text="Confirmando tu compra..." />
 
   const bookings = order.bookings ?? []

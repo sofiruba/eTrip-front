@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CalendarPlus, CalendarX, Pencil, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
+import { useCatalog } from '../../hooks/useCatalog'
 import { useToast } from '../../hooks/useToast'
 import { deleteSession } from '../../services/sessionsService'
 import { formatTime, isPast } from '../../utils/format'
@@ -14,12 +15,17 @@ import CapacityBar from './CapacityBar'
 import SessionFormModal from './SessionFormModal'
 import './HostCalendar.css'
 
+// Las fechas llegan de GET /experience-sessions/manage, que también trae las pasadas y las canceladas
 function getSessionStatus(session) {
+  if (!session.active) return { label: 'Cancelada', tone: 'danger' }
   if (isPast(session.startsAt)) return { label: 'Finalizada', tone: 'neutral' }
-  if (!session.active) return { label: 'Pausada', tone: 'warning' }
   if (!session.availableSeats) return { label: 'Agotada', tone: 'brand' }
   return { label: 'Publicada', tone: 'success' }
 }
+
+// Una fecha cancelada o que ya empezó no se puede editar ni cancelar (el back también lo rechaza)
+const isEditable = (session) => session.active && !isPast(session.startsAt)
+const bookedSeats = (session) => session.capacity - session.availableSeats
 
 /**
  * Fechas de las experiencias. Lo usan el anfitrión y el admin.
@@ -27,6 +33,7 @@ function getSessionStatus(session) {
  */
 function HostCalendar({ experiences, sessions, setSessions, onChange }) {
   const notify = useToast()
+  const { refreshSessions } = useCatalog() // el catálogo público también tiene que enterarse de los cambios
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState(null) // sesión, 'new' o null
   const [deleting, setDeleting] = useState(null)
@@ -36,8 +43,8 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
   const titleOf = (id) => experiences.find((experience) => experience.id === id)?.title
 
   const askDelete = (session) => {
-    if (session.availableSeats < session.capacity && !isPast(session.startsAt)) {
-      notify('No podés cancelar una sesión con reservas que ya comenzó.', 'error')
+    if (!isEditable(session)) {
+      notify(session.active ? 'No podés cancelar una fecha que ya empezó.' : 'Esta fecha ya está cancelada.', 'error')
       return
     }
     setDeleting(session)
@@ -74,7 +81,7 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
             const status = getSessionStatus(session)
             const date = new Date(session.startsAt)
             return (
-              <li key={session.id} className={`session-row ${status.label === 'Finalizada' ? 'is-past' : ''}`}>
+              <li key={session.id} className={`session-row ${isEditable(session) ? '' : 'is-past'}`}>
                 <div className="session-row__date">
                   <strong>{date.getDate()}</strong>
                   <span>{date.toLocaleDateString('es-AR', { month: 'short' }).replace('.', '')}</span>
@@ -90,8 +97,12 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
                 </div>
                 <CapacityBar session={session} />
                 <div className="cell-actions">
-                  <IconButton icon={Pencil} label="Editar sesión" variant="ghost" onClick={() => setEditing(session)} />
-                  <IconButton icon={Trash2} label="Eliminar sesión" variant="ghost" onClick={() => askDelete(session)} />
+                  {isEditable(session) && (
+                    <>
+                      <IconButton icon={Pencil} label="Editar sesión" variant="ghost" onClick={() => setEditing(session)} />
+                      <IconButton icon={Trash2} label="Cancelar sesión" variant="ghost" onClick={() => askDelete(session)} />
+                    </>
+                  )}
                 </div>
               </li>
             )
@@ -111,20 +122,29 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
             setSessions((current) =>
               current.some((item) => item.id === saved.id) ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved],
             )
+            refreshSessions()
           }}
           onClose={() => setEditing(null)}
         />
       )}
       {deleting && (
         <ConfirmDialog
-          title="¿Eliminar sesión?"
-          message="La fecha dejará de estar disponible y se reembolsarán automáticamente todas las reservas futuras de esta sesión."
+          title="¿Cancelar esta fecha?"
+          message={
+            bookedSeats(deleting) > 0
+              ? `La fecha deja de estar disponible y se reembolsan automáticamente las ${bookedSeats(deleting)} plazas reservadas. Los compradores reciben un aviso.`
+              : 'La fecha deja de estar disponible para reservar.'
+          }
           onConfirm={() =>
             deleteSession(deleting.id)
               .then(() => {
-                setSessions((current) => current.filter((item) => item.id !== deleting.id))
+                // El back no la borra: la marca como cancelada y libera los lugares (queda en el historial)
+                setSessions((current) =>
+                  current.map((item) => (item.id === deleting.id ? { ...item, active: false, availableSeats: item.capacity } : item)),
+                )
+                refreshSessions()
                 if (onChange) onChange()
-                notify('Sesión cancelada y reservas reembolsadas', 'info')
+                notify(bookedSeats(deleting) > 0 ? 'Fecha cancelada y reservas reembolsadas' : 'Fecha cancelada', 'info')
               })
               .catch((deleteError) => notify(deleteError.message, 'error'))
           }

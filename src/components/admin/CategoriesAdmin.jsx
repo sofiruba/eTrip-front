@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { useCatalog } from '../../hooks/useCatalog'
 import { useToast } from '../../hooks/useToast'
 import { deleteCategory, getCategories } from '../../services/categoriesService'
 import { getAllExperiences } from '../../services/experiencesService'
@@ -16,6 +17,7 @@ function CategoriesAdmin() {
   const [categories, setCategories] = useState([])
   const [experiences, setExperiences] = useState([])
   const notify = useToast()
+  const { reload: reloadCatalog } = useCatalog() // lo que cambia acá también cambia el catálogo público
   const [editing, setEditing] = useState(null) // categoría, 'new' o null
   const [deleting, setDeleting] = useState(null)
   const [search, setSearch] = useState('')
@@ -89,13 +91,14 @@ function CategoriesAdmin() {
         <CategoryFormModal
           category={editing === 'new' ? null : editing}
           categories={categories}
-          onSaved={(saved) =>
-            setCategories(
-              categories.some((item) => item.id === saved.id)
-                ? categories.map((item) => (item.id === saved.id ? saved : item))
-                : [...categories, saved],
+          onSaved={(saved) => {
+            setCategories((current) =>
+              current.some((item) => item.id === saved.id)
+                ? current.map((item) => (item.id === saved.id ? saved : item))
+                : [...current, saved],
             )
-          }
+            reloadCatalog()
+          }}
           onClose={() => setEditing(null)}
         />
       )}
@@ -106,7 +109,8 @@ function CategoriesAdmin() {
           onConfirm={() =>
             deleteCategory(deleting.id)
               .then(() => {
-                setCategories(categories.filter((item) => item.id !== deleting.id))
+                setCategories((current) => current.filter((item) => item.id !== deleting.id))
+                reloadCatalog()
                 notify('Categoría eliminada', 'info')
               })
               .catch((error) => notify(error.message, 'error'))

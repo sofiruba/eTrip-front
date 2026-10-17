@@ -22,7 +22,8 @@ function Navbar() {
 
   if (mobileOpen && openedAt !== pathname) setMobileOpen(false)
 
-  // En la home la píldora se esconde mientras el buscador grande está a la vista
+  // En la home la píldora se esconde mientras el buscador grande está a la vista.
+  // El buscador grande es de otra rama del árbol (HomePage, no el layout), por eso se busca por id y no con una ref.
   const [heroSearchVisible, setHeroSearchVisible] = useState(pathname === '/')
   useEffect(() => {
     const heroSearch = document.getElementById('hero-search')

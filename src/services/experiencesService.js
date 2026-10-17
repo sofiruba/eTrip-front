@@ -28,6 +28,9 @@ export function toFormData(experience, photos) {
 // Catálogo público (solo activas)
 export const getExperiences = () => requestList('/experiences').then((list) => list.map(toExperience))
 
+// Búsqueda con los filtros que resuelve el back (`query` = "categoryId=2&location=Palermo&onlyDiscounted=true")
+export const searchExperiences = (query) => requestList(`/experiences?${query}`).then((list) => list.map(toExperience))
+
 // Panel de admin: también trae las desactivadas
 export const getAllExperiences = () =>
   requestList('/experiences?includeInactive=true').then((list) => list.map(toExperience))

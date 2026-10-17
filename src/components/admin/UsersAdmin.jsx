@@ -66,7 +66,7 @@ function UsersAdmin() {
     const request = confirming === 'role' ? updateUserRole(selected.id, nextRole) : updateUserStatus(selected.id, !selected.active)
     return request
       .then((updated) => {
-        setUsers(users.map((user) => (user.id === updated.id ? updated : user)))
+        setUsers((current) => current.map((user) => (user.id === updated.id ? updated : user)))
         if (confirming === 'role') notify(`${updated.firstName} ahora es ${nextRole === 'ADMIN' ? 'administrador' : 'cliente'}`)
         else notify(updated.active ? 'Cuenta activada' : 'Cuenta desactivada: ya no puede ingresar', 'info')
       })

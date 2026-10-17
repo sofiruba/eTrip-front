@@ -51,7 +51,7 @@ const GROUPS = [
     sections: [
       { id: 'ordenes', label: 'Órdenes', icon: Receipt, component: OrdersAdmin, description: 'Cada compra, con su cupón y sus reembolsos.' },
       { id: 'reservas', label: 'Reservas', icon: CalendarCheck, component: BookingsAdmin, description: 'Los lugares reservados en cada fecha. Desde acá podés reembolsar.' },
-      { id: 'cupones', label: 'Cupones', icon: TicketPercent, component: CouponsAdmin, description: 'Promociones con vigencia y, si querés, un límite de usos.' },
+      { id: 'cupones', label: 'Cupones', icon: TicketPercent, component: CouponsAdmin, description: 'Promociones con porcentaje y vigencia. Cada cliente puede usar un cupón una sola vez.' },
     ],
   },
   {

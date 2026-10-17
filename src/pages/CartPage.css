@@ -7,10 +7,6 @@
   list-style: none;
 }
 
-.cart-notice {
-  margin-bottom: var(--space-5);
-}
-
 .cart-savings {
   margin: 0;
   color: var(--color-success);

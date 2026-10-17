@@ -10,7 +10,8 @@ const MAX_MB = 5
 const TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 /** Foto de perfil. El back no guarda fotos de usuario: queda guardada en este navegador. */
-function AvatarUploader() {
+// `buttonRef` deja que el padre abra el selector de foto (por ejemplo, desde "Completá tu perfil")
+function AvatarUploader({ buttonRef }) {
   const { user, updateProfile } = useAuth()
   const notify = useToast()
   const inputRef = useRef(null)
@@ -41,6 +42,7 @@ function AvatarUploader() {
       <div className="avatar-uploader__frame">
         <Avatar name={fullName(user)} src={user.avatarUrl} size="xl" />
         <button
+          ref={buttonRef}
           type="button"
           className="avatar-uploader__button"
           aria-label={user.avatarUrl ? 'Cambiar foto de perfil' : 'Subir foto de perfil'}

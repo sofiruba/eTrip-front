@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pencil, Plus, TicketPercent, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useToast } from '../../hooks/useToast'
-import { deleteCoupon, getCoupons, updateCoupon } from '../../services/couponsService'
+import { deleteCoupon, getCoupons } from '../../services/couponsService'
 import { getOrders } from '../../services/ordersService'
 import { getCouponStatus } from '../../utils/coupons'
 import { formatShortDate, normalizeText } from '../../utils/format'
@@ -47,26 +47,20 @@ function CouponsAdmin() {
     .filter((coupon) => !status || coupon.status.label === status)
 
   const saveCoupon = (saved) =>
-    setCoupons(coupons.some((item) => item.id === saved.id) ? coupons.map((item) => (item.id === saved.id ? saved : item)) : [...coupons, saved])
+    setCoupons((current) =>
+      current.some((item) => item.id === saved.id) ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved],
+    )
 
-  // Si ya se usó, se desactiva en vez de borrarse (para no romper órdenes viejas)
-  const confirmDelete = () => {
-    if (deleting.used > 0) {
-      const { id, code, percentage, validFrom, validUntil } = deleting
-      return updateCoupon(id, { code, percentage, validFrom, validUntil, active: false })
-        .then((saved) => {
-          saveCoupon(saved)
-          notify('El cupón ya se había usado: quedó desactivado', 'info')
-        })
-        .catch((error) => notify(error.message, 'error'))
-    }
-    return deleteCoupon(deleting.id)
-      .then(() => {
-        setCoupons(coupons.filter((item) => item.id !== deleting.id))
-        notify('Cupón eliminado', 'info')
+  // La regla la aplica el back: si el cupón ya se usó lo desactiva en vez de borrarlo (para no romper órdenes viejas).
+  // Como no sabemos cuál de las dos hizo, volvemos a pedir la lista.
+  const confirmDelete = () =>
+    deleteCoupon(deleting.id)
+      .then(() => getCoupons())
+      .then((data) => {
+        setCoupons(data)
+        notify(deleting.used > 0 ? 'El cupón ya se había usado: quedó desactivado' : 'Cupón eliminado', 'info')
       })
       .catch((error) => notify(error.message, 'error'))
-  }
 
   return (
     <>

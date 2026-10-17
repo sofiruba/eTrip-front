@@ -6,12 +6,12 @@ import AvatarUploader from './AvatarUploader'
 import './ProfileHero.css'
 
 /** Encabezado del perfil: foto, nombre, datos y accesos. */
-function ProfileHero({ user, publishedCount, onEdit }) {
+function ProfileHero({ user, publishedCount, onEdit, avatarButtonRef }) {
   const roleLabel = user.role === 'ADMIN' ? 'Administrador' : publishedCount ? 'Anfitrión' : 'Miembro'
 
   return (
     <section className="profile-hero">
-      <AvatarUploader />
+      <AvatarUploader buttonRef={avatarButtonRef} />
       <div className="profile-hero__info">
         <Badge tone="brand">{roleLabel}</Badge>
         <h1>{fullName(user)}</h1>

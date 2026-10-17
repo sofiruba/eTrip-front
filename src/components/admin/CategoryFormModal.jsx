@@ -11,6 +11,7 @@ function CategoryFormModal({ category, categories, onSaved, onClose }) {
   const [name, setName] = useState(category?.name ?? '')
   const [description, setDescription] = useState(category?.description ?? '')
   const [error, setError] = useState('')
+  const [sending, setSending] = useState(false) // evita crear la misma categoría dos veces
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -21,6 +22,7 @@ function CategoryFormModal({ category, categories, onSaved, onClose }) {
     if (duplicated) return setError('Ya existe una categoría con ese nombre.')
 
     const data = { name: trimmed, description: description.trim() }
+    setSending(true)
     const request = category ? updateCategory(category.id, data) : createCategory(data)
     return request
       .then((saved) => {
@@ -28,7 +30,10 @@ function CategoryFormModal({ category, categories, onSaved, onClose }) {
         notify(category ? 'Categoría actualizada' : 'Categoría creada')
         onClose()
       })
-      .catch((saveError) => setError(saveError.message))
+      .catch((saveError) => {
+        setError(saveError.message)
+        setSending(false)
+      })
   }
 
   return (
@@ -40,8 +45,8 @@ function CategoryFormModal({ category, categories, onSaved, onClose }) {
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" form="category-form">
-            Guardar
+          <Button type="submit" form="category-form" disabled={sending}>
+            {sending ? 'Guardando…' : 'Guardar'}
           </Button>
         </>
       }

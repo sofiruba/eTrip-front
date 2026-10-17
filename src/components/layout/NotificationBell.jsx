@@ -24,7 +24,7 @@ function NotificationBell() {
   // PATCH y reemplazamos la notificación por la que devuelve el back (ya leída)
   const markRead = (notification) =>
     markNotificationRead(notification.id)
-      .then((updated) => setNotifications(notifications.map((item) => (item.id === updated.id ? updated : item))))
+      .then((updated) => setNotifications((current) => current.map((item) => (item.id === updated.id ? updated : item))))
       .catch((error) => console.error('Error al marcar la notificación:', error))
 
   return (

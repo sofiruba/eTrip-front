@@ -6,8 +6,9 @@ export function getFinalPrice({ price, discountPercentage }) {
   return Math.round(price * (1 - (discountPercentage || 0) / 100))
 }
 
+// Solo para mostrar antes de pagar; el descuento real lo calcula el back al crear la orden (redondeado a centavos)
 export function calculateDiscount(subtotal, coupon) {
-  return coupon ? Math.round((subtotal * coupon.percentage) / 100) : 0
+  return coupon ? Math.round(subtotal * coupon.percentage) / 100 : 0
 }
 
 /** Lo que se devuelve de una reserva: su parte del total, prorrateando el cupón si hubo. */

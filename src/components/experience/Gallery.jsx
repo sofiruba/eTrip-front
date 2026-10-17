@@ -10,10 +10,12 @@ function Gallery({ images, title }) {
       <ImageWithFallback className="gallery__main" src={images[active]} alt={title} />
       {images.length > 1 && (
         <div className="gallery__thumbs">
+          {/* Las fotos no tienen id y la lista no cambia mientras se ve: la posición sirve de key
+              (usar el base64 como key repetía keys si se subía dos veces la misma foto) */}
           {images.map((image, index) => (
             <button
               type="button"
-              key={image}
+              key={index}
               className={index === active ? 'is-active' : ''}
               aria-label={`Ver foto ${index + 1}`}
               onClick={() => setActive(index)}

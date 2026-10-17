@@ -38,11 +38,17 @@ function PhotoPicker({ images, onChange, error }) {
   return (
     <>
       <div className="photo-picker">
+        {/* Las fotos no tienen id: key = posición + foto, y se quitan por posición
+            (con la misma foto subida dos veces, filtrar por contenido borraba las dos) */}
         {images.map((image, index) => (
-          <div key={srcOf(image)} className="photo-picker__photo">
+          <div key={`${index}-${srcOf(image).slice(-24)}`} className="photo-picker__photo">
             <img src={srcOf(image)} alt="" />
             {index === 0 && <span className="photo-picker__cover">Portada</span>}
-            <button type="button" aria-label="Quitar foto" onClick={() => onChange(images.filter((entry) => entry !== image))}>
+            <button
+              type="button"
+              aria-label="Quitar foto"
+              onClick={() => onChange(images.filter((_, position) => position !== index))}
+            >
               <X size={14} aria-hidden />
             </button>
           </div>

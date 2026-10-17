@@ -98,7 +98,7 @@ function ReviewsAdmin() {
           onConfirm={() =>
             deleteReview(deleting.id)
               .then(() => {
-                setReviews(reviews.filter((item) => item.id !== deleting.id))
+                setReviews((current) => current.filter((item) => item.id !== deleting.id))
                 notify('Reseña eliminada', 'info')
               })
               .catch((error) => notify(error.message, 'error'))

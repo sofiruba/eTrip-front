@@ -3,33 +3,35 @@ import { CalendarHeart, History } from 'lucide-react'
 import BookingCard from '../components/booking/BookingCard'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
+import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import Tabs from '../components/ui/Tabs'
+import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getBookings } from '../services/bookingsService'
-import { getExperiences } from '../services/experiencesService'
 import { addBookingInfo, splitBookings } from '../utils/bookings'
 import './MyBookingsPage.css'
 
 function MyBookingsPage() {
   useDocumentTitle('Mis reservas')
+  const { experiences } = useCatalog() // para la foto y el lugar de cada reserva (ya están cargadas)
   const [bookings, setBookings] = useState([])
-  const [experiences, setExperiences] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0) // "Reintentar" lo incrementa y el efecto vuelve a pedir
   const [tab, setTab] = useState('upcoming')
 
-  // Al entrar: mis reservas y las experiencias (para mostrar la foto y el lugar de cada una)
+  // Al entrar: mis reservas. Si el back falla se muestra el error, no "no tenés reservas"
   useEffect(() => {
     getBookings()
-      .then((data) => setBookings(data))
-      .catch((error) => console.error('Error al traer tus reservas:', error))
+      .then((data) => {
+        setBookings(data)
+        setError('')
+      })
+      .catch((loadError) => setError(loadError.message))
       .then(() => setLoading(false))
-
-    getExperiences()
-      .then((data) => setExperiences(data))
-      .catch((error) => console.error('Error al traer las experiencias:', error))
-  }, [])
+  }, [attempt])
 
   const groups = splitBookings(addBookingInfo(bookings, experiences))
   const visible = groups[tab]
@@ -51,6 +53,8 @@ function MyBookingsPage() {
       <div className="my-bookings__list">
         {loading ? (
           <Loading />
+        ) : error ? (
+          <ErrorState title="No pudimos cargar tus reservas" message={error} onRetry={() => setAttempt((current) => current + 1)} />
         ) : visible.length ? (
           <div className="booking-list">
             {visible.map((booking) => (

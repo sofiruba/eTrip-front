@@ -16,6 +16,7 @@ import MyBookingsPage from './pages/MyBookingsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
 import CustomerOnly from './routes/CustomerOnly'
+import RemountOnParam from './routes/RemountOnParam'
 import RequireAuth from './routes/RequireAuth'
 
 // El checkout solo se descarga cuando alguien va a pagar.
@@ -35,7 +36,7 @@ function App() {
         {/* Públicas */}
         <Route index element={<HomePage />} />
         <Route path="experiencias/:id" element={<ExperiencePage />} />
-        <Route path="anfitriones/:id" element={<HostProfilePage />} />
+        <Route path="anfitriones/:id" element={<RemountOnParam page={HostProfilePage} />} />
         <Route path="nosotros" element={<AboutPage />} />
         <Route path="ayuda" element={<HelpPage />} />
         <Route path="terminos" element={<LegalPage doc="terminos" />} />
@@ -50,11 +51,12 @@ function App() {
             <Route path="checkout" element={lazyPage(CheckoutPage)} />
             <Route path="checkout/confirmacion/:orderId" element={lazyPage(CheckoutSuccessPage)} />
             <Route path="mis-reservas" element={<MyBookingsPage />} />
-            <Route path="mis-reservas/:id" element={<BookingDetailPage />} />
+            <Route path="mis-reservas/:id" element={<RemountOnParam page={BookingDetailPage} />} />
             <Route path="perfil" element={<ProfilePage />} />
             <Route path="anfitrion/:tab?" element={<HostPage />} />
-            <Route path="anfitrion/experiencias/nueva" element={<ExperienceEditorPage />} />
-            <Route path="anfitrion/experiencias/:id/editar" element={<ExperienceEditorPage />} />
+            {/* Misma página para crear y editar: RemountOnParam la monta de nuevo al pasar de una a otra */}
+            <Route path="anfitrion/experiencias/nueva" element={<RemountOnParam page={ExperienceEditorPage} />} />
+            <Route path="anfitrion/experiencias/:id/editar" element={<RemountOnParam page={ExperienceEditorPage} />} />
           </Route>
         </Route>
 

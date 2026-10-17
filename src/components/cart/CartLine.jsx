@@ -13,20 +13,28 @@ import './CartLine.css'
 function CartLine({ line, onQuantityChange, onRemove }) {
   const { quantity, session, experience, subtotal } = line
   const problem = getCartProblem(line)
-  const canAdjust = quantity > session.availableSeats && session.availableSeats > 0
+  // Si la fecha ya no está (session = null) solo se puede quitar; si la experiencia se pausó, tampoco hay foto ni link
+  const canAdjust = Boolean(session) && quantity > session.availableSeats && session.availableSeats > 0
+  const canChange = Boolean(session) && session.availableSeats > 0 && !isPast(session.startsAt)
+  const title = experience?.title ?? line.experienceTitle
 
   return (
     <li className={`cart-line ${problem ? 'has-problem' : ''}`}>
-      <ImageWithFallback src={experience.images[0]} alt="" className="cart-line__image" />
+      <ImageWithFallback src={experience?.images[0]} alt="" className="cart-line__image" />
       <div className="cart-line__info">
-        <span className="eyebrow">{experience.categoryName}</span>
-        <Link to={`/experiencias/${experience.id}`}>
-          <h3>{experience.title}</h3>
-        </Link>
+        {experience && <span className="eyebrow">{experience.categoryName}</span>}
+        {experience ? (
+          <Link to={`/experiencias/${experience.id}`}>
+            <h3>{title}</h3>
+          </Link>
+        ) : (
+          <h3>{title}</h3>
+        )}
         <p className="muted small">
-          {formatSessionDate(session.startsAt)} · {experience.location}
+          {formatSessionDate(line.startsAt)}
+          {experience && ` · ${experience.location}`}
         </p>
-        {session.availableSeats > 0 && !isPast(session.startsAt) && (
+        {canChange && (
           <QuantityStepper value={Math.min(quantity, session.availableSeats)} max={session.availableSeats} onChange={onQuantityChange} />
         )}
         {problem && (

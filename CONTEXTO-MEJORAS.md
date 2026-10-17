@@ -1,64 +1,80 @@
 # Contexto: mejoras del front de eTrip
 
-Documento de traspaso para una sesión que tenga abiertas **las dos carpetas** (front y back). Lista las mejoras del front ordenadas por prioridad, con su estado.
+Documento de traspaso para una sesión que tenga abiertas **las dos carpetas** (front y back). Arriba está el estado real de hoy y el análisis de la 2da entrega; más abajo, el historial de mejoras por prioridad.
 
 **Leyenda:** ✅ hecho · 🟡 hecho en parte · ⬜ pendiente
 
-**Última actualización:** 13 de octubre de 2026.
+**Última actualización:** 16 de octubre de 2026.
 
 ## Situación actual
 
 - **Concepto:** "hacé un plan distinto". Cualquiera puede organizar una experiencia (una cata en su terraza, un paseo por su barrio, un catamarán) y la compran locales que buscan algo diferente o turistas que quieren vivir la ciudad como alguien de ahí. Empieza en Buenos Aires, pero el modelo es **multi-ciudad**: la home arranca con un buscador Lugar · Fechas · Personas (todo opcional).
-- **Dominio:** marketplace de *experiencias* (no productos genéricos). Está **aprobado por la cátedra** como e-commerce. Mapeo con la consigna del TPO: producto → experiencia, stock → cupos (`availableSeats` de cada sesión), vendedor → anfitrión (`publisherId`).
-- **Front (`eTrip-front`):** React 19 + Vite 8 + react-router-dom 7 (data router: `createBrowserRouter` en `main.jsx`, rutas declaradas en `App.jsx`) + lucide-react. CSS plano con custom properties. **100% mock:** no hay ningún `fetch`. La "base" vive en memoria en `src/context/StoreProvider.jsx` y se pierde al recargar. Persisten en `localStorage`: `plan:userId`, `plan:cart`, `plan:favoritesByUser` (favoritos por usuario; el back no tiene favoritos), `plan:savedCards`, `plan:theme`, `plan:recentSearches`.
-- **Back:** hecho, en la otra carpeta. Todavía no se conectó. **El objetivo es dejar el front terminado primero y después conectarlo.**
+- **Dominio:** marketplace de *experiencias*, **aprobado por la cátedra** como e-commerce. Mapeo con la consigna: producto → experiencia, stock → cupos (`availableSeats` de cada sesión), vendedor → anfitrión (`publisherId`).
+- **Entregas:** 2da (20/10) = front + integración con el back, con **Context** (sin Redux). 3ra (24/11) = Redux y recuperar contraseña "de verdad".
+- **Front (`eTrip-front`):** React 19 + Vite 8 + react-router-dom 7 (data router: `createBrowserRouter` en `main.jsx`, rutas en `App.jsx`) + lucide-react. CSS plano con custom properties. **Conectado al back**: todas las llamadas pasan por `src/services/api.js` (`fetch` + `.then/.catch`, token `Bearer`). La URL del back sale de `VITE_API_URL` (ver `.env.example`; por defecto `http://localhost:4002`).
+- **Guardado solo en el navegador** (`localStorage`): `etrip:token`, `plan:profileExtras` (bio, ciudad, intereses y foto: **el back no los tiene**), `plan:favoritesByUser`, `plan:savedCards`, `plan:theme`, `plan:recentSearches`.
+- **Back (`eTrip-back`):** Spring Boot en el puerto 4002, MySQL `etrip_db`. Endpoints y reglas en `eTrip-back/insomnia/ENDPOINTS.md`.
 
 ### Arquitectura del front (respetarla)
 
 ```
-src/data/*             entidades semilla con forma de DTO del back
-src/data/selectors.js  funciones puras que calculan lo que devolvería el back (toExperienceDTO, filterExperiences, validateCoupon…)
-src/utils/*            lógica pura (orders, cancellation, catalogFilters, cards, format)
-src/context/*          providers: Toast > Store > Auth > Favorites > SavedCards > Cart
-src/hooks/*            el createContext vive en el archivo del hook, no en el provider
-src/components/ui/*    componentes base (Button, Modal, DataTable, EmptyState, FormField, Notice, Tabs…)
-src/pages/*            páginas
+src/services/*         un archivo por recurso del back; api.js = request() con fetch, token y manejo de errores
+src/context/*          providers: Toast > Catalog > Auth > Favorites > SavedCards > Cart
+                       CatalogProvider: experiencias, fechas y categorías públicas, pedidas UNA vez al abrir la app
+src/hooks/*            el createContext vive en el archivo del hook (useCatalog, useCart…), no en el provider
+src/routes/*           RequireAuth, CustomerOnly, RemountOnParam (vuelve a montar la página si cambia :id o se reintenta)
+src/utils/*            lógica pura (catalogFilters, experiences, cart, orders, cancellation, coupons, cards, format)
+src/components/ui/*    componentes base (Button, Modal, DataTable, EmptyState, ErrorState, FormField, Notice, Tabs…)
+src/pages/*            páginas (una por ruta)
 src/styles/tokens.css  design tokens (claro + oscuro) · src/styles/base.css  reset + utilidades
 ```
 
-Convenciones: comentarios y textos de UI en español rioplatense (voseo), un `.css` por componente, todo color/espaciado vía tokens.
+Convenciones: comentarios y textos de UI en español rioplatense (voseo), un `.css` por componente, todo color/espaciado vía tokens. Nada de `document.getElementById/querySelector` dentro de componentes: se usan refs (las únicas excepciones están comentadas: el navbar mira elementos del Home, que es otra rama del árbol).
 
 ---
 
-## Lo que dice el back (respuestas a los "verificar en el back")
+## 2da entrega: análisis y arreglos (16/10/2026)
 
-| Tema | Back | Front |
-|---|---|---|
-| Roles | Solo `CLIENTE` y `ADMIN` | No hay rol vendedor: cualquier usuario publica. Se sacó el check "También quiero publicar" del registro (se puede publicar igual desde el menú; "¿Tenés algo para compartir?" abre el registro con redirect a `/anfitrion`). |
-| Login | `AuthenticationRequest.usernameOrEmail` + `password` | ✅ Campo "Email o usuario". |
-| Registro | `RegisterRequest`: `username, firstname, lastname, email, password` | ✅ El form usa esos nombres (ojo: `firstname`/`lastname` en minúscula; la respuesta usa `firstName`/`lastName`). |
-| Fotos de experiencias | `POST`/`PUT /experiences` en `multipart/form-data` (parte `experience` = JSON en texto, partes `images`) | El editor valida tipo y tamaño. Al conectar: armar un `FormData`. |
-| Foto de perfil | `PUT /users/me/avatar` (multipart, parte `avatar`) y `DELETE /users/me/avatar`; llega como `avatarBase64` | En el mock se guarda como data URL en `user.avatarUrl`. |
-| Perfil | `PUT /users/me` con `firstName`, `lastName`, `bio`, `city`, `interests` (todos opcionales). **El email no se puede cambiar.** | ✅ `EditProfileModal` ya no deja editar el email. |
-| Carrito | Vive en el back: `/carts/user/{id}`, ítems con `cartItemId` | Hoy en `localStorage`. Al conectar: el local queda para invitados y se mergea al loguear. |
-| Búsqueda | `GET /experiences?page&size&categoryId&title&location&minPrice&maxPrice&onlyDiscounted&dateFrom&dateTo` → `Page<>` | ✅ La URL del catálogo usa esos nombres. No hay `sort` ni rating mínimo en el back: el orden es solo del front. `dateFrom`/`dateTo` están como `YYYY-MM-DD`; el back espera ISO date-time, convertir al conectar. |
-| Ventas | `GET /bookings/sales` | Usarlo al conectar en vez de calcular en el front. |
-| Ciudades | `location` es un texto libre y el filtro es "contiene" (sin distinguir mayúsculas) | La ubicación se guarda como `"Barrio, Ciudad"` (`utils/location.js`). Buscar una ciudad = mandar su nombre en `location`. El editor pide Ciudad y Barrio por separado. Sin cambios en el back. |
+Se revisó el front contra lo visto en clase (Router, ciclo de vida + `useEffect`, promesas con `fetch`, estado con copias nuevas, props, `key`) y contra el back.
 
-### Cambios hechos en el back (mínimos)
+### Arreglado en el front
+- ✅ **Carrito:** las fechas que ya no existen (pasaron, se cancelaron o se pausó la experiencia) antes se escondían pero seguían en el total y hacían fallar el pago; el aviso "Quitamos N fechas" era falso. Ahora se ven con "Quitar" y el checkout no deja seguir hasta sacarlas.
+- ✅ **Catálogo único (`CatalogProvider`):** antes cada página volvía a bajar todas las experiencias con sus fotos; ahora se piden una vez con `Promise.all` (la carga termina cuando llegó todo) y se actualizan con `reload()` / `refreshSessions()` cuando algo cambia (publicar, comprar, cancelar una fecha, reembolsar). Carrito y checkout piden las fechas al entrar para ver los lugares reales.
+- ✅ **Filtros híbridos en el Home:** categoría, ciudad/zona y "solo ofertas" van al back (`GET /experiences?categoryId&location&onlyDiscounted`) en un `useEffect` cuya dependencia es la query; una respuesta vieja se descarta en la limpieza del efecto. Texto, precio final, fechas con lugar, viajeros, "solo disponibles" y orden siguen en el front (el back no los resuelve igual).
+- ✅ **Checkout:** el pago es simulado; la orden se crea en el back en el paso "Confirmando tu reserva…" y recién ahí se muestra "¡Listo!". Si el back la rechaza (sin cupos, cupón ya usado…) se muestra su mensaje ("No pudimos confirmar tu compra"), no "el banco rechazó el pago". Se sacaron "cifrado de extremo a extremo" y "te mandamos los vouchers por email".
+- ✅ **Cupones:** los motivos del back (`EXPIRED`, `ALREADY_USED`…) se muestran en castellano (`utils/coupons.js`).
+- ✅ **Fechas del anfitrión y del admin:** usan `GET /experience-sessions/manage` (historial con pasadas y canceladas). `HostCalendar` tenía el chequeo invertido (bloqueaba cancelar fechas futuras con reservas); ahora solo bloquea las que ya empezaron y avisa cuántas plazas se reembolsan. "Pausada" → "Cancelada".
+- ✅ **Doble envío:** editor de experiencias, botón Reservar y modales (descuento, cupón, categoría, perfil) se deshabilitan mientras el back responde. En el editor, si el PATCH de descuento falla después de crear, reintentar edita en vez de duplicar.
+- ✅ **Error ≠ vacío:** `ErrorState` con "Reintentar" en detalle de reserva (antes quedaba cargando para siempre), perfil de anfitrión, mis reservas, confirmación de compra y resumen del admin.
+- ✅ **Sesión vencida:** `api.js` lee el vencimiento del JWT; si venció, cierra la sesión, avisa y abre el login sobre la misma página.
+- ✅ **Prácticas de clase:** actualizadores funcionales (`setX((current) => …)`) en los paneles de admin, refs en vez de buscar en el DOM, keys de fotos que no se repiten, `RemountOnParam` para que "editar" → "nueva" no arrastre el formulario.
+- ✅ **Reembolso:** se sacó el campo "motivo" que nunca se mandaba.
 
-- Auth: `GET /api/v1/auth/availability?username&email`, `POST /forgot-password`, `/verify-reset-code`, `/reset-password` (código de 6 dígitos hasheado en `User.resetCodeHash`, vence a los 15 min, 5 intentos). El registro ahora dice si lo repetido es el usuario o el email. Detalle en `eTrip-back/insomnia/ENDPOINTS.md`.
-- `utils/ImageCompressor`: la compresión de fotos que estaba en `ExperienceServiceImpl` se movió a una utilidad compartida (misma lógica).
-- `User`: nuevos campos `avatar` (LONGBLOB), `bio`, `city` e `interests` (tabla `user_interests`). Con `ddl-auto=update` se crean solos.
-- `UserUpdateDTO` / `UserResponseDTO`: agregan `bio`, `city`, `interests` y (respuesta) `avatarBase64`.
-- `UsersController` / `UserService`: `PUT /users/me/avatar` y `DELETE /users/me/avatar`; `PUT /users/me` acepta los campos nuevos.
-- `User.active` (default `true`): `isEnabled()` lo respeta, así una cuenta desactivada no puede loguearse. `PATCH /users/{id}/active?active=` solo ADMIN (no a sí mismo). `UserResponseDTO.active`.
-- `DiscountCoupon.maxUses` (null = sin límite). La respuesta suma `usedCount` (órdenes que lo usaron). La validación (`GET /discount-coupons/validate` y al crear la orden) devuelve `USAGE_LIMIT_REACHED` si se llegó al tope. En el request de update, `maxUses <= 0` quita el límite.
-- Ya existía y ahora el front lo replica: **cada usuario puede usar un cupón una sola vez**, y borrar un cupón ya usado lo desactiva en vez de borrarlo.
-- `Experience.minAge` (null/0 = todas las edades, bebés incluidos; 4 = sin bebés; 18 = solo adultos). Va en request y response. `GET /experiences?youngestAge=N` devuelve solo las experiencias con `minAge <= N`.
-- ⚠️ Diferencia pendiente: el back no deja borrar una experiencia que tenga **cualquier** sesión; el front (anfitrión y admin) la deja borrar si no tiene reservas próximas, y borra sus sesiones. Decidir cuál regla queda antes de conectar.
+### Arreglado en el back (con OK)
+- ✅ Permisos: categorías solo las crea/edita/borra un ADMIN; los clientes solo pueden `GET /discount-coupons/validate` (listar cupones es del admin); `GET /experiences/mine` y `/experience-sessions/manage` piden sesión.
+- ✅ Una cuenta desactivada deja de entrar aunque su token no haya vencido (`JwtAuthenticationFilter` chequea `isEnabled()`).
+- ✅ **No se sobrevende:** `createOrder` bloquea las sesiones del carrito (`SELECT … FOR UPDATE`) antes de validar cupos.
+- ✅ Cupones: `/validate` devuelve `ALREADY_USED` si el usuario ya lo usó; la orden rechaza con mensajes claros.
+- ✅ Reembolso: el comprador puede cancelar hasta **48 h antes** (igual que muestra el front); anfitrión y admin, hasta el inicio.
+- ✅ Reseñas: una reserva reembolsada no habilita a reseñar.
+- ✅ Una sesión no se puede mover a otra experiencia; mensajes claros en las validaciones de sesiones.
+- ✅ `GET /users/{id}` sin sesión ya no da 500 (perfil reducido).
+- ✅ CORS configurable: `CORS_ALLOWED_ORIGINS` (sumar la URL de Vercel al desplegar).
+- ✅ Recuperar contraseña: el código pendiente pasó a su propia tabla `password_reset_codes` (antes eran tres columnas `reset_code_*` en `user`, casi siempre en NULL; se borraron a mano con `ALTER TABLE`). Lo único que falta a propósito es **mandar el mail**: el código vuelve en la respuesta y se ve en consola.
+
+### Pendientes (no entran en la 2da)
+- ⬜ Perfil en el back (bio, ciudad, intereses, foto): hoy en `localStorage`, así que nadie más ve la foto o la bio de un anfitrión.
+- ⬜ Listados livianos: cada experiencia viaja con **todas** sus fotos en base64; en los listados alcanzaría con la portada.
+- ⬜ Filtro de precio en el back sobre el precio final (hoy usa el de lista; por eso el precio se filtra en el front).
+- ⬜ Favoritos y tarjetas guardadas en el back.
+- ⬜ Borrar experiencias: el back la bloquea si tiene cualquier reserva (aunque estén reembolsadas); el front deja intentarlo si no hay reservas próximas.
+- ⬜ 3ra entrega: pasar Auth, Carrito y Catálogo a Redux (el `CatalogProvider` es casi 1:1 un slice con un thunk que usa los mismos services).
 
 ---
+
+## Historial de mejoras (antes de conectar el back)
+
+> Lo que sigue se escribió cuando el front era 100% mock (hasta el 13/10). Las referencias a `StoreProvider`, `selectors.js` o al carrito en `localStorage` ya no aplican.
 
 ## Prioridad 1 — Bugs de lógica
 
@@ -170,14 +186,16 @@ Convenciones: comentarios y textos de UI en español rioplatense (voseo), un `.c
 
 ## Cosas que están bien y no hay que romper
 
-- `selectors.js` como capa pura con forma de DTO.
-- Búsqueda y filtros en la URL.
-- Doble chequeo de cupos en `CheckoutPage` (antes y después del pago simulado).
+- `services/` como única puerta al back (un archivo por recurso, `request` en `api.js`).
+- `CatalogProvider` como única carga del catálogo público (no volver a pedir todo en cada página).
+- Búsqueda y filtros en la URL (se puede compartir el link y volver con los filtros puestos).
+- El back es el que valida cupos, cupones y total al crear la orden; el front solo avisa antes.
 - `src/utils/cards.js` (Luhn, marca, vencimiento) y que nunca se guarde el número completo ni el CVV.
 - `DataTable` responsive, `ImageWithFallback`, pila de modales en `useModalBehavior`, `prefers-reduced-motion`, `:focus-visible` global, `@media print` del voucher.
 
 ## Cómo verificar
 
-- `npm run dev` y recorrer: catálogo con filtros/orden → experiencia agotada → carrito (sumar cantidades, badge, avisos) → checkout con cupón → reserva a menos de 48 h (no debe dejar reembolsar) → admin (ventas netas) → perfil (foto, intereses) → modo oscuro.
+- Levantar MySQL y el back (`./mvnw spring-boot:run` en `eTrip-back`, puerto 4002) y después el front (`npm run dev`, puerto 5173).
+- Recorrer: home con y sin filtros (en la pestaña Network, `categoryId`/`location`/`onlyDiscounted` viajan al back y el catálogo se pide una sola vez) → detalle → agregar al carrito → carrito con una fecha cancelada (aparece con "Quitar") → checkout con cupón inválido o ya usado → confirmación → reserva a menos de 48 h (no deja reembolsar) → anfitrión: crear experiencia, calendario con historial, cancelar una fecha futura → admin: categorías, cupones, fechas → modo oscuro.
 - `npm run lint` (oxlint) y `npm run build` sin errores. Back: `./mvnw compile`.
-- Cuentas demo: `sofia@plan.com` (cliente), `admin@plan.com` (admin). Para ver el modo anfitrión con contenido: `nico@plan.com`, `mica@plan.com` o `santi@plan.com`. Cualquier contraseña de 6+ caracteres.
+- Cuentas: las de la base real. Para cargar datos de ejemplo está el panel de admin → "Cargar datos" (`src/data/sampleData.json`, escribe en la base: ver `PARA-LLENAR-EL-BACK.md`).

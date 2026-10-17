@@ -1,11 +1,12 @@
-/* Botón "Buscar" del navbar */
+/* Barra de búsqueda del navbar: se adapta al lugar libre que le deja el navbar (.navbar__search es el contenedor) */
 .navbar-search {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   gap: var(--space-2);
-  height: 44px;
-  padding: 0 18px 0 5px;
+  max-width: 100%;
+  height: 48px;
+  padding: 0 6px 0 18px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
@@ -29,12 +30,72 @@
 .navbar-search__icon {
   position: relative;
   display: grid;
+  flex-shrink: 0;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--color-brand);
   color: var(--color-on-brand);
+}
+
+/*
+ * Lugar · fechas · personas. La barra mide lo que miden los textos (hasta el lugar que haya);
+ * los campos que no entran bajan a una segunda línea que queda oculta, así nunca se cortan a la mitad:
+ * primero se va "¿Cuántos?", después las fechas.
+ */
+.navbar-search__fields {
+  display: none;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  min-width: 0;
+  height: 22px;
+  overflow: hidden;
+}
+
+.navbar-search__field {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0 14px;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navbar-search__field:first-child {
+  flex-shrink: 1;
+  padding-left: 0;
+}
+
+.navbar-search__field + .navbar-search__field {
+  border-left: 1px solid var(--color-line);
+}
+
+@container navbar-search (min-width: 260px) {
+  .navbar-search {
+    gap: var(--space-3);
+  }
+
+  .navbar-search__fields {
+    display: flex;
+  }
+
+  .navbar-search__label,
+  .navbar-search__dot {
+    display: none;
+  }
+}
+
+/* Muy poco lugar: solo la lupa */
+@container navbar-search (max-width: 140px) {
+  .navbar-search {
+    padding: 0 5px;
+  }
+
+  .navbar-search__label {
+    display: none;
+  }
 }
 
 /* Punto: hay una búsqueda activa */

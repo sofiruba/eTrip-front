@@ -17,7 +17,8 @@ function HostOverview({ experiences, sessions, bookings }) {
   const rating = reviewCount
     ? experiences.reduce((sum, experience) => sum + experience.averageRating * experience.reviewCount, 0) / reviewCount
     : 0
-  const nextSession = sessions.find((session) => !isPast(session.startsAt))
+  // Las fechas vienen ordenadas e incluyen las canceladas y las pasadas: la próxima es la primera activa y futura
+  const nextSession = sessions.find((session) => session.active && !isPast(session.startsAt))
   const nextExperience = nextSession && experiences.find((experience) => experience.id === nextSession.experienceId)
 
   return (

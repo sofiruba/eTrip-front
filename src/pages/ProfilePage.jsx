@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarCheck, Heart, MessageSquare, Store } from 'lucide-react'
 import EditProfileModal from '../components/profile/EditProfileModal'
 import FavoritesSection from '../components/profile/FavoritesSection'
@@ -34,6 +34,7 @@ function ProfilePage() {
   const [interestsDraft, setInterestsDraft] = useState(null) // null = no se está editando
   const [deletingReview, setDeletingReview] = useState(null)
   const [deletingCard, setDeletingCard] = useState(null)
+  const avatarButtonRef = useRef(null) // botón "Cambiar foto" del encabezado
 
   // Al entrar: mis reseñas y mis datos actualizados (los contadores de reservas y reseñas vienen del back)
   useEffect(() => {
@@ -54,7 +55,7 @@ function ProfilePage() {
   const removeReview = (review) =>
     deleteReview(review.id)
       .then(() => {
-        setMyReviews(myReviews.filter((entry) => entry.id !== review.id))
+        setMyReviews((current) => current.filter((entry) => entry.id !== review.id))
         notify('Reseña eliminada', 'info')
       })
       .catch((error) => notify(error.message, 'error'))
@@ -62,7 +63,7 @@ function ProfilePage() {
   // Desde "Completá tu perfil": cada paso abre lo que hay que completar
   const goToStep = (stepId) => {
     if (stepId === 'intereses') setInterestsDraft(interests)
-    else if (stepId === 'foto') document.querySelector('.avatar-uploader__button')?.click()
+    else if (stepId === 'foto') avatarButtonRef.current?.click() // abre el selector de foto del encabezado
     else setEditingProfile(true)
   }
 
@@ -74,7 +75,7 @@ function ProfilePage() {
 
   return (
     <div className="container page">
-      <ProfileHero user={user} publishedCount={published} onEdit={() => setEditingProfile(true)} />
+      <ProfileHero user={user} publishedCount={published} onEdit={() => setEditingProfile(true)} avatarButtonRef={avatarButtonRef} />
       <ProfileSteps user={user} onStep={goToStep} />
 
       <div className="stat-grid section">

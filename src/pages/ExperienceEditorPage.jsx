@@ -11,10 +11,10 @@ import FormField, { FormActions } from '../components/ui/FormField'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import { useAuth } from '../hooks/useAuth'
+import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useToast } from '../hooks/useToast'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
-import { getCategories } from '../services/categoriesService'
 import { createExperience, getExperience, updateDiscount, updateExperience } from '../services/experiencesService'
 import { toFile, toForm, validate } from '../utils/experienceForm'
 import { buildLocation } from '../utils/location'
@@ -26,8 +26,9 @@ function ExperienceEditorPage() {
   const { user } = useAuth()
   const notify = useToast()
   const navigate = useNavigate()
+  // Las categorías del select ya están en el catálogo; reload lo actualiza después de guardar
+  const { categories, reload: reloadCatalog } = useCatalog()
   const [existing, setExisting] = useState(null)
-  const [categories, setCategories] = useState([])
   const [initialForm, setInitialForm] = useState(() => toForm(null))
   const [form, setForm] = useState(initialForm)
   const [errors, setErrors] = useState({})
@@ -37,13 +38,6 @@ function ExperienceEditorPage() {
   const dirty = JSON.stringify(form) !== JSON.stringify(initialForm)
   const { blocker, allowLeave } = useUnsavedChanges(dirty && !saving)
   useDocumentTitle(existing ? `Editar ${existing.title}` : 'Nueva experiencia')
-
-  // Las categorías para el select
-  useEffect(() => {
-    getCategories()
-      .then((data) => setCategories(data))
-      .catch((error) => console.error('Error al traer las categorías:', error))
-  }, [])
 
   // Si estamos editando, traemos la experiencia y cargamos el formulario con sus datos
   useEffect(() => {
@@ -86,15 +80,25 @@ function ExperienceEditorPage() {
     const photosChanged = JSON.stringify(form.images) !== JSON.stringify(initialForm.images)
     const photos = photosChanged ? Promise.all(form.images.map(toFile)) : Promise.resolve([])
 
+    if (saving) return // mientras se guarda, un segundo clic no manda otra experiencia
     setSaving(true)
+    const isNew = !existing
     photos
       .then((files) => (existing ? updateExperience(existing.id, data, files) : createExperience(data, files)))
-      // El descuento tiene su propio endpoint (PATCH): solo lo llamamos si cambió
-      .then((saved) => (discount !== saved.discountPercentage ? updateDiscount(saved.id, discount) : saved))
       .then((saved) => {
-        notify(existing ? 'Cambios guardados' : '¡Experiencia publicada! Ahora sumale fechas desde el calendario.')
+        // Si la creamos recién, la recordamos: si el PATCH de descuento falla y se reintenta, se edita (PUT) y no se duplica
+        if (isNew) {
+          setExisting(saved)
+          setInitialForm(form)
+        }
+        // El descuento tiene su propio endpoint (PATCH): solo lo llamamos si cambió
+        return discount !== saved.discountPercentage ? updateDiscount(saved.id, discount) : saved
+      })
+      .then((saved) => {
+        reloadCatalog() // que el Home y el buscador ya la muestren (o muestren los cambios)
+        notify(isNew ? '¡Experiencia publicada! Ahora sumale fechas desde el calendario.' : 'Cambios guardados')
         allowLeave()
-        navigate(existing ? '/anfitrion/experiencias' : `/anfitrion/calendario?experiencia=${saved.id}`)
+        navigate(isNew ? `/anfitrion/calendario?experiencia=${saved.id}` : '/anfitrion/experiencias')
       })
       .catch((saveError) => {
         setErrors({ form: saveError.message })
@@ -168,7 +172,11 @@ function ExperienceEditorPage() {
             </div>
           </EditorSection>
 
-          <FormActions onCancel={() => navigate('/anfitrion/experiencias')} submitLabel={existing ? 'Guardar cambios' : 'Publicar y gestionar fechas'} />
+          <FormActions
+            onCancel={() => navigate('/anfitrion/experiencias')}
+            submitLabel={existing ? 'Guardar cambios' : 'Publicar y gestionar fechas'}
+            submitting={saving}
+          />
           {errors.form && <p className="form-error">{errors.form}</p>}
         </form>
 

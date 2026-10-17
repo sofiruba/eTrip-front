@@ -10,39 +10,55 @@ const STEP_MS = 1300
 const APPROVED_MS = 900
 
 /**
- * Pantalla de "conectando con el banco" que simula la pasarela.
- * El resultado (approved) se decide antes; acá solo se muestra el recorrido.
+ * Pantalla de "conectando con el banco" que simula la pasarela (la consigna pide checkout sin procesamiento de pago).
+ * Si el pago simulado se aprueba, en el paso "Confirmando tu reserva…" se crea la orden en el back con `onConfirm`
+ * (devuelve una promesa con { ok, order } o { ok: false, message }). Recién si el back la confirma se muestra
+ * "¡Listo!" y se llama a `onDone(order)`; si el back la rechaza (sin cupos, fecha pasada, cupón ya usado…)
+ * se muestra su mensaje y el botón llama a `onFailed(message)`. La tarjeta de prueba rechazada llama a `onDeclined`.
  */
-function PaymentProcessing({ provider, amount, approved, onApproved, onDeclined }) {
+function PaymentProcessing({ provider, amount, approved, onConfirm, onDone, onFailed, onDeclined }) {
   const steps = [`Conectando con ${provider}…`, 'Procesando el pago…', approved ? 'Confirmando tu reserva…' : 'Esperando respuesta del banco…']
   const [step, setStep] = useState(0)
-  const [status, setStatus] = useState('processing') // processing | approved | declined
+  const [status, setStatus] = useState('processing') // processing | approved | declined | failed
   const [failureMessage, setFailureMessage] = useState('')
-  const onApprovedRef = useRef(onApproved)
+  const [paidAmount, setPaidAmount] = useState(amount)
+  const callbacks = useRef({ onConfirm, onDone })
   useModalBehavior(() => {}) // bloquea scroll; Escape no cancela un pago en curso
 
   useEffect(() => {
-    onApprovedRef.current = onApproved
+    callbacks.current = { onConfirm, onDone }
   })
 
   useEffect(() => {
-    const timers = [
-      setTimeout(() => setStep(1), STEP_MS),
-      setTimeout(() => setStep(2), STEP_MS * 2),
-      setTimeout(() => setStatus(approved ? 'approved' : 'declined'), STEP_MS * 3),
-    ]
-    if (approved) {
+    let active = true
+    const timers = [setTimeout(() => setStep(1), STEP_MS), setTimeout(() => setStep(2), STEP_MS * 2)]
+
+    if (!approved) {
+      timers.push(setTimeout(() => setStatus('declined'), STEP_MS * 3))
+    } else {
+      // POST /orders: el total y los cupos los valida el back
       timers.push(
-        setTimeout(async () => {
-          const result = await onApprovedRef.current()
-          if (result?.ok === false) {
-            setFailureMessage(result.message || 'No pudimos confirmar la reserva. No se realizó el cobro.')
-            setStatus('declined')
-          }
-        }, STEP_MS * 3 + APPROVED_MS),
+        setTimeout(() => {
+          callbacks.current.onConfirm().then((result) => {
+            if (!active) return
+            if (!result.ok) {
+              setFailureMessage(result.message)
+              setStatus('failed')
+              return
+            }
+            setPaidAmount(Number(result.order.total))
+            setStatus('approved')
+            timers.push(setTimeout(() => callbacks.current.onDone(result.order), APPROVED_MS))
+          })
+        }, STEP_MS * 3),
       )
     }
-    return () => timers.forEach(clearTimeout)
+
+    // Desmontaje: se cancelan los timers pendientes y se ignora una respuesta que llegue tarde
+    return () => {
+      active = false
+      timers.forEach(clearTimeout)
+    }
   }, [approved])
 
   return createPortal(
@@ -56,8 +72,9 @@ function PaymentProcessing({ provider, amount, approved, onApproved, onDeclined 
 
         <h2 id="payment-processing-title" aria-live="polite">
           {status === 'processing' && steps[step]}
-          {status === 'approved' && '¡Pago aprobado!'}
+          {status === 'approved' && '¡Listo, reserva confirmada!'}
           {status === 'declined' && 'El banco rechazó el pago'}
+          {status === 'failed' && 'No pudimos confirmar tu compra'}
         </h2>
 
         {status === 'processing' && (
@@ -73,13 +90,17 @@ function PaymentProcessing({ provider, amount, approved, onApproved, onDeclined 
             </ol>
           </>
         )}
-        {status === 'approved' && <p className="muted">Pagaste {formatMoney(amount)}. Estamos generando tus vouchers.</p>}
+        {status === 'approved' && <p className="muted">Pagaste {formatMoney(paidAmount)}. Estamos generando tus vouchers.</p>}
         {status === 'declined' && (
           <>
-            <p className="muted">
-              {failureMessage || 'La tarjeta no tiene fondos suficientes o el banco no autorizó la operación. No se te cobró nada.'}
-            </p>
+            <p className="muted">La tarjeta no tiene fondos suficientes o el banco no autorizó la operación. No se te cobró nada.</p>
             <Button onClick={onDeclined}>Probar con otro medio de pago</Button>
+          </>
+        )}
+        {status === 'failed' && (
+          <>
+            <p className="muted">{failureMessage} No se te cobró nada.</p>
+            <Button onClick={() => onFailed(failureMessage)}>Volver a revisar mi compra</Button>
           </>
         )}
       </div>

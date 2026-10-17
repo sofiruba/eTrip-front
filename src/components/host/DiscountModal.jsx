@@ -16,6 +16,7 @@ function DiscountModal({ experience, onSaved, onClose }) {
   const notify = useToast()
   const [value, setValue] = useState(String(experience.discountPercentage ?? 0))
   const [error, setError] = useState('')
+  const [sending, setSending] = useState(false) // evita mandar dos veces el mismo PATCH
 
   const percentage = Number(value)
   const valid = value !== '' && Number.isInteger(percentage) && percentage >= 0 && percentage <= MAX_DISCOUNT
@@ -23,13 +24,17 @@ function DiscountModal({ experience, onSaved, onClose }) {
   const handleSubmit = (event) => {
     event.preventDefault()
     if (!valid) return setError(`Ingresá un número entero entre 0 y ${MAX_DISCOUNT}.`)
+    setSending(true)
     return updateDiscount(experience.id, percentage)
       .then((updated) => {
         onSaved(updated)
         notify(percentage ? `Descuento del ${percentage}% aplicado` : 'Descuento quitado')
         onClose()
       })
-      .catch((discountError) => setError(discountError.message))
+      .catch((discountError) => {
+        setError(discountError.message)
+        setSending(false)
+      })
   }
 
   return (
@@ -42,8 +47,8 @@ function DiscountModal({ experience, onSaved, onClose }) {
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" form="discount-form">
-            Guardar
+          <Button type="submit" form="discount-form" disabled={sending}>
+            {sending ? 'Guardando…' : 'Guardar'}
           </Button>
         </>
       }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CircleAlert, CircleCheck, CircleMinus, Download, FileUp, Upload } from 'lucide-react'
 import sampleData from '../../data/sampleData.json'
+import { useCatalog } from '../../hooks/useCatalog'
 import { useToast } from '../../hooks/useToast'
 import { importData } from '../../services/importService'
 import Button from '../ui/Button'
@@ -17,6 +18,7 @@ const LOG_ICONS = { ok: CircleCheck, skip: CircleMinus, error: CircleAlert }
  */
 function DataImportAdmin() {
   const notify = useToast()
+  const { reload: reloadCatalog } = useCatalog() // lo que cambia acá también cambia el catálogo público
   const [text, setText] = useState(SAMPLE_TEXT)
   const [error, setError] = useState('')
   const [log, setLog] = useState([])
@@ -29,10 +31,13 @@ function DataImportAdmin() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    file.text().then((content) => {
-      setText(content)
-      setError('')
-    })
+    file
+      .text()
+      .then((content) => {
+        setText(content)
+        setError('')
+      })
+      .catch(() => setError('No pudimos leer el archivo.'))
   }
 
   const downloadSample = () => {
@@ -54,7 +59,10 @@ function DataImportAdmin() {
     setLog([])
     setRunning(true)
     return importData(data, addLog)
-      .then(() => notify('Carga terminada'))
+      .then(() => {
+        reloadCatalog()
+        notify('Carga terminada')
+      })
       .catch((importError) => addLog(importError.message, 'error'))
       .then(() => setRunning(false))
   }

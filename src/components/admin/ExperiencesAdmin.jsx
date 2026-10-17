@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, Eye, Power, Store, Trash2 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useCatalog } from '../../hooks/useCatalog'
 import { useToast } from '../../hooks/useToast'
 import { getBookings } from '../../services/bookingsService'
 import { getCategories } from '../../services/categoriesService'
 import { deleteExperience, getAllExperiences, updateExperienceStatus } from '../../services/experiencesService'
-import { getSessions } from '../../services/sessionsService'
+import { getManagedSessions } from '../../services/sessionsService'
 import { addSessionInfo, getUpcomingSessions, isSoldOut } from '../../utils/experiences'
 import { formatMoney, formatSessionDate, normalizeText, pluralize } from '../../utils/format'
 import { getCity } from '../../utils/location'
@@ -46,6 +47,7 @@ function ExperiencesAdmin() {
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
   const notify = useToast()
+  const { reload: reloadCatalog } = useCatalog() // lo que cambia acá también cambia el catálogo público
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState(() => params.get('estado') ?? '')
@@ -59,7 +61,7 @@ function ExperiencesAdmin() {
       .then(() => setLoading(false))
 
     const showError = (error) => console.error('Error al cargar experiencias:', error)
-    getSessions().then((data) => setSessions(data)).catch(showError)
+    getManagedSessions().then((data) => setSessions(data)).catch(showError)
     getBookings().then((data) => setBookings(data)).catch(showError)
     getCategories().then((data) => setCategories(data)).catch(showError)
   }, [notify])
@@ -67,12 +69,13 @@ function ExperiencesAdmin() {
   const experiences = addSessionInfo(list, sessions)
 
   // Reemplaza en la lista la experiencia que devolvió el back
-  const replace = (updated) => setList(list.map((item) => (item.id === updated.id ? updated : item)))
+  const replace = (updated) => setList((current) => current.map((item) => (item.id === updated.id ? updated : item)))
 
   const toggleActive = (experience) =>
     updateExperienceStatus(experience.id, !experience.active)
       .then((updated) => {
         replace(updated)
+        reloadCatalog()
         notify(updated.active ? 'Experiencia activada' : 'Experiencia desactivada', 'info')
       })
       .catch((error) => notify(error.message, 'error'))
@@ -252,7 +255,8 @@ function ExperiencesAdmin() {
           onConfirm={() =>
             deleteExperience(deleting.id)
               .then(() => {
-                setList(list.filter((item) => item.id !== deleting.id))
+                setList((current) => current.filter((item) => item.id !== deleting.id))
+                reloadCatalog()
                 setSelectedId(null)
                 notify('Experiencia eliminada', 'info')
               })

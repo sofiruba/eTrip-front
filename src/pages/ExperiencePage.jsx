@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Share2 } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import BookingPanel from '../components/experience/BookingPanel'
@@ -13,7 +13,6 @@ import StickyBookingBar from '../components/experience/StickyBookingBar'
 import IconButton from '../components/ui/IconButton'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
-import { useAuth } from '../hooks/useAuth'
 import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useElementOffscreen } from '../hooks/useElementOffscreen'
@@ -38,7 +37,6 @@ function ExperienceRoute() {
 }
 
 function ExperiencePage({ id }) {
-  const { user } = useAuth()
   const notify = useToast()
   const catalog = useCatalog() // para "También te puede gustar"
 
@@ -65,18 +63,18 @@ function ExperiencePage({ id }) {
       .catch((error) => console.error('Error al traer las reseñas:', error))
   }, [id])
 
-  // El perfil del anfitrión solo se puede pedir con sesión iniciada
+  // El perfil del anfitrión (público) se pide cuando ya sabemos quién es
   const publisherId = experience?.publisherId
-  const userId = user?.id
   useEffect(() => {
-    if (!publisherId || !userId) return
+    if (!publisherId) return
     getUser(publisherId)
       .then((data) => setHost(data))
       .catch((error) => console.error('Error al traer el anfitrión:', error))
-  }, [publisherId, userId])
+  }, [publisherId])
 
   // El panel recién existe cuando terminó de cargar
-  const panelOffscreen = useElementOffscreen('reservar', loading)
+  const panelRef = useRef(null)
+  const panelOffscreen = useElementOffscreen(panelRef, loading)
   useDocumentTitle(experience?.title ?? 'Experiencia')
 
   if (loading) return <Loading text="Cargando la experiencia..." />
@@ -87,7 +85,7 @@ function ExperiencePage({ id }) {
   const upcoming = getUpcomingSessions(sessions, experience.id)
   const soldOut = upcoming.length > 0 && upcoming.every((session) => session.availableSeats === 0)
   const duration = upcoming[0] && hoursBetween(upcoming[0].startsAt, upcoming[0].endsAt)
-  // Sin sesión no podemos pedir el perfil: armamos uno con el nombre que viene en la experiencia
+  // Mientras llega el perfil (o si falló) armamos uno con el nombre que viene en la experiencia
   const hostInfo = host ?? { id: experience.publisherId, firstName: experience.publisherName, lastName: '' }
 
   const city = getCity(experience.location)
@@ -141,11 +139,16 @@ function ExperiencePage({ id }) {
           <ReviewsSection reviews={reviews} averageRating={experience.averageRating} />
         </div>
 
-        <BookingPanel key={experience.id} id="reservar" experience={experience} sessions={upcoming} />
+        <BookingPanel key={experience.id} id="reservar" ref={panelRef} experience={experience} sessions={upcoming} />
       </div>
 
       <RelatedExperiences experience={experience} catalog={catalog.experiences} />
-      <StickyBookingBar experience={experience} visible={panelOffscreen} soldOut={soldOut} />
+      <StickyBookingBar
+        experience={experience}
+        visible={panelOffscreen}
+        soldOut={soldOut}
+        onShowDates={() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+      />
     </div>
   )
 }

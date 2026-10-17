@@ -96,7 +96,7 @@ function BookingsAdmin() {
           onConfirm={() =>
             refundBooking(refunding.id)
               .then((updated) => {
-                setBookings(bookings.map((item) => (item.id === updated.id ? updated : item)))
+                setBookings((current) => current.map((item) => (item.id === updated.id ? updated : item)))
                 notify('Reserva reembolsada')
               })
               .catch((error) => notify(error.message, 'error'))

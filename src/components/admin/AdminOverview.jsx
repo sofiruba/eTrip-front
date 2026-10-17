@@ -6,14 +6,16 @@ import { getCoupons } from '../../services/couponsService'
 import { getAllExperiences } from '../../services/experiencesService'
 import { getOrders } from '../../services/ordersService'
 import { getReviews } from '../../services/reviewsService'
-import { getSessions } from '../../services/sessionsService'
+import { getManagedSessions } from '../../services/sessionsService'
 import { getUsers } from '../../services/usersService'
 import { getCouponStatus } from '../../utils/coupons'
 import { addSessionInfo, byNewest, isSoldOut } from '../../utils/experiences'
 import { formatFullDate, formatMoney, isPast, pluralize } from '../../utils/format'
 import { getNetSales, getOrderRefunded } from '../../utils/orders'
 import DataTable from '../ui/DataTable'
+import ErrorState from '../ui/ErrorState'
 import ImageWithFallback from '../ui/ImageWithFallback'
+import Loading from '../ui/Loading'
 import SectionHeader from '../ui/SectionHeader'
 import StatCard from '../ui/StatCard'
 import { COUPON_EXPIRY_WARNING_DAYS, LOW_RATING } from './adminRules'
@@ -52,18 +54,32 @@ function AdminOverview() {
   const [coupons, setCoupons] = useState([])
   const [experiences, setExperiences] = useState([])
   const [sessions, setSessions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0) // "Reintentar" lo incrementa y el efecto vuelve a pedir
 
-  // Al entrar al resumen pedimos todo lo que necesita (cada llamada guarda su resultado en su estado)
+  // Al entrar al resumen pedimos todo en paralelo. Promise.all espera las siete respuestas:
+  // si alguna falla se muestra el error (antes, un error se veía como "0 ventas")
   useEffect(() => {
-    const showError = (error) => console.error('Error al cargar el resumen:', error)
-    getOrders().then((data) => setOrders(data)).catch(showError)
-    getBookings().then((data) => setBookings(data)).catch(showError)
-    getUsers().then((data) => setUsers(data)).catch(showError)
-    getReviews().then((data) => setReviews(data)).catch(showError)
-    getCoupons().then((data) => setCoupons(data)).catch(showError)
-    getAllExperiences().then((data) => setExperiences(data)).catch(showError)
-    getSessions().then((data) => setSessions(data)).catch(showError)
-  }, [])
+    Promise.all([getOrders(), getBookings(), getUsers(), getReviews(), getCoupons(), getAllExperiences(), getManagedSessions()])
+      .then(([ordersData, bookingsData, usersData, reviewsData, couponsData, experiencesData, sessionsData]) => {
+        setOrders(ordersData)
+        setBookings(bookingsData)
+        setUsers(usersData)
+        setReviews(reviewsData)
+        setCoupons(couponsData)
+        setExperiences(experiencesData)
+        setSessions(sessionsData)
+        setError('')
+      })
+      .catch((loadError) => setError(loadError.message))
+      .then(() => setLoading(false))
+  }, [attempt])
+
+  if (loading) return <Loading />
+  if (error) {
+    return <ErrorState title="No pudimos cargar el resumen" message={error} onRetry={() => setAttempt((current) => current + 1)} />
+  }
 
   const catalog = addSessionInfo(experiences, sessions)
   const upcomingBookings = bookings.filter((booking) => !booking.refunded && !isPast(booking.startsAt))

@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react'
 
 /**
- * true cuando el elemento con ese id queda fuera de pantalla.
+ * true cuando el elemento de la ref (`useRef` que se le pasa con `ref={...}`) queda fuera de pantalla.
  * `watchKey` vuelve a engancharse cuando cambia (por ejemplo, cuando el elemento recién aparece).
  */
-export function useElementOffscreen(id, watchKey) {
+export function useElementOffscreen(ref, watchKey) {
   const [offscreen, setOffscreen] = useState(false)
 
   useEffect(() => {
-    const element = document.getElementById(id)
+    const element = ref.current
     if (!element || !('IntersectionObserver' in window)) return undefined
     const observer = new IntersectionObserver(([entry]) => setOffscreen(!entry.isIntersecting))
     observer.observe(element)
+    // Desmontaje: se deja de observar
     return () => observer.disconnect()
-  }, [id, watchKey])
+  }, [ref, watchKey])
 
   return offscreen
 }

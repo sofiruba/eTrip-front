@@ -1,10 +1,12 @@
 import { request, requestList } from './api'
 
-// Todas las fechas (también las agotadas y las pasadas)
-export const getSessions = () => requestList('/experience-sessions?onlyAvailable=false')
+// Fechas públicas: el back solo manda las activas y futuras (también las agotadas)
+export const getSessions = () => requestList('/experience-sessions')
 
-export const getSessionsByExperience = (experienceId) =>
-  requestList(`/experience-sessions/experience/${experienceId}?onlyAvailable=false`)
+export const getSessionsByExperience = (experienceId) => requestList(`/experience-sessions/experience/${experienceId}`)
+
+// Para gestionar: también las pasadas y las canceladas. Anfitrión → las de sus experiencias; admin → todas
+export const getManagedSessions = () => requestList('/experience-sessions/manage')
 
 // session = { experienceId, startsAt, endsAt, capacity }
 export const createSession = (session) => request('/experience-sessions', 'POST', session)

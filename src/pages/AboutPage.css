@@ -8,10 +8,76 @@
   line-height: 1.02;
 }
 
+/* Las dos líneas del título suben una atrás de la otra al entrar */
+.about__line {
+  display: block;
+  animation: about-line-in 800ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.about__line + .about__line {
+  animation-delay: 160ms;
+}
+
 .about__lead {
   margin-top: var(--space-4);
   color: var(--color-muted);
   font-size: var(--text-lg);
+  animation: about-line-in 800ms cubic-bezier(0.2, 0.8, 0.2, 1) 320ms both;
+}
+
+/* Planes que pasan por la pantalla */
+.about__marquee {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-7);
+  /* Se desvanece en los bordes */
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+
+.about__marquee-row {
+  display: flex;
+  overflow: hidden;
+}
+
+.about__marquee-track {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-5);
+  padding-right: var(--space-5);
+  animation: about-marquee 38s linear infinite;
+}
+
+.about__marquee-row.is-reverse .about__marquee-track {
+  animation-direction: reverse;
+  animation-duration: 44s;
+}
+
+/* Se frena al pasar el mouse, por si querés leer */
+.about__marquee:hover .about__marquee-track {
+  animation-play-state: paused;
+}
+
+.about__marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-5);
+  color: var(--color-ink);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-black);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.about__marquee-item svg {
+  color: var(--color-accent);
+}
+
+.about__marquee-row.is-reverse .about__marquee-item {
+  color: var(--color-brand-text);
+}
+
+.about__marquee-row.is-reverse .about__marquee-item svg {
+  color: var(--color-line-strong);
 }
 
 .about__quote {
@@ -35,13 +101,70 @@
   font-size: var(--text-sm);
 }
 
+.about__intro {
+  max-width: 680px;
+  margin-top: calc(var(--space-2) * -1);
+  font-size: var(--text-lg);
+}
+
+/* Los que saben ⟶ PLAN ⟶ los que quieren descubrir */
+.about__bridge {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  margin-top: var(--space-6);
+}
+
+.about__side h3 {
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.about__link {
+  display: flex;
+  align-items: center;
+}
+
+/* Rayita que "fluye" de un lado al otro */
+.about__wire {
+  width: 56px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--color-brand) 0 8px, transparent 8px 16px);
+  background-size: 16px 100%;
+  animation: about-flow 900ms linear infinite;
+}
+
+.about__hub {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  color: var(--color-on-brand);
+  animation: about-pulse 2.4s ease-out infinite;
+}
+
 .about__values {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--space-4);
 }
 
-.about__values h3 {
+.about__values > div {
+  display: flex;
+}
+
+.about__value {
+  flex: 1;
+  transition: translate 300ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 300ms;
+}
+
+.about__value:hover {
+  translate: 0 -6px;
+  box-shadow: var(--shadow-md);
+}
+
+.about__value h3 {
   margin: var(--space-3) 0 var(--space-2);
 }
 
@@ -53,6 +176,11 @@
   border-radius: var(--radius-md);
   background: var(--color-brand-soft);
   color: var(--color-brand-text);
+  transition: transform 300ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.about__value:hover .about__icon {
+  transform: rotate(-10deg) scale(1.12);
 }
 
 .about__cta {
@@ -64,4 +192,76 @@
   padding: var(--space-6);
   border-radius: var(--radius-lg);
   background: var(--color-cream);
+}
+
+@keyframes about-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+}
+
+@keyframes about-marquee {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes about-flow {
+  to {
+    background-position: 16px 0;
+  }
+}
+
+@keyframes about-pulse {
+  from {
+    box-shadow: 0 0 0 0 rgb(183 35 15 / 0.35);
+  }
+
+  to {
+    box-shadow: 0 0 0 18px rgb(183 35 15 / 0);
+  }
+}
+
+/* En el celular la conexión va de arriba a abajo */
+@media (max-width: 760px) {
+  .about__bridge {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .about__side {
+    width: 100%;
+  }
+
+  .about__link {
+    flex-direction: column;
+  }
+
+  .about__wire {
+    width: 2px;
+    height: 32px;
+    background: repeating-linear-gradient(180deg, var(--color-brand) 0 8px, transparent 8px 16px);
+    background-size: 100% 16px;
+    animation-name: about-flow-down;
+  }
+
+  .about__marquee-item {
+    font-size: var(--text-xl);
+  }
+}
+
+@keyframes about-flow-down {
+  to {
+    background-position: 0 16px;
+  }
+}
+
+/* Sin animaciones infinitas si el sistema pide reducir movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .about__marquee-track,
+  .about__wire,
+  .about__hub {
+    animation: none;
+  }
 }

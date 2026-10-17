@@ -5,55 +5,53 @@ import ExperienceCard from '../components/experience/ExperienceCard'
 import InterestList from '../components/profile/InterestList'
 import Avatar from '../components/ui/Avatar'
 import EmptyState from '../components/ui/EmptyState'
+import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import SectionHeader from '../components/ui/SectionHeader'
 import StatCard from '../components/ui/StatCard'
-import { useAuth } from '../hooks/useAuth'
+import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getExperiencesByHost } from '../services/experiencesService'
-import { getSessions } from '../services/sessionsService'
 import { getUser } from '../services/usersService'
 import { addSessionInfo } from '../utils/experiences'
 import { fullName } from '../utils/format'
 import NotFoundPage from './NotFoundPage'
 import './HostProfilePage.css'
 
-function HostProfilePage() {
+// `onRetry` lo pasa RemountOnParam (App.jsx)
+function HostProfilePage({ onRetry }) {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { sessions } = useCatalog() // las fechas para las tarjetas ya están en el catálogo
   const [experiences, setExperiences] = useState([])
-  const [sessions, setSessions] = useState([])
   const [host, setHost] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [error, setError] = useState('')
 
-  // Las experiencias del anfitrión (y las fechas, para las tarjetas) se piden al entrar
+  // Al entrar: el perfil (público, sin datos privados si no sos vos) y sus experiencias, en paralelo
   useEffect(() => {
-    getExperiencesByHost(id)
-      .then((data) => setExperiences(data))
-      .catch((error) => console.error('Error al traer las experiencias:', error))
+    Promise.all([getUser(id), getExperiencesByHost(id)])
+      .then(([hostData, experiencesData]) => {
+        setHost(hostData)
+        setExperiences(experiencesData)
+      })
+      .catch((loadError) => (loadError.status === 404 ? setNotFound(true) : setError(loadError.message)))
       .then(() => setLoading(false))
-
-    getSessions()
-      .then((data) => setSessions(data))
-      .catch((error) => console.error('Error al traer las fechas:', error))
   }, [id])
 
-  // El perfil completo solo se puede pedir con sesión iniciada
-  const userId = user?.id
-  useEffect(() => {
-    if (!userId) return
-    getUser(id)
-      .then((data) => setHost(data))
-      .catch((error) => console.error('Error al traer el anfitrión:', error))
-  }, [id, userId])
-
-  // Sin sesión usamos el nombre que viene en sus experiencias
-  const name = host ? fullName(host) : experiences[0]?.publisherName
+  const name = host ? fullName(host) : null
   useDocumentTitle(name ?? 'Anfitrión')
 
   if (loading) return <Loading />
-  if (!name) return <NotFoundPage title="No encontramos a este anfitrión" />
+  if (notFound) return <NotFoundPage title="No encontramos a este anfitrión" />
+  if (error) {
+    return (
+      <div className="container page page--narrow">
+        <ErrorState title="No pudimos cargar este perfil" message={error} onRetry={onRetry} />
+      </div>
+    )
+  }
 
   const hostExperiences = addSessionInfo(experiences, sessions)
   const reviewCount = experiences.reduce((sum, experience) => sum + experience.reviewCount, 0)

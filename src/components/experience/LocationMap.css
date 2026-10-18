@@ -1,32 +1,124 @@
 .location-map {
-  position: relative;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  min-height: 200px;
-  padding: var(--space-5);
-  border-radius: var(--radius-lg);
-  text-align: center;
+  gap: var(--space-3);
 }
 
-.location-map iframe {
+/* El iframe se corre hacia arriba para esconder la tarjeta de dirección que pone Google */
+.location-map__frame {
+  --crop: 64px;
+  position: relative;
+  overflow: hidden;
+  height: 300px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-map);
+  isolation: isolate;
+}
+
+.location-map__frame iframe {
   display: block;
   width: 100%;
-  height: 280px;
+  height: calc(100% + var(--crop));
+  margin-top: calc(-1 * var(--crop));
   border: 0;
+  filter: var(--map-filter);
+}
+
+/* Velo pastel (durazno, menta, lavanda) sobre el mapa */
+.location-map__frame::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(135deg, #ffd6c9 0%, #d4f2e4 50%, #e2d9ff 100%);
+  content: '';
+  mix-blend-mode: soft-light;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Viñeta suave en los bordes: el mapa se funde con la tarjeta */
+.location-map__frame::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 48px rgb(0 0 0 / 0.08);
+  content: '';
+  pointer-events: none;
+}
+
+/* Halo de la zona, centrado donde Google pone el marcador */
+.location-map__halo {
+  position: absolute;
+  top: calc(50% - var(--crop) / 2);
+  left: 50%;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  z-index: 1;
+  background: radial-gradient(circle, rgb(255 154 138 / 0.35) 0%, transparent 70%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.location-map__halo::before {
+  position: absolute;
+  inset: 34px;
+  border: 2px solid #ff9a8a;
+  border-radius: 50%;
+  content: '';
+  animation: map-pulse 2.4s ease-out infinite;
+}
+
+@keyframes map-pulse {
+  from {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+.location-map__label {
+  position: absolute;
+  z-index: 2;
+  bottom: var(--space-4);
+  left: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100% - 96px);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-glass);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+}
+
+.location-map__label strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-map__label svg {
+  flex-shrink: 0;
+  color: var(--color-brand-text);
 }
 
 .location-map__fallback {
   display: flex;
-  min-height: 280px;
+  min-height: 300px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   padding: var(--space-5);
+  border-radius: var(--radius-lg);
   background: var(--color-map);
   text-align: center;
 }
@@ -35,31 +127,8 @@
   color: var(--color-brand-text);
 }
 
-.location-map__label {
-  position: absolute;
-  top: var(--space-4);
-  left: 50%;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: 999px;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-md);
-  color: var(--color-ink);
-  transform: translateX(-50%);
-}
-
-.location-map__label svg {
-  color: var(--color-brand-text);
-}
-
-.location-map > small {
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-}
-
-.location-map__fallback + .location-map__label {
-  display: none;
+@media (prefers-reduced-motion: reduce) {
+  .location-map__halo::before {
+    animation: none;
+  }
 }

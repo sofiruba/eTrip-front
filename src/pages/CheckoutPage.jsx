@@ -22,7 +22,6 @@ import { createOrder } from '../services/ordersService'
 import { buildCartLines, getCartProblem } from '../utils/cart'
 import {
   CARD_BRANDS,
-  DECLINED_TEST_CARD,
   cardLabel,
   detectBrand,
   isCardExpired,
@@ -31,7 +30,6 @@ import {
   validateCard,
 } from '../utils/cards'
 import { formatMoney, fullName } from '../utils/format'
-import { calculateDiscount } from '../utils/orders'
 import './CheckoutPage.css'
 
 function CheckoutPage() {
@@ -51,9 +49,9 @@ function CheckoutPage() {
   const [card, setCard] = useState(() => ({ ...EMPTY_CARD, holder: fullName(user) }))
   const [touched, setTouched] = useState({})
   const [submitted, setSubmitted] = useState(false)
-  const [coupon, setCoupon] = useState(null) // resultado de validateCoupon
+  const [coupon, setCoupon] = useState(null) // resultado de validateCoupon (trae los montos que calcula el back)
   const [error, setError] = useState('')
-  const [payment, setPayment] = useState(null) // { provider, label, approved } mientras se procesa
+  const [payment, setPayment] = useState(null) // { provider, label } mientras se procesa
   const completingOrder = useRef(false)
   const formRef = useRef(null)
   const lines = buildCartLines(cart.items, experiences, sessions)
@@ -85,7 +83,7 @@ function CheckoutPage() {
     )
   }
 
-  const discount = coupon?.valid ? calculateDiscount(cart.total, coupon) : 0
+  const discount = coupon?.valid ? Number(coupon.discountAmount) : 0
   const total = cart.total - discount
   const cardErrors = method === 'card' ? validateCard(card) : {}
   const visibleCardErrors = Object.fromEntries(
@@ -98,15 +96,14 @@ function CheckoutPage() {
       return {
         provider: `el banco emisor de tu ${CARD_BRANDS[brand].name}`,
         label: cardLabel({ brand, last4: onlyDigits(card.number).slice(-4) }),
-        approved: onlyDigits(card.number) !== DECLINED_TEST_CARD,
       }
     }
     if (method.startsWith('saved:')) {
       const saved = savedCards.cards.find((entry) => `saved:${entry.id}` === method)
-      return { provider: `el banco emisor de tu ${CARD_BRANDS[saved.brand].name}`, label: cardLabel(saved), approved: true }
+      return { provider: `el banco emisor de tu ${CARD_BRANDS[saved.brand].name}`, label: cardLabel(saved) }
     }
     const wallet = WALLETS.find((entry) => entry.id === method)
-    return { provider: wallet.name, label: wallet.name, approved: true }
+    return { provider: wallet.name, label: wallet.name }
   }
 
   const handleSubmit = (event) => {
@@ -124,13 +121,18 @@ function CheckoutPage() {
     return setPayment(describePayment())
   }
 
-  // POST /orders: el back compra todo lo que hay en el carrito, descuenta los cupos y vacía el carrito.
+  // POST /orders: el back simula el pago (rechaza la tarjeta de prueba), compra todo lo que hay en el carrito,
+  // descuenta los cupos y vacía el carrito.
   // Devuelve una promesa con { ok, order } o { ok: false, message }: PaymentProcessing decide qué mostrar.
   const confirmOrder = () => {
     if (completingOrder.current) return Promise.resolve({ ok: false, message: 'La compra ya se está confirmando.' })
     completingOrder.current = true
 
-    return createOrder(coupon?.valid ? coupon.code : null)
+    return createOrder({
+      couponCode: coupon?.valid ? coupon.code : null,
+      paymentMethod: method.startsWith('saved:') ? 'saved' : method,
+      cardNumber: method === 'card' ? onlyDigits(card.number) : null,
+    })
       .then((order) => {
         if (method === 'card' && card.save) savedCards.saveCard(toSavedCard(card))
         return { ok: true, order }
@@ -163,8 +165,12 @@ function CheckoutPage() {
       .catch((couponError) => notify(couponError.message, 'error'))
   }
 
+  // Si cambia el carrito, el back vuelve a calcular el descuento del cupón
   const changeQuantity = (line, quantity) =>
-    cart.updateQuantity(line.id, quantity).catch((quantityError) => notify(quantityError.message, 'error'))
+    cart
+      .updateQuantity(line.id, quantity)
+      .then(() => coupon?.valid && applyCoupon(coupon.code))
+      .catch((quantityError) => notify(quantityError.message, 'error'))
 
   return (
     <div className="container page">
@@ -231,14 +237,9 @@ function CheckoutPage() {
         <PaymentProcessing
           provider={payment.provider}
           amount={total}
-          approved={payment.approved}
           onConfirm={confirmOrder}
           onDone={finishOrder}
           onFailed={handleOrderFailed}
-          onDeclined={() => {
-            setPayment(null)
-            setError('El banco rechazó la tarjeta. Probá con otra tarjeta o con otro medio de pago.')
-          }}
         />
       )}
     </div>

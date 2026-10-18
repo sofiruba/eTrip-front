@@ -1,5 +1,5 @@
 import { ArrowRight, CalendarCheck, Star, Store, Wallet } from 'lucide-react'
-import { formatLongDate, formatMoney, formatTime, isPast } from '../../utils/format'
+import { formatLongDate, formatMoney, formatTime } from '../../utils/format'
 import Button from '../ui/Button'
 import StatCard from '../ui/StatCard'
 import CapacityBar from './CapacityBar'
@@ -18,7 +18,7 @@ function HostOverview({ experiences, sessions, bookings }) {
     ? experiences.reduce((sum, experience) => sum + experience.averageRating * experience.reviewCount, 0) / reviewCount
     : 0
   // Las fechas vienen ordenadas e incluyen las canceladas y las pasadas: la próxima es la primera activa y futura
-  const nextSession = sessions.find((session) => session.active && !isPast(session.startsAt))
+  const nextSession = sessions.find((session) => session.editable)
   const nextExperience = nextSession && experiences.find((experience) => experience.id === nextSession.experienceId)
 
   return (

@@ -13,9 +13,6 @@ export const CARD_BRANDS = {
 
 export const ACCEPTED_BRANDS = ['visa', 'mastercard', 'amex']
 
-/** Tarjeta de prueba que el "banco" rechaza siempre. */
-export const DECLINED_TEST_CARD = '4000000000000002'
-
 const MAX_YEARS_AHEAD = 20
 
 export const onlyDigits = (value = '') => value.replace(/\D/g, '')

@@ -36,60 +36,62 @@ function DataTable({ columns, rows, rowKey = 'id', empty, pageSize = 10 }) {
     })
 
   return (
-    <div className="data-table">
-      <table>
-        <thead>
-          <tr>
-            {columns.map((column) => {
-              const active = sort?.key === column.key
-              const SortIcon = !active ? ArrowUpDown : sort.dir === 1 ? ArrowUp : ArrowDown
-              return (
-                <th
-                  key={column.key}
-                  style={{ textAlign: column.align }}
-                  aria-sort={active ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}
-                >
-                  {column.sortValue ? (
-                    <button type="button" className={`data-table__sort ${active ? 'is-active' : ''}`} onClick={() => toggleSort(column.key)}>
-                      {column.header}
-                      <SortIcon size={13} aria-hidden />
-                    </button>
-                  ) : (
-                    column.header
-                  )}
-                </th>
-              )
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {visible.map((row) => (
-            <tr key={row[rowKey]}>
-              {columns.map((column) => (
-                <td key={column.key} data-label={column.header} style={{ textAlign: column.align }}>
-                  {column.render ? column.render(row) : row[column.key]}
-                </td>
-              ))}
+    <div className="data-table-wrap">
+      <div className="data-table">
+        <table>
+          <thead>
+            <tr>
+              {columns.map((column) => {
+                const active = sort?.key === column.key
+                const SortIcon = !active ? ArrowUpDown : sort.dir === 1 ? ArrowUp : ArrowDown
+                return (
+                  <th
+                    key={column.key}
+                    style={{ textAlign: column.align }}
+                    aria-sort={active ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}
+                  >
+                    {column.sortValue ? (
+                      <button type="button" className={`data-table__sort ${active ? 'is-active' : ''}`} onClick={() => toggleSort(column.key)}>
+                        {column.header}
+                        <SortIcon size={13} aria-hidden />
+                      </button>
+                    ) : (
+                      column.header
+                    )}
+                  </th>
+                )
+              })}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {visible.map((row) => (
+              <tr key={row[rowKey]}>
+                {columns.map((column) => (
+                  <td key={column.key} data-label={column.header} style={{ textAlign: column.align }}>
+                    {column.render ? column.render(row) : row[column.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-      {pages > 1 && (
-        <div className="data-table__pagination">
-          <span className="muted small">
-            {current * pageSize + 1}–{Math.min((current + 1) * pageSize, sorted.length)} de {sorted.length}
-          </span>
-          <div className="cell-actions">
-            <button type="button" aria-label="Página anterior" disabled={current === 0} onClick={() => setPage(current - 1)}>
-              <ChevronLeft size={16} aria-hidden />
-            </button>
-            <button type="button" aria-label="Página siguiente" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}>
-              <ChevronRight size={16} aria-hidden />
-            </button>
+        {pages > 1 && (
+          <div className="data-table__pagination">
+            <span className="muted small">
+              {current * pageSize + 1}–{Math.min((current + 1) * pageSize, sorted.length)} de {sorted.length}
+            </span>
+            <div className="cell-actions">
+              <button type="button" aria-label="Página anterior" disabled={current === 0} onClick={() => setPage(current - 1)}>
+                <ChevronLeft size={16} aria-hidden />
+              </button>
+              <button type="button" aria-label="Página siguiente" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}>
+                <ChevronRight size={16} aria-hidden />
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

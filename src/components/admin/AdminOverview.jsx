@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react'
-import { CalendarCheck, CalendarX, ChevronRight, CircleCheck, MessageSquareWarning, Receipt, Star, Store, TicketPercent, UserX, Users, Wallet } from 'lucide-react'
+import { CalendarCheck, CalendarX, ChevronRight, CircleCheck, HandCoins, MessageSquareWarning, Receipt, Star, Store, TicketPercent, UserX, Users, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getBookings } from '../../services/bookingsService'
 import { getCoupons } from '../../services/couponsService'
 import { getAllExperiences } from '../../services/experiencesService'
-import { getOrders } from '../../services/ordersService'
+import { getOrderStats, getOrders } from '../../services/ordersService'
 import { getReviews } from '../../services/reviewsService'
 import { getManagedSessions } from '../../services/sessionsService'
 import { getUsers } from '../../services/usersService'
 import { getCouponStatus } from '../../utils/coupons'
 import { addSessionInfo, byNewest, isSoldOut } from '../../utils/experiences'
 import { formatFullDate, formatMoney, isPast, pluralize } from '../../utils/format'
-import { getNetSales, getOrderRefunded } from '../../utils/orders'
 import DataTable from '../ui/DataTable'
 import ErrorState from '../ui/ErrorState'
 import ImageWithFallback from '../ui/ImageWithFallback'
@@ -48,6 +47,7 @@ function getAlerts({ experiences, reviews, users, coupons }) {
 
 function AdminOverview() {
   const [orders, setOrders] = useState([])
+  const [stats, setStats] = useState(null) // ventas y comisión calculadas por el back
   const [bookings, setBookings] = useState([])
   const [users, setUsers] = useState([])
   const [reviews, setReviews] = useState([])
@@ -58,12 +58,13 @@ function AdminOverview() {
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0) // "Reintentar" lo incrementa y el efecto vuelve a pedir
 
-  // Al entrar al resumen pedimos todo en paralelo. Promise.all espera las siete respuestas:
+  // Al entrar al resumen pedimos todo en paralelo. Promise.all espera las ocho respuestas:
   // si alguna falla se muestra el error (antes, un error se veía como "0 ventas")
   useEffect(() => {
-    Promise.all([getOrders(), getBookings(), getUsers(), getReviews(), getCoupons(), getAllExperiences(), getManagedSessions()])
-      .then(([ordersData, bookingsData, usersData, reviewsData, couponsData, experiencesData, sessionsData]) => {
+    Promise.all([getOrders(), getBookings(), getUsers(), getReviews(), getCoupons(), getAllExperiences(), getManagedSessions(), getOrderStats()])
+      .then(([ordersData, bookingsData, usersData, reviewsData, couponsData, experiencesData, sessionsData, statsData]) => {
         setOrders(ordersData)
+        setStats(statsData)
         setBookings(bookingsData)
         setUsers(usersData)
         setReviews(reviewsData)
@@ -105,8 +106,14 @@ function AdminOverview() {
   return (
     <div className="stack admin-overview">
       <div className="stat-grid">
-        <StatCard icon={Wallet} label="Ventas netas" value={formatMoney(getNetSales(orders))} hint="Cobrado menos reembolsos" />
-        <StatCard icon={Receipt} label="Órdenes" value={orders.length} />
+        <StatCard icon={Wallet} label="Ventas netas" value={formatMoney(stats.netSales)} hint="Cobrado menos reembolsos" />
+        <StatCard
+          icon={HandCoins}
+          label={`Comisión PLAN (${stats.commissionRate}%)`}
+          value={formatMoney(stats.commission)}
+          hint="Lo que gana PLAN sobre las ventas netas"
+        />
+        <StatCard icon={Receipt} label="Órdenes" value={stats.orderCount} />
         <StatCard icon={CalendarCheck} label="Reservas próximas" value={upcomingBookings.length} />
         <StatCard icon={Users} label="Usuarios activos" value={users.filter((user) => user.active).length} />
         <StatCard icon={Store} label="Experiencias" value={experiences.length} />
@@ -170,7 +177,8 @@ function AdminOverview() {
               { key: 'id', header: 'Orden', render: (order) => <strong>#{order.id}</strong> },
               { key: 'user', header: 'Cliente', render: buyerName },
               { key: 'date', header: 'Fecha', render: (order) => formatFullDate(order.createdAt) },
-              { key: 'total', header: 'Total neto', align: 'right', render: (order) => formatMoney(order.total - getOrderRefunded(order)) },
+              { key: 'total', header: 'Total neto', align: 'right', render: (order) => formatMoney(order.total - order.refunded) },
+              { key: 'commission', header: 'Comisión', align: 'right', render: (order) => formatMoney(order.commission) },
             ]}
           />
         </section>

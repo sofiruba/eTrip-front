@@ -20,9 +20,12 @@ export function splitBookings(bookings) {
   }
 }
 
-/** Estado visible de una reserva → { label, tone } para <Badge>. */
-export function getBookingStatus(booking) {
-  if (booking.refunded) return { label: 'Reembolsada', tone: 'danger' }
-  if (booking.isPast) return { label: 'Finalizada', tone: 'neutral' }
-  return { label: 'Confirmada', tone: 'success' }
+// El estado de la reserva lo calcula el back (booking.status): acá solo se elige el texto y el color
+const BOOKING_STATUS = {
+  CONFIRMED: { label: 'Confirmada', tone: 'success' },
+  COMPLETED: { label: 'Finalizada', tone: 'neutral' },
+  REFUNDED: { label: 'Reembolsada', tone: 'danger' },
 }
+
+/** Estado visible de una reserva → { label, tone } para <Badge>. */
+export const getBookingStatus = (booking) => BOOKING_STATUS[booking.status] ?? BOOKING_STATUS.CONFIRMED

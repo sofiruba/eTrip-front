@@ -13,7 +13,7 @@ import { addHours, daysFromToday } from '../utils/dates'
 export function importData(data, log) {
   const categoryIds = {} // nombre en minúscula → id
 
-  return request('/experience-categories')
+  return request('/experience-categories') // evito duplicados haciendo un GET 
     .then((page) => page.content.forEach((category) => (categoryIds[category.name.toLowerCase()] = category.id)))
     .then(() => inOrder(data.categories, (category) => importCategory(category, categoryIds, log)))
     .then(() => request('/discount-coupons'))
@@ -86,40 +86,23 @@ function importExperience(experience, mine, token, categoryIds, log) {
 }
 
 function importSession(session, experience, token, log) {
-  // `startsAt` exacto, o `inDays` + `time` (relativo a hoy: así las fechas siempre son futuras)
-  const startsAt = session.startsAt ?? daysFromToday(session.inDays ?? 7, session.time ?? '18:00')
+  // La fecha se calcula desde hoy (`inDays` días, a la hora `time`): así siempre queda en el futuro
+  const startsAt = daysFromToday(session.inDays ?? 7, session.time ?? '18:00')
   const body = { experienceId: experience.id, startsAt, endsAt: addHours(startsAt, session.hours ?? 2), capacity: session.capacity ?? 10 }
   return request('/experience-sessions', 'POST', body, token)
     .then(() => log(`    Fecha ${startsAt.slice(0, 16).replace('T', ' ')} creada`, 'ok'))
     .catch((error) => log(`    Fecha de "${experience.title}": ${error.message}`, 'error'))
 }
 
-/** Foto de la experiencia: si el JSON trae `image` (URL), la descarga; si no (o falla), dibuja una con el título. */
+// Foto que se usa si la experiencia no trae `image`
+const DEFAULT_IMAGE = '/ejemplos/la-boca.jpg'
+
+/** Descarga la foto de la experiencia (`image` o la de ejemplo) y la convierte en un archivo para mandar al back. */
 function getPhoto(experience) {
-  const placeholder = () => drawPlaceholder(experience.title)
-  if (!experience.image) return placeholder()
-  return fetch(experience.image)
+  return fetch(experience.image || DEFAULT_IMAGE)
     .then((response) => {
-      if (!response.ok) throw new Error('No se pudo descargar la foto')
+      if (!response.ok) throw new Error(`No se pudo descargar la foto ${experience.image}`)
       return response.blob()
     })
     .then((blob) => new File([blob], 'foto.jpg', { type: blob.type }))
-    .catch(placeholder)
-}
-
-function drawPlaceholder(title) {
-  const canvas = document.createElement('canvas')
-  canvas.width = 900
-  canvas.height = 600
-  const context = canvas.getContext('2d')
-  // Un color distinto por título
-  const hue = [...title].reduce((sum, letter) => sum + letter.charCodeAt(0), 0) % 360
-  context.fillStyle = `hsl(${hue} 55% 55%)`
-  context.fillRect(0, 0, canvas.width, canvas.height)
-  context.fillStyle = '#fff'
-  context.font = 'bold 56px sans-serif'
-  context.textAlign = 'center'
-  context.textBaseline = 'middle'
-  context.fillText(title, canvas.width / 2, canvas.height / 2, canvas.width - 80)
-  return new Promise((resolve) => canvas.toBlob((blob) => resolve(new File([blob], 'foto.jpg', { type: 'image/jpeg' })), 'image/jpeg', 0.85))
 }

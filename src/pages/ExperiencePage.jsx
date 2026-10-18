@@ -13,12 +13,13 @@ import StickyBookingBar from '../components/experience/StickyBookingBar'
 import IconButton from '../components/ui/IconButton'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
+import { useAuth } from '../hooks/useAuth'
 import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useElementOffscreen } from '../hooks/useElementOffscreen'
 import { useToast } from '../hooks/useToast'
 import { getExperience } from '../services/experiencesService'
-import { getReviewsByExperience } from '../services/reviewsService'
+import { getReviewsByExperience, replyToReview } from '../services/reviewsService'
 import { getSessionsByExperience } from '../services/sessionsService'
 import { getUser } from '../services/usersService'
 import { hoursBetween } from '../utils/dates'
@@ -38,6 +39,7 @@ function ExperienceRoute() {
 
 function ExperiencePage({ id }) {
   const notify = useToast()
+  const { user } = useAuth()
   const catalog = useCatalog() // para "También te puede gustar"
 
   const [experience, setExperience] = useState(null)
@@ -89,6 +91,19 @@ function ExperiencePage({ id }) {
   const hostInfo = host ?? { id: experience.publisherId, firstName: experience.publisherName, lastName: '' }
 
   const city = getCity(experience.location)
+  const isHost = Boolean(user) && user.id === experience.publisherId
+
+  // El anfitrión responde una reseña: el back la guarda y devuelve la reseña actualizada
+  const replyReview = (review, text) =>
+    replyToReview(review.id, text)
+      .then((updated) => {
+        setReviews((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+        notify(updated.hostReply ? 'Respuesta publicada' : 'Respuesta borrada', 'success')
+      })
+      .catch((error) => {
+        notify(error.message, 'error')
+        throw error
+      })
 
   const share = () => {
     navigator.clipboard
@@ -136,7 +151,7 @@ function ExperiencePage({ id }) {
             <HostCard host={hostInfo} />
           </section>
 
-          <ReviewsSection reviews={reviews} averageRating={experience.averageRating} />
+          <ReviewsSection reviews={reviews} averageRating={experience.averageRating} onReply={isHost ? replyReview : undefined} />
         </div>
 
         <BookingPanel key={experience.id} id="reservar" ref={panelRef} experience={experience} sessions={upcoming} />

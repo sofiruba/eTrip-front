@@ -1,21 +1,33 @@
 import { useEffect, useState } from 'react'
-import { Eye, Receipt } from 'lucide-react'
-import { getOrders } from '../../services/ordersService'
+import { Ban, Eye, Receipt } from 'lucide-react'
+import { cancelOrder, getOrders } from '../../services/ordersService'
 import { getUsers } from '../../services/usersService'
 import { formatFullDate, formatMoney, fullName, normalizeText, pluralize } from '../../utils/format'
-import { getOrderRefunded } from '../../utils/orders'
 import VoucherCard from '../booking/VoucherCard'
 import Badge from '../ui/Badge'
+import Button from '../ui/Button'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
 import EmptyState from '../ui/EmptyState'
 import IconButton from '../ui/IconButton'
 import AdminToolbar from './AdminToolbar'
 import DetailDrawer from './DetailDrawer'
+import { useToast } from '../../hooks/useToast'
+
+// Estado que calcula el back según las reservas de la orden → texto y color de la etiqueta
+const ORDER_STATUS = {
+  PAID: { label: 'Pagada', tone: 'success' },
+  PARTIALLY_REFUNDED: { label: 'Reembolsada en parte', tone: 'warning' },
+  CANCELLED: { label: 'Cancelada', tone: 'danger' },
+}
+const statusOf = (order) => ORDER_STATUS[order.status] ?? ORDER_STATUS.PAID
 
 function OrdersAdmin() {
   const [orders, setOrders] = useState([])
   const [users, setUsers] = useState([])
   const [selected, setSelected] = useState(null)
+  const [cancelling, setCancelling] = useState(null)
+  const notify = useToast()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('')
 
@@ -38,7 +50,7 @@ function OrdersAdmin() {
 
   const query = normalizeText(search.trim().replace('#', ''))
   const rows = orders
-    .map((order) => ({ ...order, buyer: buyerOf(order), refunded: getOrderRefunded(order) }))
+    .map((order) => ({ ...order, buyer: buyerOf(order), refunded: Number(order.refunded ?? 0) }))
     .filter((order) => normalizeText(`${order.id} ${order.buyer} ${order.couponCode ?? ''}`).includes(query))
     .filter((order) => {
       if (filter === 'cupon') return Boolean(order.couponCode)
@@ -73,10 +85,24 @@ function OrdersAdmin() {
         rows={rows}
         empty={<EmptyState icon={Receipt} title="No hay órdenes con esos filtros" />}
         columns={[
-          { key: 'id', header: 'Orden', sortValue: (order) => order.id, render: (order) => <strong>#{order.id}</strong> },
+          {
+            key: 'id',
+            header: 'Orden',
+            sortValue: (order) => order.createdAt,
+            render: (order) => (
+              <div className="cell-main">
+                <span>
+                  <strong>
+                    #{order.id} <Badge tone={statusOf(order).tone}>{statusOf(order).label}</Badge>
+                  </strong>
+                  <small>
+                    {formatFullDate(order.createdAt)} · {pluralize(order.bookings.length, 'reserva')}
+                  </small>
+                </span>
+              </div>
+            ),
+          },
           { key: 'buyer', header: 'Cliente', sortValue: (order) => order.buyer },
-          { key: 'date', header: 'Fecha', sortValue: (order) => order.createdAt, render: (order) => formatFullDate(order.createdAt) },
-          { key: 'bookings', header: 'Reservas', render: (order) => pluralize(order.bookings.length, 'reserva') },
           {
             key: 'coupon',
             header: 'Cupón',
@@ -93,6 +119,13 @@ function OrdersAdmin() {
                 {order.refunded > 0 && <small className="muted"> ({formatMoney(order.refunded)} devuelto)</small>}
               </span>
             ),
+          },
+          {
+            key: 'commission',
+            header: 'Comisión PLAN',
+            align: 'right',
+            sortValue: (order) => Number(order.commission ?? 0),
+            render: (order) => formatMoney(order.commission ?? 0),
           },
           {
             key: 'actions',
@@ -116,7 +149,15 @@ function OrdersAdmin() {
             { label: 'Total cobrado', value: formatMoney(selected.total) },
             { label: 'Reembolsado', value: formatMoney(selected.refunded) },
             { label: 'Total neto', value: formatMoney(selected.total - selected.refunded) },
+            { label: 'Estado', value: statusOf(selected).label },
           ]}
+          footer={
+            selected.status !== 'CANCELLED' && (
+              <Button variant="danger" icon={Ban} onClick={() => setCancelling(selected)}>
+                Cancelar orden
+              </Button>
+            )
+          }
         >
           <div className="drawer-list">
             {selected.bookings.map((booking) => (
@@ -124,6 +165,23 @@ function OrdersAdmin() {
             ))}
           </div>
         </DetailDrawer>
+      )}
+      {cancelling && (
+        <ConfirmDialog
+          title={`¿Cancelar la orden #${cancelling.id}?`}
+          message="Se reembolsan todas sus reservas que todavía no empezaron y se liberan los lugares. Las que ya pasaron quedan como están. Cada comprador recibe un aviso."
+          confirmLabel="Cancelar orden"
+          onConfirm={() =>
+            cancelOrder(cancelling.id)
+              .then((updated) => {
+                setOrders((current) => current.map((order) => (order.id === updated.id ? updated : order)))
+                setSelected(null)
+                notify('Orden cancelada y reservas reembolsadas')
+              })
+              .catch((error) => notify(error.message, 'error'))
+          }
+          onClose={() => setCancelling(null)}
+        />
       )}
     </>
   )

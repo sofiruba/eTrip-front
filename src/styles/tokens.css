@@ -32,6 +32,7 @@
   --color-scrim: rgb(28 28 25 / 0.45); /* detrás de los modales */
   --color-map: #e7eee0;
   --color-map-grid: rgb(255 255 255 / 0.5);
+  --map-filter: saturate(0.55) brightness(1.12) contrast(0.88) hue-rotate(-8deg); /* mapa de Google en tonos pastel */
   --color-avatar: #dfe9d9;
   --color-avatar-text: #2c533a;
   --color-danger-line: #f2c4c0;
@@ -125,6 +126,8 @@
     --color-scrim: rgb(0 0 0 / 0.6);
     --color-map: #29321f;
     --color-map-grid: rgb(255 255 255 / 0.06);
+  --map-filter: invert(0.88) hue-rotate(180deg) saturate(0.6) brightness(0.9);
+    --map-filter: invert(0.88) hue-rotate(180deg) saturate(0.6) brightness(0.9);
     --color-avatar: #2b3a2e;
     --color-avatar-text: #a8d3b4;
     --color-danger-line: #6a2c26;
@@ -161,6 +164,7 @@
   --color-scrim: rgb(0 0 0 / 0.6);
   --color-map: #29321f;
   --color-map-grid: rgb(255 255 255 / 0.06);
+  --map-filter: invert(0.88) hue-rotate(180deg) saturate(0.6) brightness(0.9);
   --color-avatar: #2b3a2e;
   --color-avatar-text: #a8d3b4;
   --color-danger-line: #6a2c26;

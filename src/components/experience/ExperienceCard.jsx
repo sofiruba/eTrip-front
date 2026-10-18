@@ -30,6 +30,9 @@ function ExperienceCard({ experience, to = `/experiencias/${experience.id}`, foo
             </div>
           )}
           <div className="experience-card__badges">
+            {/* Solo se ve en "Mis experiencias": el catálogo nunca muestra experiencias pausadas */}
+            {experience.status === 'PAUSED_NO_DATES' && <Badge tone="warning">Pausada: agregale una fecha</Badge>}
+            {experience.status === 'INACTIVE' && <Badge tone="neutral">Pausada</Badge>}
             {soldOut ? (
               <Badge tone="danger">Agotado</Badge>
             ) : (

@@ -76,7 +76,7 @@ function HostExperiences({ experiences, bookings, setExperiences }) {
       {deleting && (
         <ConfirmDialog
           title="¿Eliminar experiencia?"
-          message={`“${deleting.title}” y todas sus fechas se van a despublicar.`}
+          message={`“${deleting.title}” se elimina junto con sus fechas, sus reservas pasadas y sus reseñas. No se puede deshacer.`}
           onConfirm={() =>
             deleteExperience(deleting.id)
               .then(() => {

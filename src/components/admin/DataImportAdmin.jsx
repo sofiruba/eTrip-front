@@ -71,8 +71,8 @@ function DataImportAdmin() {
     <div className="stack data-import">
       <Notice tone="info">
         Crea categorías, cupones, usuarios y las experiencias (con fechas) de cada usuario. Lo que ya existe se saltea, así que se
-        puede cargar varias veces. Las fechas con <code>inDays</code> se calculan desde hoy; si una experiencia no trae{' '}
-        <code>image</code>, se genera una foto con el título.
+        puede cargar varias veces. Las fechas se calculan desde hoy con <code>inDays</code> y <code>time</code>; si una
+        experiencia no trae <code>image</code>, se usa una foto de ejemplo.
       </Notice>
 
       <div className="row">

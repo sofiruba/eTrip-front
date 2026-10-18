@@ -3,8 +3,8 @@ import { CalendarPlus, CalendarX, Pencil, Trash2 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useCatalog } from '../../hooks/useCatalog'
 import { useToast } from '../../hooks/useToast'
-import { deleteSession } from '../../services/sessionsService'
-import { formatTime, isPast } from '../../utils/format'
+import { deleteSession, removeSession } from '../../services/sessionsService'
+import { formatTime } from '../../utils/format'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -15,16 +15,17 @@ import CapacityBar from './CapacityBar'
 import SessionFormModal from './SessionFormModal'
 import './HostCalendar.css'
 
-// Las fechas llegan de GET /experience-sessions/manage, que también trae las pasadas y las canceladas
-function getSessionStatus(session) {
-  if (!session.active) return { label: 'Cancelada', tone: 'danger' }
-  if (isPast(session.startsAt)) return { label: 'Finalizada', tone: 'neutral' }
-  if (!session.availableSeats) return { label: 'Agotada', tone: 'brand' }
-  return { label: 'Publicada', tone: 'success' }
+// El estado de cada fecha lo calcula el back (GET /experience-sessions/manage): acá solo se elige el texto y el color
+const SESSION_STATUS = {
+  PUBLISHED: { label: 'Publicada', tone: 'success' },
+  SOLD_OUT: { label: 'Agotada', tone: 'brand' },
+  FINISHED: { label: 'Finalizada', tone: 'neutral' },
+  CANCELLED: { label: 'Cancelada', tone: 'danger' },
 }
+const getSessionStatus = (session) => SESSION_STATUS[session.status] ?? SESSION_STATUS.PUBLISHED
 
-// Una fecha cancelada o que ya empezó no se puede editar ni cancelar (el back también lo rechaza)
-const isEditable = (session) => session.active && !isPast(session.startsAt)
+// El back dice si la fecha todavía se puede editar o cancelar (activa, sin terminar y futura)
+const isEditable = (session) => session.editable
 const bookedSeats = (session) => session.capacity - session.availableSeats
 
 /**
@@ -37,6 +38,7 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState(null) // sesión, 'new' o null
   const [deleting, setDeleting] = useState(null)
+  const [removing, setRemoving] = useState(null) // fecha cancelada o terminada que se va a borrar del todo
 
   const experienceId = Number(params.get('experiencia')) || null
   const visible = sessions.filter((session) => !experienceId || session.experienceId === experienceId)
@@ -97,11 +99,14 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
                 </div>
                 <CapacityBar session={session} />
                 <div className="cell-actions">
-                  {isEditable(session) && (
+                  {isEditable(session) ? (
                     <>
                       <IconButton icon={Pencil} label="Editar sesión" variant="ghost" onClick={() => setEditing(session)} />
                       <IconButton icon={Trash2} label="Cancelar sesión" variant="ghost" onClick={() => askDelete(session)} />
                     </>
+                  ) : (
+                    // Cancelada o terminada: ya no se edita, pero se puede sacar del calendario
+                    <IconButton icon={Trash2} label="Eliminar fecha" variant="ghost" onClick={() => setRemoving(session)} />
                   )}
                 </div>
               </li>
@@ -149,6 +154,22 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
               .catch((deleteError) => notify(deleteError.message, 'error'))
           }
           onClose={() => setDeleting(null)}
+        />
+      )}
+      {removing && (
+        <ConfirmDialog
+          title="¿Eliminar esta fecha?"
+          message="Se borra del calendario junto con sus reservas (ya reembolsadas o pasadas). No se puede deshacer."
+          onConfirm={() =>
+            removeSession(removing.id)
+              .then(() => {
+                setSessions((current) => current.filter((item) => item.id !== removing.id))
+                if (onChange) onChange()
+                notify('Fecha eliminada', 'info')
+              })
+              .catch((removeError) => notify(removeError.message, 'error'))
+          }
+          onClose={() => setRemoving(null)}
         />
       )}
     </div>

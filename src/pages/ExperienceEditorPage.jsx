@@ -23,7 +23,9 @@ import NotFoundPage from './NotFoundPage'
 /** Crear (/nueva) o editar (/:id/editar) una experiencia. */
 function ExperienceEditorPage() {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
+  // El admin edita desde su panel y vuelve ahí; el anfitrión, desde Mis experiencias
+  const backTo = isAdmin ? '/admin/experiencias' : '/anfitrion/experiencias'
   const notify = useToast()
   const navigate = useNavigate()
   // Las categorías del select ya están en el catálogo; reload lo actualiza después de guardar
@@ -53,7 +55,8 @@ function ExperienceEditorPage() {
   }, [id])
 
   if (loading) return <Loading />
-  if (notFound || (existing && existing.publisherId !== user.id)) {
+  // Solo el dueño o un admin pueden editarla (el back también lo controla)
+  if (notFound || (existing && existing.publisherId !== user.id && !isAdmin)) {
     return <NotFoundPage title="No encontramos esta experiencia" text="Solo podés editar experiencias que publicaste vos." />
   }
 
@@ -98,7 +101,7 @@ function ExperienceEditorPage() {
         reloadCatalog() // que el Home y el buscador ya la muestren (o muestren los cambios)
         notify(isNew ? '¡Experiencia publicada! Ahora sumale fechas desde el calendario.' : 'Cambios guardados')
         allowLeave()
-        navigate(isNew ? `/anfitrion/calendario?experiencia=${saved.id}` : '/anfitrion/experiencias')
+        navigate(isNew ? `/anfitrion/calendario?experiencia=${saved.id}` : backTo)
       })
       .catch((saveError) => {
         setErrors({ form: saveError.message })
@@ -109,7 +112,7 @@ function ExperienceEditorPage() {
   return (
     <div className="container page">
       <PageHeader
-        back={{ to: '/anfitrion/experiencias', label: 'Mis experiencias' }}
+        back={{ to: backTo, label: isAdmin ? 'Experiencias del panel' : 'Mis experiencias' }}
         eyebrow={existing ? 'Editar experiencia' : 'Nueva experiencia'}
         title={existing ? 'Editá tu' : 'Creá algo'}
         accent={existing ? 'experiencia.' : 'inolvidable.'}
@@ -120,7 +123,11 @@ function ExperienceEditorPage() {
         }
         actions={
           existing ? (
-            <Button icon={CalendarDays} variant="secondary" to={`/anfitrion/calendario?experiencia=${existing.id}`}>
+            <Button
+              icon={CalendarDays}
+              variant="secondary"
+              to={isAdmin ? `/admin/sesiones?experiencia=${existing.id}` : `/anfitrion/calendario?experiencia=${existing.id}`}
+            >
               Gestionar fechas
             </Button>
           ) : null
@@ -173,7 +180,7 @@ function ExperienceEditorPage() {
           </EditorSection>
 
           <FormActions
-            onCancel={() => navigate('/anfitrion/experiencias')}
+            onCancel={() => navigate(backTo)}
             submitLabel={existing ? 'Guardar cambios' : 'Publicar y gestionar fechas'}
             submitting={saving}
           />

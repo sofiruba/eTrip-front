@@ -36,3 +36,199 @@
   display: flex;
   gap: var(--space-2);
 }
+
+.review-card__text {
+  white-space: pre-line;
+}
+
+.review-card .is-clamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+
+.review-card__more {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.review-card__reply {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-brand);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--color-sand);
+}
+
+.review-card__reply strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+}
+
+.review-card__reply p {
+  margin-top: var(--space-1);
+  white-space: pre-line;
+}
+
+.review-card__reply-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.review-card__reply-form textarea {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  resize: vertical;
+}
+
+/* Modal de todas las reseñas (estilo Airbnb) */
+.reviews-modal {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.reviews-modal__summary {
+  position: sticky;
+  top: 0;
+}
+
+.reviews-modal__average {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-black);
+  line-height: 1;
+}
+
+.reviews-modal__average svg {
+  fill: currentColor;
+}
+
+.reviews-modal__bars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.reviews-modal__bars li {
+  display: grid;
+  grid-template-columns: 12px 1fr 28px;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.reviews-modal__bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-line);
+}
+
+.reviews-modal__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-ink);
+  transition: width 400ms ease-out;
+}
+
+.reviews-modal__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.reviews-modal__list .review-card {
+  padding: 0 0 var(--space-4);
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
+  background: none;
+}
+
+.reviews-modal__tools {
+  position: sticky;
+  top: calc(-1 * var(--space-2));
+  z-index: 1;
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  background: var(--color-surface);
+}
+
+.reviews-modal__search {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-pill);
+}
+
+.reviews-modal__search input,
+.reviews-modal__tools select {
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.reviews-modal__search input {
+  width: 100%;
+}
+
+.reviews-modal__tools select {
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-pill);
+}
+
+.reviews-modal__search:focus-within,
+.reviews-modal__tools select:focus-visible {
+  border-color: var(--color-ink);
+}
+
+@media (max-width: 760px) {
+  .reviews-modal {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .reviews-modal__summary {
+    position: static;
+  }
+}

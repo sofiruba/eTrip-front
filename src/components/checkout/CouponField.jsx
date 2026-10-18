@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Tag, X } from 'lucide-react'
-import { describeCouponReason } from '../../utils/coupons'
 
 /** Link "Ingresá un cupón" que se despliega en un input. */
 function CouponField({ coupon, onApply, onRemove }) {
@@ -59,7 +58,7 @@ function CouponField({ coupon, onApply, onRemove }) {
           Aplicar
         </button>
       </div>
-      {coupon && !coupon.valid && <small className="coupon-field__error">{describeCouponReason(coupon.reason)}</small>}
+      {coupon && !coupon.valid && <small className="coupon-field__error">{coupon.message}</small>}
     </div>
   )
 }

@@ -21,7 +21,7 @@ import { getMyReviews } from '../services/reviewsService'
 import { getBookingStatus } from '../utils/bookings'
 import { getCancellationPolicy } from '../utils/cancellation'
 import { formatFullDate, isPast } from '../utils/format'
-import { getOrderRefunded, toSummaryItems } from '../utils/orders'
+import { toSummaryItems } from '../utils/orders'
 import NotFoundPage from './NotFoundPage'
 import './BookingDetailPage.css'
 
@@ -127,7 +127,7 @@ function BookingDetailPage({ onRetry }) {
           discount={order.discountAmount}
           couponCode={order.couponCode}
           totalLabel="Total pagado"
-          refunded={getOrderRefunded(order)}
+          refunded={Number(order.refunded ?? 0)}
         >
           <p className="muted small">Comprada el {formatFullDate(order.createdAt)}</p>
           <Button variant="ghost" icon={Printer} full onClick={() => window.print()}>

@@ -63,6 +63,8 @@ function App() {
         {/* Solo administradores */}
         <Route element={<RequireAuth role="ADMIN" />}>
           <Route path="admin/:section?" element={<AdminPage />} />
+          {/* El admin edita cualquier experiencia (fotos, texto, precio) con el mismo editor del anfitrión */}
+          <Route path="admin/experiencias/:id/editar" element={<RemountOnParam page={ExperienceEditorPage} />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

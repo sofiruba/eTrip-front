@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ExternalLink, Eye, Power, Store, Trash2 } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { ExternalLink, Eye, Pencil, Power, Store, Trash2 } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useCatalog } from '../../hooks/useCatalog'
 import { useToast } from '../../hooks/useToast'
 import { getBookings } from '../../services/bookingsService'
@@ -19,7 +19,6 @@ import IconButton from '../ui/IconButton'
 import Loading from '../ui/Loading'
 import ImageWithFallback from '../ui/ImageWithFallback'
 import Money from '../ui/Money'
-import { Rating } from '../ui/Rating'
 import AdminToolbar from './AdminToolbar'
 import DetailDrawer from './DetailDrawer'
 
@@ -47,6 +46,7 @@ function ExperiencesAdmin() {
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
   const notify = useToast()
+  const navigate = useNavigate()
   const { reload: reloadCatalog } = useCatalog() // lo que cambia acá también cambia el catálogo público
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
@@ -89,8 +89,6 @@ function ExperiencesAdmin() {
         amount: 0,
       })
 
-  const hasBookings = (experienceId) => bookings.some((booking) => booking.experienceId === experienceId)
-
   const query = normalizeText(search.trim())
   const rows = experiences
     .map((experience) => ({ ...experience, status: getStatus(experience), sales: salesOf(experience.id) }))
@@ -106,13 +104,8 @@ function ExperiencesAdmin() {
 
   if (loading) return <Loading />
 
-  const askDelete = (experience) => {
-    if (hasBookings(experience.id)) {
-      notify('Tiene reservas asociadas y no se puede eliminar para conservar el historial.', 'error')
-      return
-    }
-    setDeleting(experience)
-  }
+  // El back decide si se puede: borra en cascada, salvo que tenga reservas para fechas que todavía no pasaron
+  const askDelete = (experience) => setDeleting(experience)
 
   return (
     <>
@@ -146,12 +139,13 @@ function ExperiencesAdmin() {
                 <ImageWithFallback src={experience.images[0]} alt="" className="cell-thumb" />
                 <span>
                   <strong>{experience.title}</strong>
-                  <small>{experience.location}</small>
+                  <small>
+                    {experience.publisherName} · {experience.location}
+                  </small>
                 </span>
               </div>
             ),
           },
-          { key: 'publisherName', header: 'Anfitrión', sortValue: (experience) => experience.publisherName },
           {
             key: 'price',
             header: 'Precio',
@@ -163,12 +157,6 @@ function ExperiencesAdmin() {
             header: 'Disponibilidad',
             sortValue: (experience) => experience.availableSeats,
             render: (experience) => <Badge tone={experience.status.tone}>{experience.status.label}</Badge>,
-          },
-          {
-            key: 'rating',
-            header: 'Puntuación',
-            sortValue: (experience) => experience.averageRating,
-            render: (experience) => <Rating value={experience.averageRating} count={experience.reviewCount} />,
           },
           {
             key: 'sales',
@@ -184,13 +172,11 @@ function ExperiencesAdmin() {
             render: (experience) => (
               <div className="cell-actions">
                 <IconButton icon={Eye} label="Ver detalle" variant="ghost" onClick={() => setSelectedId(experience.id)} />
-                <IconButton
-                  icon={Power}
-                  label={experience.active ? 'Desactivar' : 'Activar'}
-                  variant="ghost"
-                  onClick={() => toggleActive(experience)}
-                />
-                <IconButton icon={Trash2} label="Dar de baja" variant="ghost" onClick={() => askDelete(experience)} />
+                <IconButton icon={Pencil} label="Editar (fotos, texto, precio)" variant="ghost" onClick={() => navigate(`/admin/experiencias/${experience.id}/editar`)} />
+                {/* Si ya está desactivada, se puede eliminar directo desde la fila; el resto de las acciones está en el detalle */}
+                {!experience.active && (
+                  <IconButton icon={Trash2} label="Eliminar experiencia" variant="ghost" onClick={() => askDelete(experience)} />
+                )}
               </div>
             ),
           },
@@ -215,6 +201,9 @@ function ExperiencesAdmin() {
             <>
               <Button variant="ghost" icon={ExternalLink} to={`/experiencias/${selected.id}`}>
                 Ver publicación
+              </Button>
+              <Button variant="secondary" icon={Pencil} to={`/admin/experiencias/${selected.id}/editar`}>
+                Editar
               </Button>
               <Button
                 variant="secondary"
@@ -250,7 +239,7 @@ function ExperiencesAdmin() {
       {deleting && (
         <ConfirmDialog
           title="¿Eliminar la experiencia?"
-          message={`“${deleting.title}” de ${deleting.publisherName} se eliminará junto con sus fechas.`}
+          message={`“${deleting.title}” de ${deleting.publisherName} se elimina junto con sus fechas, sus reservas pasadas y sus reseñas. No se puede deshacer.`}
           confirmLabel="Eliminar"
           onConfirm={() =>
             deleteExperience(deleting.id)

@@ -1,6 +1,6 @@
 import { request, requestList } from './api'
 
-// → { code, valid, reason, percentage }
+// → { code, valid, reason, message, percentage, subtotal, discountAmount, total } (montos con el carrito actual)
 export const validateCoupon = (code) => request(`/discount-coupons/validate?code=${encodeURIComponent(code)}`)
 
 // Solo administradores

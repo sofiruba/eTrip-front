@@ -4,7 +4,7 @@ import FormField from '../ui/FormField'
 /** Ciudad (con sugerencias) y barrio. En el back se guardan juntos: "Palermo, Buenos Aires". */
 function LocationFields({ city, area, errors, onChange }) {
   return (
-    <>
+    <div className="form-grid">
       <FormField
         label="Ciudad"
         value={city}
@@ -29,9 +29,9 @@ function LocationFields({ city, area, errors, onChange }) {
         error={errors.area}
         placeholder="Palermo"
         required
-        hint="El punto exacto se lo mandás a quien reserve. Así se busca: “Palermo, Buenos Aires”."
+        hint="El punto exacto se lo mandás a quien reserve."
       />
-    </>
+    </div>
   )
 }
 

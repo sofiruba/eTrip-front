@@ -121,3 +121,7 @@
     padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
   }
 }
+
+.modal--xl {
+  max-width: 1000px;
+}

@@ -1,5 +1,10 @@
 # Para llenar el back
 
+> **Actualizado (19/10):** ya existe la carga grande en el back: `DataSeeder` (ver el README de `eTrip-back`,
+> "Cargar datos de ejemplo"). Borra todo y carga 7 categorías, 43 experiencias con fotos reales, fechas, reservas y reseñas.
+> Las categorías ahora son: Aventura y naturaleza, Deportes y aire libre, Gastronomía, Arte y creatividad,
+> Cultura y vida local, Bienestar y social, Música y noche (cada una con su ícono en `categoryIcons.js`).
+
 Notas de lo que tiene que haber en la base de datos para que el front se vea bien.
 **Todavía no se carga nada:** esto es la lista para cuando se decida vaciar y llenar la base.
 

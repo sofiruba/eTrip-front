@@ -1,13 +1,31 @@
 {
   "categories": [
-    { "name": "Gastronomía", "description": "Catas, talleres de cocina y mesas compartidas." },
-    { "name": "Arte & salidas", "description": "Recorridos, fotografía y cultura urbana." },
-    { "name": "Talleres", "description": "Aprendé algo nuevo con las manos." },
-    { "name": "Escapadas", "description": "Planes al aire libre cerca de la ciudad." }
+    {
+      "name": "Gastronomía",
+      "description": "Catas, cocina con locales, mercados y mesas compartidas."
+    },
+    {
+      "name": "Cultura y vida local",
+      "description": "Barrios, historia y la ciudad contada por quienes viven ahí."
+    },
+    {
+      "name": "Arte y creatividad",
+      "description": "Talleres para hacer algo con tus manos: cerámica, pintura, foto."
+    },
+    {
+      "name": "Aventura y naturaleza",
+      "description": "Trekking, paisajes, cerros, lagos y escapadas al aire libre."
+    }
   ],
   "coupons": [
-    { "code": "PRUEBA10", "percentage": 10 },
-    { "code": "BIENVENIDA20", "percentage": 20 }
+    {
+      "code": "PRUEBA10",
+      "percentage": 10
+    },
+    {
+      "code": "BIENVENIDA20",
+      "percentage": 20
+    }
   ],
   "users": [
     {
@@ -22,11 +40,21 @@
           "description": "Recorremos Caminito y los rincones que no salen en las postales, con una cámara analógica en la mano. Cerramos en un bodegón con un vermut.",
           "price": 28000,
           "location": "La Boca, Buenos Aires",
-          "category": "Arte & salidas",
+          "category": "Cultura y vida local",
           "image": "/ejemplos/la-boca.jpg",
           "sessions": [
-            { "inDays": 5, "time": "16:00", "hours": 3, "capacity": 12 },
-            { "inDays": 12, "time": "16:00", "hours": 3, "capacity": 12 }
+            {
+              "inDays": 5,
+              "time": "16:00",
+              "hours": 3,
+              "capacity": 12
+            },
+            {
+              "inDays": 12,
+              "time": "16:00",
+              "hours": 3,
+              "capacity": 12
+            }
           ]
         },
         {
@@ -35,9 +63,16 @@
           "price": 32000,
           "discountPercentage": 10,
           "location": "Tigre, Buenos Aires",
-          "category": "Escapadas",
+          "category": "Aventura y naturaleza",
           "image": "/ejemplos/kayak.jpg",
-          "sessions": [{ "inDays": 9, "time": "18:30", "hours": 3, "capacity": 10 }]
+          "sessions": [
+            {
+              "inDays": 9,
+              "time": "18:30",
+              "hours": 3,
+              "capacity": 10
+            }
+          ]
         }
       ]
     },
@@ -56,8 +91,18 @@
           "category": "Gastronomía",
           "image": "/ejemplos/cata.jpg",
           "sessions": [
-            { "inDays": 3, "time": "20:00", "hours": 2, "capacity": 14 },
-            { "inDays": 10, "time": "20:00", "hours": 2, "capacity": 14 }
+            {
+              "inDays": 3,
+              "time": "20:00",
+              "hours": 2,
+              "capacity": 14
+            },
+            {
+              "inDays": 10,
+              "time": "20:00",
+              "hours": 2,
+              "capacity": 14
+            }
           ]
         }
       ]
@@ -74,9 +119,16 @@
           "description": "Una tarde para desenchufarse y crear tu propia taza o bowl desde cero. No hace falta experiencia: te acompañamos paso a paso.",
           "price": 24000,
           "location": "Villa Crespo, Buenos Aires",
-          "category": "Talleres",
+          "category": "Arte y creatividad",
           "image": "/ejemplos/ceramica.jpg",
-          "sessions": [{ "inDays": 6, "time": "18:00", "hours": 2.5, "capacity": 8 }]
+          "sessions": [
+            {
+              "inDays": 6,
+              "time": "18:00",
+              "hours": 2.5,
+              "capacity": 8
+            }
+          ]
         }
       ]
     },

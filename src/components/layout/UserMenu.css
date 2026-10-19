@@ -65,8 +65,20 @@
   margin: var(--space-1) 0;
 }
 
-@media (max-width: 580px) {
+/* Hasta 1280px va solo el avatar (el nombre está adentro del menú): así entra la barra de búsqueda completa */
+@media (max-width: 1280px) {
   .user-menu__name {
+    display: none;
+  }
+}
+
+/* En el celu, solo el avatar (sin la flechita) */
+@media (max-width: 600px) {
+  .user-menu__trigger {
+    padding: 4px;
+  }
+
+  .user-menu__trigger > svg {
     display: none;
   }
 }

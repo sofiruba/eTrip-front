@@ -1,4 +1,4 @@
-import { findKnownCity, getArea, getCity } from './location'
+import { getArea, getCity } from './location'
 
 /** Datos del formulario del editor a partir de una experiencia (o vacío si es nueva). */
 export const toForm = (experience) => ({
@@ -21,7 +21,10 @@ export function validate(form) {
   if (form.description.trim().length < 30) errors.description = 'Contá un poco más (mínimo 30 caracteres).'
   if (!form.city.trim()) errors.city = 'Indicá la ciudad.'
   else if (form.city.includes(',')) errors.city = 'Solo el nombre de la ciudad (sin comas).'
-  else if (!findKnownCity(form.city)) errors.city = 'Elegí una ciudad válida de la lista.'
+  // Ciudad libre (la lista cerrada de ciudades habilitadas queda para el back en la 3ra entrega).
+  // Mismas reglas que valida el back sobre `location`: sin números.
+  else if (/\d/.test(form.city)) errors.city = 'Escribí solo el nombre de la ciudad, sin números.'
+  else if (form.city.trim().length < 2 || !/\p{L}/u.test(form.city)) errors.city = 'Escribí el nombre de la ciudad.'
   if (!form.area.trim()) errors.area = 'Indicá el barrio o la zona.'
   else if (form.area.includes(',')) errors.area = 'Escribí solo el nombre del barrio o zona, sin comas.'
   else if (/^[\d\s.-]+$/.test(form.area.trim())) errors.area = 'Ingresá un barrio o zona válida, no una dirección.'

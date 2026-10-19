@@ -12,6 +12,17 @@ export function formatMoney(value) {
   return moneyFormatter.format(value)
 }
 
+/**
+ * Monto en una moneda { code, symbol } ("US$ 20", "€ 8,50", "$ 24.000"): número con separadores de acá y el símbolo
+ * delante. Sin decimales, salvo montos chicos en moneda extranjera.
+ */
+export function formatCurrency({ code, symbol }, amount) {
+  const number = new Intl.NumberFormat(LOCALE, {
+    maximumFractionDigits: code !== 'ARS' && Math.abs(amount) < 100 ? 2 : 0,
+  }).format(amount)
+  return `${symbol} ${number}`
+}
+
 /** "Sáb 26 oct" */
 export function formatShortDate(iso) {
   const text = new Date(iso).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' })

@@ -23,33 +23,8 @@ const VALUES = [
   },
 ]
 
-// Las dos filas de planes que pasan por la pantalla (van en sentidos opuestos)
-const MARQUEE = [
-  ['Cerámica', 'Remar en el Delta', 'Tango en un bodegón', 'Cata de vinos', 'Empanadas salteñas', 'Fotografía analógica', 'Mate con locales'],
-  ['Trekking', 'Arte callejero', 'Clase de folklore', 'Cocina de abuela', 'Feria de barrio', 'Yoga al aire libre', 'Historia del barrio'],
-]
-
-function Marquee() {
-  return (
-    <div className="about__marquee" aria-hidden>
-      {MARQUEE.map((row, index) => (
-        <div key={index} className={`about__marquee-row ${index % 2 ? 'is-reverse' : ''}`}>
-          {/* El contenido va dos veces para que la vuelta no se note */}
-          {[0, 1].map((copy) => (
-            <div key={copy} className="about__marquee-track">
-              {row.map((item) => (
-                <span key={item} className="about__marquee-item">
-                  {item}
-                  <Sparkle size={14} fill="currentColor" />
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
+// Algunos planes de ejemplo, fijos (sin animación)
+const PLANS = ['Taller de cerámica', 'Kayak al atardecer', 'Cata de vinos', 'Tango en un bodegón', 'Yoga en el parque', 'Arte callejero', 'Mate con locales', 'Historia del barrio']
 
 function AboutPage() {
   useDocumentTitle('Sobre nosotros')
@@ -67,12 +42,15 @@ function AboutPage() {
         </p>
       </section>
 
-      <Marquee />
-
-      <blockquote className="about__quote" data-reveal>
-        <p>Una plataforma para hacer cerámica, remar, comer rico, conocer gente y dejar de responder “vemos” en el grupo.</p>
-        <footer>— El equipo de PLAN, probablemente buscando un plan</footer>
-      </blockquote>
+      <ul className="about__plans" aria-label="Algunos planes que vas a encontrar" data-reveal>
+        {PLANS.map((plan, index) => (
+          <li key={plan} className="about__plan">
+            {plan}
+            {/* El ✦ del logo entre plan y plan */}
+            {index < PLANS.length - 1 && <Sparkle size={16} fill="currentColor" aria-hidden />}
+          </li>
+        ))}
+      </ul>
 
       <section className="section">
         <div data-reveal>
@@ -91,7 +69,7 @@ function AboutPage() {
             </span>
             <h3>Los que saben</h3>
             <p className="muted">
-              Cocineras, ceramistas, guías, músicos y vecinos con algo para compartir. Proponen el plan y lo hacen a su manera.
+              Chefs, artistas, guías, músicos y vecinos con algo para compartir. Proponen el plan y lo hacen a su manera.
             </p>
           </article>
 

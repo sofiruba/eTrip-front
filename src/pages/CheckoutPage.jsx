@@ -12,6 +12,7 @@ import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import { useAuth } from '../hooks/useAuth'
 import { useCart } from '../hooks/useCart'
+import { useCurrency } from '../hooks/useCurrency'
 import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useFreshSessions } from '../hooks/useFreshSessions'
@@ -35,6 +36,7 @@ import './CheckoutPage.css'
 function CheckoutPage() {
   const { user } = useAuth()
   const cart = useCart()
+  const { approx } = useCurrency()
   const { experiences, sessions, loading, refreshSessions } = useCatalog()
   const sessionsReady = useFreshSessions() // lugares que quedan ahora, no los de cuando se abrió la app
   const savedCards = useSavedCards()
@@ -132,6 +134,8 @@ function CheckoutPage() {
       couponCode: coupon?.valid ? coupon.code : null,
       paymentMethod: method.startsWith('saved:') ? 'saved' : method,
       cardNumber: method === 'card' ? onlyDigits(card.number) : null,
+      // El total que se le mostró: si un precio cambió mientras pagaba, el back rechaza en vez de cobrar otro monto
+      expectedTotal: Math.round(total * 100) / 100,
     })
       .then((order) => {
         if (method === 'card' && card.save) savedCards.saveCard(toSavedCard(card))
@@ -157,6 +161,8 @@ function CheckoutPage() {
     setError(message)
     cart.reload()
     refreshSessions()
+    // Si cambió algún precio, el descuento del cupón también: lo recalcula el back con el carrito nuevo
+    if (coupon?.valid) applyCoupon(coupon.code)
   }
 
   const applyCoupon = (code) => {
@@ -215,6 +221,8 @@ function CheckoutPage() {
             <Lock size={18} aria-hidden />
             Confirmá y pagá {formatMoney(total)}
           </button>
+          {/* Si eligió otra moneda, dejamos claro que se cobra en pesos */}
+          {approx(total) && <p className="checkout__currency muted small">Se cobra en pesos argentinos · {approx(total)}</p>}
 
           <p className="checkout__secure">
             <ShieldCheck size={16} aria-hidden />

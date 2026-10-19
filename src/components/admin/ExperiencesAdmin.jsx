@@ -150,7 +150,7 @@ function ExperiencesAdmin() {
             key: 'price',
             header: 'Precio',
             sortValue: (experience) => experience.finalPrice,
-            render: (experience) => <Money value={experience.finalPrice} original={experience.price} />,
+            render: (experience) => <Money value={experience.finalPrice} original={experience.price} pesos />,
           },
           {
             key: 'status',
@@ -191,7 +191,7 @@ function ExperiencesAdmin() {
           fields={[
             { label: 'Anfitrión', value: <Link to={`/anfitriones/${selected.publisherId}`}>{selected.publisherName}</Link> },
             { label: 'Ubicación', value: selected.location },
-            { label: 'Precio', value: <Money value={selected.finalPrice} original={selected.price} /> },
+            { label: 'Precio', value: <Money value={selected.finalPrice} original={selected.price} pesos /> },
             { label: 'Descuento', value: selected.discountPercentage ? `${selected.discountPercentage}%` : '—' },
             { label: 'Puntuación', value: selected.reviewCount ? `${selected.averageRating} (${pluralize(selected.reviewCount, 'reseña')})` : 'Sin reseñas' },
             { label: 'Lugares vendidos', value: selected.sales.count },

@@ -330,7 +330,7 @@
 }
 
 /* En mobile, los campos se apilan en una tarjeta */
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .hero-search {
     grid-template-columns: 1fr;
     gap: 2px;

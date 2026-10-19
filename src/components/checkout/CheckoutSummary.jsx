@@ -1,4 +1,5 @@
 import { formatMoney } from '../../utils/format'
+import Approx from '../ui/Approx'
 import CheckoutItem from './CheckoutItem'
 import CouponField from './CouponField'
 import './CheckoutSummary.css'
@@ -41,7 +42,10 @@ function CheckoutSummary({ lines, subtotal, discount, coupon, onApplyCoupon, onR
           <dt>
             Total <abbr title="Pesos argentinos">ARS</abbr>
           </dt>
-          <dd>{formatMoney(subtotal - discount)}</dd>
+          <dd>
+            {formatMoney(subtotal - discount)}
+            <Approx value={subtotal - discount} />
+          </dd>
         </div>
       </dl>
     </aside>

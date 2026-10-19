@@ -25,80 +25,38 @@
   animation: about-line-in 800ms cubic-bezier(0.2, 0.8, 0.2, 1) 320ms both;
 }
 
-/* Planes que pasan por la pantalla */
-.about__marquee {
-  display: grid;
-  gap: var(--space-3);
-  margin-bottom: var(--space-7);
-  /* Se desvanece en los bordes */
-  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
-}
-
-.about__marquee-row {
+/* Algunos planes de ejemplo: frase quieta separada por el ✦ del logo */
+.about__plans {
   display: flex;
-  overflow: hidden;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  max-width: 1000px;
+  margin: 0 0 var(--space-7);
+  padding: 0;
+  list-style: none;
 }
 
-.about__marquee-track {
-  display: flex;
-  flex-shrink: 0;
-  gap: var(--space-5);
-  padding-right: var(--space-5);
-  animation: about-marquee 38s linear infinite;
-}
-
-.about__marquee-row.is-reverse .about__marquee-track {
-  animation-direction: reverse;
-  animation-duration: 44s;
-}
-
-/* Se frena al pasar el mouse, por si querés leer */
-.about__marquee:hover .about__marquee-track {
-  animation-play-state: paused;
-}
-
-.about__marquee-item {
+.about__plan {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-4);
+  margin: 0;
   color: var(--color-ink);
   font-size: var(--text-2xl);
   font-weight: var(--weight-black);
   letter-spacing: -0.02em;
-  white-space: nowrap;
+  line-height: 1.2;
+  white-space: nowrap; /* un plan no se corta a la mitad: pasa entero al renglón siguiente */
 }
 
-.about__marquee-item svg {
-  color: var(--color-accent);
-}
-
-.about__marquee-row.is-reverse .about__marquee-item {
+.about__plan:nth-child(even) {
   color: var(--color-brand-text);
 }
 
-.about__marquee-row.is-reverse .about__marquee-item svg {
-  color: var(--color-line-strong);
-}
-
-.about__quote {
-  margin: 0;
-  padding: var(--space-6);
-  border-radius: var(--radius-lg);
-  background: var(--color-inverse);
-  color: var(--color-on-brand);
-}
-
-.about__quote p {
-  max-width: 760px;
-  font-size: var(--text-xl);
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.about__quote footer {
-  margin-top: var(--space-4);
-  color: #c9c6bf;
-  font-size: var(--text-sm);
+.about__plan svg {
+  flex: none;
+  color: var(--color-accent);
 }
 
 .about__intro {
@@ -110,8 +68,9 @@
 /* Los que saben ⟶ PLAN ⟶ los que quieren descubrir */
 .about__bridge {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
+  /* minmax(0, 1fr): las dos tarjetas miden lo mismo de ancho aunque el texto sea distinto */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch; /* y lo mismo de alto: se estiran a la más alta */
   margin-top: var(--space-6);
 }
 
@@ -121,6 +80,7 @@
 
 .about__link {
   display: flex;
+  align-self: center;
   align-items: center;
 }
 
@@ -201,12 +161,6 @@
   }
 }
 
-@keyframes about-marquee {
-  to {
-    transform: translateX(-100%);
-  }
-}
-
 @keyframes about-flow {
   to {
     background-position: 16px 0;
@@ -224,7 +178,11 @@
 }
 
 /* En el celular la conexión va de arriba a abajo */
-@media (max-width: 760px) {
+@media (max-width: 900px) {
+  .about__plan {
+    font-size: var(--text-xl);
+  }
+
   .about__bridge {
     grid-template-columns: 1fr;
     justify-items: center;
@@ -245,10 +203,6 @@
     background-size: 100% 16px;
     animation-name: about-flow-down;
   }
-
-  .about__marquee-item {
-    font-size: var(--text-xl);
-  }
 }
 
 @keyframes about-flow-down {
@@ -257,9 +211,14 @@
   }
 }
 
+@media (max-width: 420px) {
+  .about__plan {
+    white-space: normal;
+  }
+}
+
 /* Sin animaciones infinitas si el sistema pide reducir movimiento */
 @media (prefers-reduced-motion: reduce) {
-  .about__marquee-track,
   .about__wire,
   .about__hub {
     animation: none;

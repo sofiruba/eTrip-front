@@ -65,7 +65,7 @@
   }
 }
 
-@media (max-width: 580px) {
+@media (max-width: 600px) {
   .toast-region {
     right: var(--space-4);
     left: var(--space-4);

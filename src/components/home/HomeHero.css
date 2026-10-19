@@ -57,7 +57,7 @@
   margin-top: var(--space-6);
 }
 
-@media (max-width: 580px) {
+@media (max-width: 600px) {
   .hero {
     padding: var(--space-7) 0 var(--space-5);
   }

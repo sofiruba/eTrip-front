@@ -64,7 +64,7 @@
   text-transform: uppercase;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .session-row {
     grid-template-columns: 56px 1fr;
   }

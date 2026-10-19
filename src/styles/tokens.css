@@ -90,6 +90,8 @@
   /*
    * Breakpoints (las custom properties no funcionan dentro de @media, quedan documentados):
    * 600px mobile · 900px tablet · 1200px desktop
+   * Extras: 420px mobile chico; el navbar pasa a menú en 1080px y el buscador del navbar
+   * acomoda la X en 1100px (dependen de cuánto ocupan los links, no del layout general)
    */
 }
 

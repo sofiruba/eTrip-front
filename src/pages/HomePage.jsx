@@ -96,7 +96,14 @@ function HomePage() {
       <section className="section" id="experiencias" ref={resultsRef}>
         <SectionHeader eyebrow="Explorá" title={sectionTitle} />
         <CategoryFilter categories={categories} value={filters.categoryId} onChange={(id) => updateFilters({ categoryId: id })} />
-        <CatalogFilters filters={filters} categories={categories} resultCount={results.length} onChange={updateFilters} onClear={clearFilters} />
+        <CatalogFilters
+          filters={filters}
+          categories={categories}
+          prices={experiences.map((experience) => experience.finalPrice)}
+          resultCount={results.length}
+          onChange={updateFilters}
+          onClear={clearFilters}
+        />
         <CatalogResults
           loading={loading || searching}
           error={error || (backQuery ? search.error : '')}

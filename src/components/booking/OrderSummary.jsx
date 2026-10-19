@@ -1,4 +1,5 @@
 import { formatMoney } from '../../utils/format'
+import Approx from '../ui/Approx'
 import './OrderSummary.css'
 
 /**
@@ -37,7 +38,10 @@ function OrderSummary({ title = 'Resumen', items, discount = 0, couponCode, tota
         )}
         <div className="order-summary__total">
           <dt>{totalLabel}</dt>
-          <dd>{formatMoney(subtotal - discount)}</dd>
+          <dd>
+            {formatMoney(subtotal - discount)}
+            <Approx value={subtotal - discount} />
+          </dd>
         </div>
         {refunded > 0 && (
           <>

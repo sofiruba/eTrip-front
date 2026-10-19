@@ -28,9 +28,17 @@ export function buildLocation(area, city) {
   return [area.trim(), city.trim()].filter(Boolean).join(', ')
 }
 
-export function findKnownCity(value) {
-  const normalized = normalizeText(value?.trim() ?? '')
-  return cities.find((city) => normalizeText(city.name) === normalized) ?? null
+/**
+ * Ciudad libre: el anfitrión publica donde esté (PLAN es multi-ciudad, no hay lista cerrada).
+ * Para no duplicar la misma ciudad escrita distinto ("cordoba", "Cordoba", "Córdoba"), si coincide sin acentos
+ * con una conocida (data/cities.js) o con una que ya tiene experiencias (`existing`), se guarda con esa escritura.
+ * Si es nueva, se guarda como la escribió, con espacios prolijos y la primera letra en mayúscula.
+ */
+export function canonicalCity(value, existing = []) {
+  const clean = value.trim().replace(/\s+/g, ' ')
+  const normalized = normalizeText(clean)
+  const known = [...existing, ...cities.map((city) => city.name)].find((name) => normalizeText(name) === normalized)
+  return known ?? clean.charAt(0).toLocaleUpperCase('es') + clean.slice(1)
 }
 
 /** Igual que el back pero sin acentos: "cordoba" encuentra "Córdoba". */

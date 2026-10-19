@@ -130,35 +130,7 @@
 }
 
 .reviews-modal__bars {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   margin-top: var(--space-5);
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
-}
-
-.reviews-modal__bars li {
-  display: grid;
-  grid-template-columns: 12px 1fr 28px;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.reviews-modal__bar {
-  height: 6px;
-  overflow: hidden;
-  border-radius: var(--radius-pill);
-  background: var(--color-line);
-}
-
-.reviews-modal__bar span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-ink);
-  transition: width 400ms ease-out;
 }
 
 .reviews-modal__list {
@@ -222,7 +194,7 @@
   border-color: var(--color-ink);
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .reviews-modal {
     grid-template-columns: 1fr;
     gap: var(--space-4);

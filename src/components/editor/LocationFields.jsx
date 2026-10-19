@@ -1,27 +1,11 @@
-import { cities } from '../../data/cities'
 import FormField from '../ui/FormField'
+import CityField from './CityField'
 
 /** Ciudad (con sugerencias) y barrio. En el back se guardan juntos: "Palermo, Buenos Aires". */
 function LocationFields({ city, area, errors, onChange }) {
   return (
     <div className="form-grid">
-      <FormField
-        label="Ciudad"
-        value={city}
-        onChange={(event) => onChange('city', event.target.value)}
-        error={errors.city}
-        placeholder="Buenos Aires"
-        list="editor-cities"
-        required
-        autoComplete="off"
-      />
-      <datalist id="editor-cities">
-        {cities.map((entry) => (
-          <option key={entry.name} value={entry.name}>
-            {entry.country}
-          </option>
-        ))}
-      </datalist>
+      <CityField value={city} error={errors.city} onChange={(value) => onChange('city', value)} />
       <FormField
         label="Barrio o zona"
         value={area}

@@ -1,0 +1,7 @@
+/* "≈ US$ 20" debajo de un monto en pesos */
+.approx {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.3;
+}

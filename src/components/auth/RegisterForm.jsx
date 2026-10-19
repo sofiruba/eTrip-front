@@ -23,10 +23,11 @@ const USERNAME_PATTERN = /^[a-z0-9._]{3,20}$/i
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/
 const CHECK_DELAY = 450
 
-function validateAccount(form) {
+function validateAccount(form, acceptedTerms) {
   const errors = {}
   if (!EMAIL_PATTERN.test(form.email.trim())) errors.email = 'Ingresá un email válido.'
   if (form.password.length < MIN_PASSWORD) errors.password = `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`
+  if (!acceptedTerms) errors.terms = 'Para crear tu cuenta tenés que aceptar los términos y la política de privacidad.'
   return errors
 }
 
@@ -80,6 +81,7 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
   const { register } = useAuth()
   const [form, setForm] = useState(EMPTY_FORM)
   const [interests, setInterests] = useState([])
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
   const [emailTaken, setEmailTaken] = useState(false)
@@ -143,7 +145,7 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
   }, [form.firstname, form.lastname])
 
   const submitAccount = () => {
-    const nextErrors = validateAccount(form)
+    const nextErrors = validateAccount(form, acceptedTerms)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return undefined
     setSending(true)
@@ -244,6 +246,35 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
             autoComplete="new-password"
             showStrength
           />
+          <div className={`auth-terms ${errors.terms ? 'auth-terms--error' : ''}`}>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                aria-invalid={Boolean(errors.terms)}
+                aria-describedby={errors.terms ? 'auth-terms-error' : undefined}
+                onChange={(event) => {
+                  setAcceptedTerms(event.target.checked)
+                  if (errors.terms) setErrors({ ...errors, terms: undefined })
+                }}
+              />
+              <span>
+                Acepto los{' '}
+                <Link to="/terminos" target="_blank">
+                  Términos y condiciones
+                </Link>{' '}
+                y la{' '}
+                <Link to="/privacidad" target="_blank">
+                  Política de privacidad
+                </Link>
+              </span>
+            </label>
+            {errors.terms && (
+              <small id="auth-terms-error" className="auth-terms__error" role="alert">
+                {errors.terms}
+              </small>
+            )}
+          </div>
         </div>
       )}
 
@@ -330,21 +361,7 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
             Iniciá sesión
           </button>
         </p>
-      ) : (
-        step === 'interests' && (
-          <p className="auth-legal">
-            Al crear tu cuenta aceptás los{' '}
-            <Link to="/terminos" target="_blank">
-              Términos
-            </Link>{' '}
-            y la{' '}
-            <Link to="/privacidad" target="_blank">
-              Política de privacidad
-            </Link>
-            .
-          </p>
-        )
-      )}
+      ) : null}
     </form>
   )
 }

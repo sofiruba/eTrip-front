@@ -3,10 +3,10 @@ import { Check } from 'lucide-react'
 import { Navigate, useLocation, useParams } from 'react-router-dom'
 import VoucherCard from '../components/booking/VoucherCard'
 import CheckoutSteps from '../components/checkout/CheckoutSteps'
+import Approx from '../components/ui/Approx'
 import Button from '../components/ui/Button'
 import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
-import { useAuth } from '../hooks/useAuth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getOrder } from '../services/ordersService'
 import { formatMoney, formatSessionDate } from '../utils/format'
@@ -15,7 +15,6 @@ import './CheckoutSuccessPage.css'
 function CheckoutSuccessPage() {
   const { orderId } = useParams()
   const { state } = useLocation()
-  const { user } = useAuth()
   const [order, setOrder] = useState(null)
   const [failed, setFailed] = useState(false)
   const [error, setError] = useState('')
@@ -56,7 +55,7 @@ function CheckoutSuccessPage() {
       </h1>
       <p className="muted">
         {state?.paymentLabel ? `Pagaste ${formatMoney(order.total)} con ${state.paymentLabel}.` : `Pagaste ${formatMoney(order.total)}.`}{' '}
-        Te enviamos el comprobante a {user.email}.
+        Tus vouchers quedaron guardados en Mis reservas.
       </p>
 
       <dl className="checkout-success__receipt card">
@@ -74,6 +73,7 @@ function CheckoutSuccessPage() {
           <dt>Total</dt>
           <dd>
             <strong>{formatMoney(order.total)}</strong>
+            <Approx value={order.total} />
           </dd>
         </div>
       </dl>

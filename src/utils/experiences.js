@@ -1,3 +1,4 @@
+import { TIME_SLOTS } from './catalogFilters'
 import { isPast, normalizeText } from './format'
 import { getCity, matchesLocation } from './location'
 import { cities } from '../data/cities'
@@ -42,6 +43,8 @@ export const isSoldOut = (experience) => experience.upcomingCount > 0 && experie
 /** Filtros del catálogo (los mismos nombres que la URL del Home). */
 export function filterExperiences(experiences, sessions, filters) {
   const { title, categoryId, location, minPrice, maxPrice, onlyDiscounted, dateFrom, dateTo, guests, onlyAvailable } = filters
+  const { durationMin = null, durationMax = null, times = [] } = filters
+  const slots = TIME_SLOTS.filter((slot) => times.includes(slot.id))
   const words = normalizeText(title).split(/\s+/).filter(Boolean)
   const from = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null
   const to = dateTo ? new Date(`${dateTo}T23:59:59`) : null
@@ -53,11 +56,20 @@ export function filterExperiences(experiences, sessions, filters) {
     if (maxPrice != null && experience.finalPrice > maxPrice) return false
     if (onlyDiscounted && !(experience.discountPercentage > 0)) return false
     if (onlyAvailable && !experience.nextSession) return false
-    // Fechas y personas: tiene que haber una sesión en el rango con lugar para todos
-    if (from || to || guests) {
+    // Fechas, personas, duración y horario: tiene que haber UNA misma fecha (sesión) que cumpla todo
+    const byDates = Boolean(from || to || guests)
+    if (byDates || durationMin != null || durationMax != null || slots.length) {
       const fits = getUpcomingSessions(sessions, experience.id).some((session) => {
         const start = new Date(session.startsAt)
-        return session.availableSeats >= (guests || 1) && (!from || start >= from) && (!to || start <= to)
+        const minutes = (new Date(session.endsAt) - start) / 60000
+        return (
+          (!byDates || session.availableSeats >= (guests || 1)) &&
+          (!from || start >= from) &&
+          (!to || start <= to) &&
+          (durationMin == null || minutes >= durationMin) &&
+          (durationMax == null || minutes <= durationMax) &&
+          (!slots.length || slots.some((slot) => slot.matches(start.getHours())))
+        )
       })
       if (!fits) return false
     }

@@ -6,11 +6,12 @@ import ImageWithFallback from '../ui/ImageWithFallback'
 import { getBookingStatus } from '../../utils/bookings'
 import './BookingCard.css'
 
-function BookingCard({ booking }) {
+/** Tarjeta de una reserva (link al detalle). `action` (opcional) es un botón que va debajo, fuera del link. */
+function BookingCard({ booking, action }) {
   const status = getBookingStatus(booking)
   const { experience } = booking
 
-  return (
+  const card = (
     <Link to={`/mis-reservas/${booking.id}`} className="booking-card">
       <ImageWithFallback src={experience?.images[0]} alt="" className="booking-card__image" />
       <div className="booking-card__body">
@@ -39,6 +40,15 @@ function BookingCard({ booking }) {
       </div>
       <ChevronRight size={20} className="booking-card__arrow" aria-hidden />
     </Link>
+  )
+
+  // Un link no puede tener otro link adentro: la acción va debajo de la tarjeta, no dentro
+  if (!action) return card
+  return (
+    <div className="booking-card-wrap">
+      {card}
+      <div className="booking-card-wrap__action">{action}</div>
+    </div>
   )
 }
 

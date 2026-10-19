@@ -31,6 +31,16 @@
   color: var(--color-brand-text);
 }
 
+.cart-line__amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.cart-line__amount .approx {
+  font-size: var(--text-xs);
+}
+
 .cart-line__aside {
   display: flex;
   flex-direction: column;
@@ -51,7 +61,7 @@
   width: 100%;
 }
 
-@media (max-width: 580px) {
+@media (max-width: 600px) {
   .cart-line {
     flex-wrap: wrap;
   }

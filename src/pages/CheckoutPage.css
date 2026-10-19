@@ -66,6 +66,11 @@
   opacity: 0.7;
 }
 
+.checkout__currency {
+  margin-top: calc(-1 * var(--space-2));
+  text-align: center;
+}
+
 .checkout__secure {
   display: flex;
   align-items: center;
@@ -88,7 +93,7 @@
   }
 }
 
-@media (max-width: 580px) {
+@media (max-width: 600px) {
   .checkout__panel {
     padding: var(--space-4) var(--space-4) 0;
   }

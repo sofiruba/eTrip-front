@@ -14,7 +14,7 @@
   border: 1px solid var(--color-line);
   border-radius: 4px;
   background: #fff;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 800;
   line-height: 1;
   transition: opacity var(--transition), filter var(--transition);
@@ -43,6 +43,6 @@
 
 .brand-logo__amex {
   color: #fff;
-  font-size: 9px;
+  font-size: 0.5625rem;
   letter-spacing: 0.04em;
 }

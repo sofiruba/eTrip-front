@@ -5,7 +5,7 @@ import { countSeats } from './guests'
  * Categoría, ciudad/zona y "solo ofertas" los resuelve el back (GET /experiences?...).
  * El resto se aplica en el front (ver utils/experiences.js) porque el back no los tiene igual:
  * texto (busca en título, lugar y anfitrión, sin acentos), precio final con descuento,
- * fechas con lugar para el grupo, "solo con lugares", viajeros y orden.
+ * fechas con lugar para el grupo, "solo con lugares", viajeros, duración, horario y orden.
  */
 
 export const PAGE_SIZE = 8
@@ -18,16 +18,45 @@ export const SORT_OPTIONS = [
   { value: 'proximas', label: 'Fechas más próximas' },
 ]
 
+/** Escalones del filtro de duración, en minutos. El último significa "5 h o más" (sin tope). */
+export const DURATION_STEPS = [
+  { minutes: 30, label: '30 min' },
+  { minutes: 60, label: '1 h' },
+  { minutes: 90, label: '1,5 h' },
+  { minutes: 120, label: '2 h' },
+  { minutes: 180, label: '3 h' },
+  { minutes: 240, label: '4 h' },
+  { minutes: 300, label: '5 h o más' },
+]
+
+/** Franjas horarias según la hora de inicio de cada fecha. */
+export const TIME_SLOTS = [
+  { id: 'manana', label: 'Mañana', hint: 'Antes de las 12:00', matches: (hour) => hour < 12 },
+  { id: 'tarde', label: 'Tarde', hint: 'Entre las 12:00 y las 17:00', matches: (hour) => hour >= 12 && hour < 17 },
+  { id: 'noche', label: 'Tarde-noche', hint: 'Después de las 17:00', matches: (hour) => hour >= 17 },
+]
+
 // Nombre en la URL de los filtros que no son del back
-const PARAM_NAMES = { onlyAvailable: 'disponibles', sort: 'orden', adults: 'adultos', children: 'ninos', infants: 'bebes' }
+const PARAM_NAMES = {
+  onlyAvailable: 'disponibles',
+  sort: 'orden',
+  adults: 'adultos',
+  children: 'ninos',
+  infants: 'bebes',
+  durationMin: 'duracionMin',
+  durationMax: 'duracionMax',
+  times: 'horario',
+}
 
 /**
  * Aplica un cambio de filtros sobre los parámetros de la URL (los modifica y los devuelve).
  * Los valores vacíos se borran. Salvo `keepPage`, vuelve a la primera página.
  */
 export function applyFilters(params, patch, { keepPage = false } = {}) {
-  Object.entries(patch).forEach(([key, value]) => {
+  Object.entries(patch).forEach(([key, rawValue]) => {
     const name = PARAM_NAMES[key] ?? key
+    // Las listas (horarios) van en la URL separadas por coma: ?horario=manana,tarde
+    const value = Array.isArray(rawValue) ? rawValue.join(',') : rawValue
     if (value === null || value === undefined || value === '' || value === false) params.delete(name)
     else params.set(name, String(value))
   })
@@ -56,6 +85,10 @@ export function readFilters(params) {
     dateFrom: params.get('dateFrom') ?? '',
     dateTo: params.get('dateTo') ?? '',
     onlyAvailable: params.get('disponibles') === 'true',
+    // Duración de la fecha en minutos (null = sin límite) y franjas horarias elegidas
+    durationMin: toNumber(params.get('duracionMin')),
+    durationMax: toNumber(params.get('duracionMax')),
+    times: (params.get('horario') ?? '').split(',').filter((id) => TIME_SLOTS.some((slot) => slot.id === id)),
     sort: params.get('orden') ?? '',
     page: Math.max(toNumber(params.get('page')) ?? 0, 0),
   }

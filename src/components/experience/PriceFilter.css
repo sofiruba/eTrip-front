@@ -1,0 +1,53 @@
+.price-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Las barras se alinean con el riel del slider (media manija de margen a cada lado) */
+.price-filter__histogram {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 64px;
+  margin-bottom: -10px;
+  padding-inline: 13px;
+}
+
+.price-filter__bar {
+  flex: 1;
+  min-width: 0;
+  border-radius: 3px 3px 0 0;
+  background: var(--color-line-strong);
+  transition: background var(--transition);
+}
+
+.price-filter__bar.is-in {
+  background: var(--color-brand);
+}
+
+.price-filter__inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.price-filter__inputs label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+
+.price-filter__inputs input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+}

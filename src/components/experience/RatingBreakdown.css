@@ -1,0 +1,37 @@
+.rating-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.rating-breakdown li {
+  display: grid;
+  grid-template-columns: 24px 1fr 28px;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.rating-breakdown__bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-line);
+}
+
+.rating-breakdown__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-ink);
+  transition: width 400ms ease-out;
+}
+
+/* En la sección de reseñas del detalle: debajo del encabezado, sin ocupar todo el ancho */
+.rating-breakdown--section {
+  max-width: 420px;
+  margin-bottom: var(--space-5);
+}

@@ -220,15 +220,38 @@
   font-weight: var(--weight-semibold);
 }
 
-.auth-legal {
-  color: var(--color-muted);
-  font-size: var(--text-xs);
-  text-align: center;
+/* "Acepto los términos": obligatorio en el primer paso del registro */
+.auth-terms {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.auth-legal a {
-  color: var(--color-text);
+.auth-terms .checkbox {
+  align-items: flex-start;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.auth-terms .checkbox input {
+  flex: none;
+  margin-top: 1px;
+}
+
+.auth-terms a {
+  color: var(--color-ink);
+  font-weight: 600;
   text-decoration: underline;
+}
+
+.auth-terms--error .checkbox input {
+  outline: 2px solid var(--color-danger);
+  outline-offset: 1px;
+}
+
+.auth-terms__error {
+  color: var(--color-danger);
+  font-size: var(--text-xs);
 }
 
 /* Medidor de seguridad de la contraseña */

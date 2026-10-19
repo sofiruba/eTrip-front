@@ -1,0 +1,97 @@
+/*
+ * Dos inputs range superpuestos: el riel no recibe clics (pointer-events: none) y solo las manijas sí.
+ * --thumb es el tamaño de la manija: el navegador deja media manija de margen en cada punta,
+ * por eso el relleno y lo que se alinea con el slider (histograma, marcas) usan ese mismo margen.
+ */
+.range-slider {
+  --thumb: 26px;
+  position: relative;
+  height: var(--thumb);
+}
+
+.range-slider__track {
+  position: absolute;
+  top: 50%;
+  right: calc(var(--thumb) / 2);
+  left: calc(var(--thumb) / 2);
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-line-strong);
+  transform: translateY(-50%);
+}
+
+.range-slider__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--from);
+  right: calc(100% - var(--to));
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+.range-slider input[type='range'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: none;
+  pointer-events: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.range-slider input.is-front {
+  z-index: 1;
+}
+
+.range-slider input[type='range']::-webkit-slider-runnable-track {
+  background: transparent;
+}
+
+.range-slider input[type='range']::-moz-range-track {
+  background: transparent;
+}
+
+.range-slider input[type='range']::-webkit-slider-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  pointer-events: auto;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.range-slider input[type='range']::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 1px solid var(--color-line-strong);
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.range-slider input[type='range']:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+.range-slider input[type='range']:focus-visible {
+  outline: none;
+}
+
+.range-slider input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.range-slider input[type='range']:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}

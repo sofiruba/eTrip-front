@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { getCartProblem } from '../../utils/cart'
 import { formatMoney, formatSessionDate, isPast } from '../../utils/format'
 import Button from '../ui/Button'
+import Approx from '../ui/Approx'
 import IconButton from '../ui/IconButton'
 import ImageWithFallback from '../ui/ImageWithFallback'
 import Notice from '../ui/Notice'
@@ -57,7 +58,10 @@ function CartLine({ line, onQuantityChange, onRemove }) {
         )}
       </div>
       <div className="cart-line__aside">
-        <strong>{formatMoney(subtotal)}</strong>
+        <span className="cart-line__amount">
+          <strong>{formatMoney(subtotal)}</strong>
+          <Approx value={subtotal} />
+        </span>
         <IconButton icon={Trash2} label="Quitar del carrito" variant="ghost" onClick={onRemove} />
       </div>
     </li>

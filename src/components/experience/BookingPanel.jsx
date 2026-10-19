@@ -4,8 +4,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LOW_SEATS } from '../../utils/experiences'
 import { useAuth } from '../../hooks/useAuth'
 import { useCart } from '../../hooks/useCart'
+import { useCurrency } from '../../hooks/useCurrency'
 import { useToast } from '../../hooks/useToast'
-import { formatLongDate, formatMoney, formatTime, pluralize } from '../../utils/format'
+import { formatLongDate, formatTime, pluralize } from '../../utils/format'
 import Button from '../ui/Button'
 import EmptyState from '../ui/EmptyState'
 import Money from '../ui/Money'
@@ -16,6 +17,7 @@ import './BookingPanel.css'
 function BookingPanel({ id, ref, experience, sessions }) {
   const { user, isAdmin, openAuth } = useAuth()
   const cart = useCart()
+  const { format } = useCurrency()
   const notify = useToast()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -141,7 +143,7 @@ function BookingPanel({ id, ref, experience, sessions }) {
 
           <div className="booking-panel__total">
             <span>Total</span>
-            <strong>{formatMoney(experience.finalPrice * amount)}</strong>
+            <strong>{format(experience.finalPrice * amount)}</strong>
           </div>
 
           <Button full onClick={() => addToCart(true)} disabled={adding}>

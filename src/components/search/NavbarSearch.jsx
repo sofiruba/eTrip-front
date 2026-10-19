@@ -74,7 +74,7 @@ function NavbarSearch({ hidden = false }) {
           setOpenedAt(pathname)
         }}
       >
-        {/* Con lugar se ven los tres campos; si no entra, quedan "Buscar" o solo la lupa (ver NavbarSearch.css) */}
+        {/* Se ven 1, 2 o los 3 campos según el lugar libre; si no entra ninguno, "Buscar" o solo la lupa (ver NavbarSearch.css) */}
         <span className="navbar-search__fields" aria-hidden>
           <span className="navbar-search__field">{filters.location || 'Cualquier lugar'}</span>
           <span className="navbar-search__field">{describeDates(filters) || 'Cualquier fecha'}</span>

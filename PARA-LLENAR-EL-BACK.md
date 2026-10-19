@@ -6,7 +6,7 @@ Notas de lo que tiene que haber en la base de datos para que el front se vea bie
 ## Categorías (obligatorias)
 
 Las categorías vienen del back (`GET /experience-categories`); el front no tiene una lista propia. Las crea un admin (panel → Categorías) o el importador de datos de ejemplo, que no duplica las que ya existen (compara por nombre).
-Se usan en el filtro de la home, en el editor de experiencias y en la banda que se mueve de "Sobre nosotros".
+Se usan en el filtro de la home y en el editor de experiencias.
 
 | Categoría | Descripción |
 |---|---|

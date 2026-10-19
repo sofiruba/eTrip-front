@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarHeart, History } from 'lucide-react'
+import { CalendarHeart, History, RotateCcw } from 'lucide-react'
 import BookingCard from '../components/booking/BookingCard'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
@@ -58,7 +58,18 @@ function MyBookingsPage() {
         ) : visible.length ? (
           <div className="booking-list">
             {visible.map((booking) => (
-              <BookingCard key={booking.id} booking={booking} />
+              <BookingCard
+                key={booking.id}
+                booking={booking}
+                // En las pasadas: volver al detalle con la misma cantidad de personas (solo si la experiencia sigue publicada)
+                action={
+                  tab === 'past' && booking.experience ? (
+                    <Button size="sm" variant="secondary" icon={RotateCcw} to={`/experiencias/${booking.experience.id}?personas=${booking.quantity}`}>
+                      Volver a reservar
+                    </Button>
+                  ) : null
+                }
+              />
             ))}
           </div>
         ) : tab === 'upcoming' ? (

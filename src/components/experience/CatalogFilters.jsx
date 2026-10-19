@@ -1,15 +1,27 @@
 import { useState } from 'react'
 import { SlidersHorizontal, X } from 'lucide-react'
-import { SORT_OPTIONS } from '../../utils/catalogFilters'
-import { formatMoney, formatShortDate } from '../../utils/format'
+import { DURATION_STEPS, SORT_OPTIONS, TIME_SLOTS } from '../../utils/catalogFilters'
+import { formatShortDate } from '../../utils/format'
 import { describeGuests } from '../../utils/guests'
+import { useCurrency } from '../../hooks/useCurrency'
 import Button from '../ui/Button'
+import RangeSlider from '../ui/RangeSlider'
+import PriceFilter from './PriceFilter'
 import './CatalogFilters.css'
 
 const shortDate = (value) => formatShortDate(`${value}T12:00:00`)
+const LAST_STEP = DURATION_STEPS.length - 1
+const durationLabel = (minutes) => DURATION_STEPS.find((step) => step.minutes === minutes)?.label ?? `${minutes} min`
+
+/** Posición en los escalones de duración de un valor en minutos (null = punta del slider). */
+const toStepIndex = (minutes, fallback) => {
+  if (minutes == null) return fallback
+  const index = DURATION_STEPS.findIndex((step) => step.minutes >= minutes)
+  return index === -1 ? LAST_STEP : index
+}
 
 /** Lista de filtros activos como chips que se pueden quitar de a uno. */
-function getActiveFilters(filters, categories) {
+function getActiveFilters(filters, categories, formatMoney) {
   const active = []
   const { title, categoryId, location, minPrice, maxPrice, onlyDiscounted, dateFrom, dateTo, guests, onlyAvailable } = filters
   if (location) active.push({ id: 'location', label: location, clear: { location: '' } })
@@ -37,36 +49,64 @@ function getActiveFilters(filters, categories) {
           : `Hasta ${formatMoney(maxPrice)}`
     active.push({ id: 'price', label, clear: { minPrice: null, maxPrice: null } })
   }
+  const { durationMin, durationMax, times } = filters
+  if (durationMin != null || durationMax != null) {
+    const label =
+      durationMin != null && durationMax != null
+        ? `${durationLabel(durationMin)} – ${durationLabel(durationMax)}`
+        : durationMin != null
+          ? durationMin === DURATION_STEPS[LAST_STEP].minutes
+            ? durationLabel(durationMin) // "5 h o más", no "Desde 5 h o más"
+            : `Desde ${durationLabel(durationMin)}`
+          : `Hasta ${durationLabel(durationMax)}`
+    active.push({ id: 'duration', label, clear: { durationMin: null, durationMax: null } })
+  }
+  if (times.length) {
+    const label = TIME_SLOTS.filter((slot) => times.includes(slot.id))
+      .map((slot) => slot.label)
+      .join(', ')
+    active.push({ id: 'times', label, clear: { times: [] } })
+  }
   if (onlyDiscounted) active.push({ id: 'onlyDiscounted', label: 'En oferta', clear: { onlyDiscounted: false } })
   if (onlyAvailable) active.push({ id: 'onlyAvailable', label: 'Con lugares', clear: { onlyAvailable: false } })
   return active
 }
 
 /**
- * Barra de filtros del catálogo: orden, panel de filtros (precio y opciones) y chips de filtros activos.
+ * Barra de filtros del catálogo: orden, panel de filtros (precio, duración, horario y opciones) y chips de filtros activos.
  * Lugar, fechas y personas se eligen en el buscador principal.
+ * `prices`: precios finales de todo el catálogo, para el histograma del filtro de precio.
  */
-function CatalogFilters({ filters, categories, resultCount, onChange, onClear }) {
+function CatalogFilters({ filters, categories, prices, resultCount, onChange, onClear }) {
   const [open, setOpen] = useState(false)
-  const [price, setPrice] = useState({ min: filters.minPrice ?? '', max: filters.maxPrice ?? '' })
-  const [syncedPrice, setSyncedPrice] = useState([filters.minPrice, filters.maxPrice])
-  // Si el precio cambia desde afuera (quitar chip, limpiar), se resincronizan los inputs
-  if (syncedPrice[0] !== filters.minPrice || syncedPrice[1] !== filters.maxPrice) {
-    setSyncedPrice([filters.minPrice, filters.maxPrice])
-    setPrice({ min: filters.minPrice ?? '', max: filters.maxPrice ?? '' })
+
+  // Duración: el slider se mueve por escalones (índices de DURATION_STEPS) y se aplica al soltar
+  const durationFromFilters = () => [toStepIndex(filters.durationMin, 0), toStepIndex(filters.durationMax, LAST_STEP)]
+  const [duration, setDuration] = useState(durationFromFilters)
+  const [syncedDuration, setSyncedDuration] = useState([filters.durationMin, filters.durationMax])
+  // Si la duración cambia desde afuera (quitar el chip, "Limpiar todo"), se vuelve a sincronizar
+  if (syncedDuration[0] !== filters.durationMin || syncedDuration[1] !== filters.durationMax) {
+    setSyncedDuration([filters.durationMin, filters.durationMax])
+    setDuration(durationFromFilters())
+  }
+  const commitDuration = () => {
+    const [from, to] = duration
+    const patch = {
+      durationMin: from === 0 ? null : DURATION_STEPS[from].minutes,
+      durationMax: to === LAST_STEP ? null : DURATION_STEPS[to].minutes,
+    }
+    if (patch.durationMin !== filters.durationMin || patch.durationMax !== filters.durationMax) onChange(patch)
   }
 
-  const active = getActiveFilters(filters, categories)
+  const toggleTime = (id) =>
+    onChange({ times: filters.times.includes(id) ? filters.times.filter((time) => time !== id) : [...filters.times, id] })
+
+  const { format } = useCurrency()
+  const active = getActiveFilters(filters, categories, format)
   // El contador es solo de lo que se elige en el panel
-  const panelCount = active.filter((filter) => ['price', 'onlyDiscounted', 'onlyAvailable'].includes(filter.id)).length
-
-  const applyPrice = (event) => {
-    event?.preventDefault()
-    let min = price.min === '' ? null : Math.max(Number(price.min), 0)
-    let max = price.max === '' ? null : Math.max(Number(price.max), 0)
-    if (min != null && max != null && min > max) [min, max] = [max, min]
-    if (min !== filters.minPrice || max !== filters.maxPrice) onChange({ minPrice: min, maxPrice: max })
-  }
+  const panelCount = active.filter((filter) =>
+    ['price', 'duration', 'times', 'onlyDiscounted', 'onlyAvailable'].includes(filter.id),
+  ).length
 
   return (
     <div className="catalog-filters">
@@ -99,60 +139,67 @@ function CatalogFilters({ filters, categories, resultCount, onChange, onClear })
 
       {open && (
         <div className="catalog-filters__panel card" id="catalog-filters-panel">
-          <fieldset>
-            <legend>Precio por persona</legend>
-            <form className="catalog-filters__pair" onSubmit={applyPrice}>
-              <label>
-                <span>Mínimo</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="1000"
-                  inputMode="numeric"
-                  placeholder="$ 0"
-                  value={price.min}
-                  onChange={(event) => setPrice({ ...price, min: event.target.value })}
-                  onBlur={applyPrice}
-                />
-              </label>
-              <label>
-                <span>Máximo</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="1000"
-                  inputMode="numeric"
-                  placeholder="Sin tope"
-                  value={price.max}
-                  onChange={(event) => setPrice({ ...price, max: event.target.value })}
-                  onBlur={applyPrice}
-                />
-              </label>
-              <button type="submit" hidden>
-                Aplicar
-              </button>
-            </form>
-          </fieldset>
+          <div className="catalog-filters__column">
+            <fieldset>
+              <legend>Precio por persona</legend>
+              <PriceFilter prices={prices} minPrice={filters.minPrice} maxPrice={filters.maxPrice} onChange={onChange} />
+            </fieldset>
 
-          <fieldset>
-            <legend>Mostrar</legend>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={filters.onlyAvailable}
-                onChange={(event) => onChange({ onlyAvailable: event.target.checked })}
+            <fieldset>
+              <legend>Duración</legend>
+              <RangeSlider
+                min={0}
+                max={LAST_STEP}
+                value={duration}
+                onChange={setDuration}
+                onCommit={commitDuration}
+                labels={['Duración mínima', 'Duración máxima']}
+                formatValue={(index) => DURATION_STEPS[index].label}
               />
-              Solo con lugares disponibles
-            </label>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={filters.onlyDiscounted}
-                onChange={(event) => onChange({ onlyDiscounted: event.target.checked })}
-              />
-              Solo ofertas
-            </label>
-          </fieldset>
+              <ol className="catalog-filters__ticks" aria-hidden>
+                {DURATION_STEPS.map((step, index) => (
+                  <li key={step.minutes} style={{ '--at': index / LAST_STEP }}>
+                    {step.label}
+                  </li>
+                ))}
+              </ol>
+            </fieldset>
+          </div>
+
+          <div className="catalog-filters__column">
+            <fieldset>
+              <legend>Horario</legend>
+              {TIME_SLOTS.map((slot) => (
+                <label key={slot.id} className="checkbox catalog-filters__time">
+                  <input type="checkbox" checked={filters.times.includes(slot.id)} onChange={() => toggleTime(slot.id)} />
+                  <span>
+                    {slot.label}
+                    <small className="muted">{slot.hint}</small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+
+            <fieldset>
+              <legend>Mostrar</legend>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={filters.onlyAvailable}
+                  onChange={(event) => onChange({ onlyAvailable: event.target.checked })}
+                />
+                Solo con lugares disponibles
+              </label>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={filters.onlyDiscounted}
+                  onChange={(event) => onChange({ onlyDiscounted: event.target.checked })}
+                />
+                Solo ofertas
+              </label>
+            </fieldset>
+          </div>
         </div>
       )}
 

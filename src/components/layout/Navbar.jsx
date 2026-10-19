@@ -44,7 +44,8 @@ function Navbar() {
         { to: '/', label: 'Explorar' },
         ...(user ? [{ to: '/mis-reservas', label: 'Mis reservas' }] : []),
         { to: '/anfitrion', label: user ? 'Modo anfitrión' : 'Ser anfitrión' },
-        { to: '/nosotros', label: 'Sobre nosotros' },
+        // Con sesión, "Sobre nosotros" queda solo en el footer: así entra la barra de búsqueda completa
+        ...(user ? [] : [{ to: '/nosotros', label: 'Sobre nosotros' }]),
       ]
 
   const navLinks = links.map(({ to, label }) => (
@@ -66,6 +67,7 @@ function Navbar() {
 
         <div className="navbar__actions">
           <IconButton
+            className="navbar__theme"
             icon={theme.isDark ? Sun : Moon}
             label={theme.isDark ? 'Usar tema claro' : 'Usar tema oscuro'}
             variant="ghost"
@@ -102,6 +104,11 @@ function Navbar() {
       {mobileOpen && (
         <div className="navbar__mobile container">
           <nav aria-label="Principal">{navLinks}</nav>
+          {/* En el celu el botón de tema no entra en la barra: va acá */}
+          <button type="button" className="navbar__link navbar__mobile-theme" onClick={theme.toggle}>
+            {theme.isDark ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
+            {theme.isDark ? 'Usar tema claro' : 'Usar tema oscuro'}
+          </button>
         </div>
       )}
     </header>

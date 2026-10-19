@@ -1,4 +1,8 @@
+import { useState } from 'react'
+import { Banknote } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useCurrency } from '../../hooks/useCurrency'
+import CurrencyModal from './CurrencyModal'
 import Logo from './Logo'
 import './Footer.css'
 
@@ -38,6 +42,9 @@ const COLUMNS = [
 ]
 
 function Footer() {
+  const { currency, symbol } = useCurrency()
+  const [choosingCurrency, setChoosingCurrency] = useState(false)
+
   return (
     <footer className="footer">
       <div className="container footer__inner">
@@ -62,8 +69,17 @@ function Footer() {
       </div>
       <div className="container footer__bottom">
         <small className="muted">© {YEAR} PLAN · Buenos Aires</small>
-        <small className="muted">Pagás con Visa, Mastercard, American Express o billeteras virtuales.</small>
+        <button
+          type="button"
+          className="footer__currency"
+          aria-label={`Moneda: ${currency.name}. Cambiar moneda`}
+          onClick={() => setChoosingCurrency(true)}
+        >
+          <Banknote size={16} aria-hidden />
+          {symbol} {currency.code}
+        </button>
       </div>
+      {choosingCurrency && <CurrencyModal onClose={() => setChoosingCurrency(false)} />}
     </footer>
   )
 }

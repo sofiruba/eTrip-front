@@ -6,6 +6,7 @@ import EmptyState from '../ui/EmptyState'
 import Modal from '../ui/Modal'
 import { Rating } from '../ui/Rating'
 import SectionHeader from '../ui/SectionHeader'
+import RatingBreakdown from './RatingBreakdown'
 import ReviewCard from './ReviewCard'
 
 const PREVIEW_COUNT = 4
@@ -15,10 +16,6 @@ const SORTS = {
   best: { label: 'Mejor puntuación', compare: (a, b) => b.rating - a.rating },
   worst: { label: 'Peor puntuación', compare: (a, b) => a.rating - b.rating },
 }
-
-/** Cuántas reseñas hay de cada puntaje, de 5 a 1 estrellas. */
-const distribution = (reviews) =>
-  [5, 4, 3, 2, 1].map((stars) => ({ stars, count: reviews.filter((review) => review.rating === stars).length }))
 
 /**
  * Reseñas de una experiencia, al estilo Airbnb: grilla con las primeras y un modal con todas
@@ -48,6 +45,8 @@ function ReviewsSection({ reviews, averageRating, onReply }) {
         <Rating value={average} count={reviews.length} />
       </SectionHeader>
 
+      {reviews.length > 0 && <RatingBreakdown reviews={reviews} className="rating-breakdown--section" />}
+
       {reviews.length ? (
         <div className="review-grid">
           {reviews.slice(0, PREVIEW_COUNT).map((review) => (
@@ -73,17 +72,7 @@ function ReviewsSection({ reviews, averageRating, onReply }) {
                 <strong>{average.toFixed(1)}</strong>
               </p>
               <p className="muted small">Promedio de {reviews.length} reseñas</p>
-              <ul className="reviews-modal__bars" aria-label="Distribución de puntajes">
-                {distribution(reviews).map(({ stars, count }) => (
-                  <li key={stars}>
-                    <span>{stars}</span>
-                    <span className="reviews-modal__bar" aria-hidden>
-                      <span style={{ width: `${reviews.length ? (count / reviews.length) * 100 : 0}%` }} />
-                    </span>
-                    <span className="muted">{count}</span>
-                  </li>
-                ))}
-              </ul>
+              <RatingBreakdown reviews={reviews} className="reviews-modal__bars" />
             </aside>
 
             <div className="reviews-modal__list">

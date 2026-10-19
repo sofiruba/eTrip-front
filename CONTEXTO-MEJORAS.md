@@ -4,7 +4,7 @@ Documento de traspaso para una sesión que tenga abiertas **las dos carpetas** (
 
 **Leyenda:** ✅ hecho · 🟡 hecho en parte · ⬜ pendiente
 
-**Última actualización:** 16 de octubre de 2026.
+**Última actualización:** 19 de octubre de 2026.
 
 ## Situación actual
 
@@ -49,6 +49,14 @@ Se revisó el front contra lo visto en clase (Router, ciclo de vida + `useEffect
 - ✅ **Sesión vencida:** `api.js` lee el vencimiento del JWT; si venció, cierra la sesión, avisa y abre el login sobre la misma página.
 - ✅ **Prácticas de clase:** actualizadores funcionales (`setX((current) => …)`) en los paneles de admin, refs en vez de buscar en el DOM, keys de fotos que no se repiten, `RemountOnParam` para que "editar" → "nueva" no arrastre el formulario.
 - ✅ **Reembolso:** se sacó el campo "motivo" que nunca se mandaba.
+- ✅ **Confirmación de compra (19/10):** decía "Te enviamos el comprobante a tu email" y no se manda ningún mail; ahora dice que los vouchers quedaron en Mis reservas.
+- ✅ **Sobre nosotros (19/10):** se sacaron las dos filas de planes que se movían (marquee) y el bloque negro con la cita; ahora hay una frase fija de planes de ejemplo separados por el ✦ del logo.
+- ✅ **Filtros nuevos (19/10), todos en el front:** precio con histograma + slider de dos manijas (`PriceFilter`, `ui/RangeSlider`) armado con los precios finales del catálogo ya cargado; **duración** (30 min … 5 h o más, de `endsAt − startsAt` de cada fecha) y **horario** (mañana < 12, tarde 12–17, tarde-noche ≥ 17, por la hora de inicio). Van en la URL (`duracionMin`, `duracionMax`, `horario=manana,tarde`) y una misma fecha tiene que cumplir fechas + personas + duración + horario (`filterExperiences`).
+- ✅ **Navbar (19/10):** la barra de búsqueda muestra 1, 2 o 3 campos según el lugar (190 / 325 / 427 px, medidos en Chrome) sin dejar hueco; el navbar ahora sí llega a 1440 px (`.container.navbar__inner`, antes lo pisaba el 1200 de `.container`); hasta 1280 px el menú de usuario muestra solo el avatar y los bloques van más juntos; con sesión, "Sobre nosotros" queda solo en el footer.
+- ✅ **Ciudad en el editor (19/10):** `CityField` reemplaza al `<datalist>` del navegador (no se podía estilar). Combobox accesible (↑ ↓ Enter Escape) con primero las ciudades que ya tienen experiencias (del catálogo, o sea del back, con cuántas) y después las de `data/cities.js`; se puede escribir cualquier ciudad. `cities.js` queda como dato de referencia: también tiene las coordenadas de "Cerca tuyo".
+- ✅ **Ciudad libre (19/10):** se sacó la validación contra la lista fija ("Elegí una ciudad válida de la lista"), que solo existía en el front: el back no tiene lista. Regla: el anfitrión publica en cualquier ciudad (sin números, mínimo 2 letras, igual que valida el back). Para no duplicar, `canonicalCity` guarda "cordoba" como "Córdoba" si coincide sin acentos con una conocida o con una que ya tiene experiencias; una nueva se guarda como se escribió, con mayúscula inicial.
+- ✅ **Moneda (19/10):** botón "$ ARS" en el footer → modal "Elegí una moneda" (ARS, USD, EUR, GBP, CHF, BRL, UYU, CLP). Regla: todo se publica y se cobra en **pesos**; la moneda es solo cómo se ven los precios (`plan:currency` en `localStorage`). Cotizaciones de referencia fijas en `data/currencies.js` (con fecha). Se convierte en tarjetas, detalle y filtro de precio (los campos se escriben en la moneda elegida y se pasan a pesos; la URL sigue en pesos). En carrito, checkout y confirmación se muestra el monto en pesos con `<Approx>` ("≈ US$ 20") y "Se cobra en pesos argentinos". Admin y anfitrión, siempre en pesos (`<Money pesos />`). Piezas: `CurrencyProvider` + `useCurrency`, `ui/Approx`, `layout/CurrencyModal`, `formatCurrency` en `utils/format.js`.
+- ✅ **Navbar en el celu con sesión (19/10):** los íconos no entraban en 390 px y la página se corría para el costado. Hasta 600 px el botón de tema pasa al menú ☰, los íconos van más juntos y el avatar va sin la flechita.
 
 ### Arreglado en el back (con OK)
 - ✅ Permisos: categorías solo las crea/edita/borra un ADMIN; los clientes solo pueden `GET /discount-coupons/validate` (listar cupones es del admin); `GET /experiences/mine` y `/experience-sessions/manage` piden sesión.
@@ -69,6 +77,8 @@ Se revisó el front contra lo visto en clase (Router, ciclo de vida + `useEffect
 - ⬜ Favoritos y tarjetas guardadas en el back.
 - ⬜ Borrar experiencias: el back la bloquea si tiene cualquier reserva (aunque estén reembolsadas); el front deja intentarlo si no hay reservas próximas.
 - ⬜ 3ra entrega: pasar Auth, Carrito y Catálogo a Redux (el `CatalogProvider` es casi 1:1 un slice con un thunk que usa los mismos services).
+- ⬜ 3ra entrega: **ciudades habilitadas en el back** (tabla `City` que maneja el admin, como las categorías, `GET /cities`, y el back rechaza ciudades fuera de la lista). Entonces `CityField` las pide al back en vez de usar `data/cities.js` y vuelve la validación "elegí de la lista", pero del lado del back.
+- ⬜ 3ra entrega: cotizaciones desde el back (hoy fijas en `data/currencies.js`).
 
 ---
 
@@ -154,8 +164,8 @@ Se revisó el front contra lo visto en clase (Router, ciclo de vida + `useEffect
 ## Prioridad 5 — Sistema de diseño
 
 - ✅ Tokens de z-index (`--z-raised` … `--z-overlay`) y pesos (`--weight-*`).
-- 🟡 Breakpoints: documentados (600 / 900 / 1200) en `tokens.css`, pero los `@media` existentes todavía usan los valores viejos.
-- ⬜ `font-size` en px en `Avatar.css`, `Logo.css`, `Navbar.css`, `HomePage.css`, `PaymentMethods.css`.
+- ✅ Breakpoints (19/10): los `@media` usan 420 / 600 / 900 / 1200 (580, 640 → 600; 760 → 900; 480 → 420; 1100 del resumen de admin → 1200). Excepciones documentadas en `tokens.css`: el navbar pasa a menú en 1080 y la X del buscador del navbar en 1100.
+- ✅ `font-size` en px pasados a rem (19/10): `Avatar`, `Logo`, `Navbar`, `NotificationBell`, `PaymentMethods`, `CardBrandIcon`.
 - ✅ Dark mode: tokens oscuros (marrones cálidos), toggle en el navbar (`useTheme`), script en `index.html` para no parpadear. Tokens nuevos: `--color-on-brand`, `--color-brand-text`, `--color-inverse`, `--color-glass`, `--color-scrim`, `--color-*-solid`, etc. Quedan hex solo en logos de marcas y en bloques que siempre son oscuros.
 - ✅ Precio de la card en `--text-lg` 700; descuento arriba a la izquierda; `--color-muted` oscurecido a `#5f5d59`.
 - ⬜ Galería: sumar 2–3 fotos por experiencia semilla (no hay imágenes extra en el proyecto).
@@ -179,8 +189,8 @@ Se revisó el front contra lo visto en clase (Router, ciclo de vida + `useEffect
 - ✅ Foto de perfil (`AvatarUploader`, `Avatar src`) con fallback a iniciales; se ve en navbar, reseñas, perfil público y admin.
 - ✅ Perfil: intereses como píldoras con ícono de trazo fino estilo Airbnb (`InterestList`, `interestIcons.js` + íconos propios en `interestGlyphs.jsx`). 40 intereses (`data/interests.js`), selector con 16 destacados + "Mostrar todo" y contador "n/20 seleccionados" (el back limita a 20). @usuario, rol "Miembro/Anfitrión", "Ver perfil público", tarjeta "Completá tu perfil". Intereses también en el perfil público.
 - ⬜ Vistos recientemente (`localStorage`).
-- ⬜ Distribución de estrellas en `ReviewsSection`.
-- ⬜ "Volver a reservar" en reservas pasadas.
+- ✅ Distribución de estrellas (19/10): `RatingBreakdown` (barras 5★…1★) se ve en la sección de reseñas del detalle y en su modal.
+- ✅ "Volver a reservar" (19/10): en Mis reservas → Pasadas, debajo de cada tarjeta (prop `action` de `BookingCard`, fuera del link) si la experiencia sigue publicada; lleva al detalle con la misma cantidad de personas.
 
 ---
 
@@ -192,6 +202,13 @@ Se revisó el front contra lo visto en clase (Router, ciclo de vida + `useEffect
 - El back es el que valida cupos, cupones y total al crear la orden; el front solo avisa antes.
 - `src/utils/cards.js` (Luhn, marca, vencimiento) y que nunca se guarde el número completo ni el CVV.
 - `DataTable` responsive, `ImageWithFallback`, pila de modales en `useModalBehavior`, `prefers-reduced-motion`, `:focus-visible` global, `@media print` del voucher.
+
+## Revisión "intentar romperlo" (19/10)
+
+Cambios del back en `eTrip-back/insomnia/ENDPOINTS.md` → "Reglas que agregó la revisión de seguridad". En el front:
+- `AvatarUploader` achica la foto a 320 px (JPEG) antes de guardarla: una de 4–5 MB llenaba localStorage y dejaba de guardarse todo el perfil local. `usePersistentState` ahora avisa por consola si no puede guardar.
+- `CheckoutPage` manda `expectedTotal`; si el back lo rechaza (cambió un precio) recarga carrito y vuelve a calcular el cupón.
+- Pendiente (no se tocó): filtro de precio sobre el precio de lista, enumeración de cuentas por `forgot-password`/`availability`, el reset no invalida tokens viejos, secreto JWT en `application.properties`.
 
 ## Cómo verificar
 

@@ -14,8 +14,10 @@ export function usePersistentState(key, initialValue) {
   useEffect(() => {
     try {
       window.localStorage.setItem(key, JSON.stringify(value))
-    } catch {
-      // Sin almacenamiento (modo privado, etc.): seguimos solo en memoria.
+    } catch (error) {
+      // Sin almacenamiento (modo privado) o lleno (QuotaExceededError): seguimos solo en memoria,
+      // pero lo dejamos anotado para que no se pierdan datos sin ninguna pista.
+      console.warn(`No se pudo guardar "${key}" en este navegador:`, error)
     }
   }, [key, value])
 

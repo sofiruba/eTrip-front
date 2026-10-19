@@ -17,7 +17,8 @@ import { useToast } from '../hooks/useToast'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { createExperience, getExperience, updateDiscount, updateExperience } from '../services/experiencesService'
 import { toFile, toForm, validate } from '../utils/experienceForm'
-import { buildLocation } from '../utils/location'
+import { getDestinations } from '../utils/experiences'
+import { buildLocation, canonicalCity } from '../utils/location'
 import NotFoundPage from './NotFoundPage'
 
 /** Crear (/nueva) o editar (/:id/editar) una experiencia. */
@@ -29,7 +30,7 @@ function ExperienceEditorPage() {
   const notify = useToast()
   const navigate = useNavigate()
   // Las categorías del select ya están en el catálogo; reload lo actualiza después de guardar
-  const { categories, reload: reloadCatalog } = useCatalog()
+  const { categories, experiences, reload: reloadCatalog } = useCatalog()
   const [existing, setExisting] = useState(null)
   const [initialForm, setInitialForm] = useState(() => toForm(null))
   const [form, setForm] = useState(initialForm)
@@ -73,7 +74,8 @@ function ExperienceEditorPage() {
     const data = {
       title: form.title.trim(),
       description: form.description.trim(),
-      location: buildLocation(form.area, form.city),
+      // "cordoba" se guarda como "Córdoba" si ya existe así; una ciudad nueva se guarda como la escribió
+      location: buildLocation(form.area, canonicalCity(form.city, getDestinations(experiences).map((city) => city.name))),
       categoryId: Number(form.categoryId),
       price: Number(form.price),
     }

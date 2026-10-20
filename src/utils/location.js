@@ -47,7 +47,7 @@ export function matchesLocation(location, query) {
 }
 
 /** Distancia en km entre dos puntos { lat, lng } (fórmula de haversine). */
-export function distanceKm(a, b) {
+function distanceKm(a, b) {
   const toRad = (degrees) => (degrees * Math.PI) / 180
   const dLat = toRad(b.lat - a.lat)
   const dLng = toRad(b.lng - a.lng)

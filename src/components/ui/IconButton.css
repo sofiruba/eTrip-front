@@ -15,21 +15,7 @@
   background: var(--color-sand);
 }
 
-.icon-btn--overlay {
-  border: 0;
-  background: var(--color-glass);
-  box-shadow: var(--shadow-sm);
-}
-
 .icon-btn--ghost {
   border-color: transparent;
   background: transparent;
-}
-
-.icon-btn.is-active {
-  color: var(--color-accent);
-}
-
-.icon-btn.is-active svg {
-  fill: currentColor;
 }

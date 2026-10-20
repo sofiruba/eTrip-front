@@ -3,7 +3,7 @@ import Badge from '../ui/Badge'
 import { Rating } from '../ui/Rating'
 import './ExperienceMeta.css'
 
-/** Fila de datos bajo el título: puntaje, lugar, duración y descuento. */
+/** Fila de datos bajo el título: puntaje, lugar, duración, edad y descuento. */
 function ExperienceMeta({ experience, duration }) {
   return (
     <div className="experience-meta">
@@ -18,6 +18,7 @@ function ExperienceMeta({ experience, duration }) {
           {duration} {duration === 1 ? 'hora' : 'horas'}
         </span>
       )}
+      {experience.adultsOnly && <Badge tone="neutral">Solo mayores de 18</Badge>}
       {experience.discountPercentage > 0 && <Badge tone="brand">{experience.discountPercentage}% OFF</Badge>}
     </div>
   )

@@ -77,12 +77,6 @@
   opacity: 0.7;
 }
 
-.experience-card__favorite {
-  position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-}
-
 .experience-card__body {
   display: flex;
   flex-direction: column;

@@ -20,7 +20,7 @@ import Loading from '../ui/Loading'
 import ImageWithFallback from '../ui/ImageWithFallback'
 import Money from '../ui/Money'
 import AdminToolbar from './AdminToolbar'
-import DetailDrawer from './DetailDrawer'
+import DetailModal from './DetailModal'
 
 const STATUS_FILTERS = [
   { value: '', label: 'Todos los estados' },
@@ -84,7 +84,7 @@ function ExperiencesAdmin() {
   const salesOf = (experienceId) =>
     bookings
       .filter((booking) => booking.experienceId === experienceId && !booking.refunded)
-      .reduce((total, booking) => ({ count: total.count + booking.quantity, amount: total.amount + booking.unitPrice * booking.quantity }), {
+      .reduce((total, booking) => ({ count: total.count + booking.quantity, amount: total.amount + Number(booking.paidAmount ?? 0) }), {
         count: 0,
         amount: 0,
       })
@@ -184,7 +184,7 @@ function ExperiencesAdmin() {
       />
 
       {selected && (
-        <DetailDrawer
+        <DetailModal
           title={selected.title}
           description={`${selected.categoryName} · ${getCity(selected.location)}`}
           onClose={() => setSelectedId(null)}
@@ -218,9 +218,9 @@ function ExperiencesAdmin() {
             </>
           }
         >
-          <h3 className="drawer-subtitle">Próximas fechas</h3>
+          <h3 className="detail-subtitle">Próximas fechas</h3>
           {getUpcomingSessions(sessions, selected.id).length ? (
-            <ul className="drawer-sessions">
+            <ul className="detail-list">
               {getUpcomingSessions(sessions, selected.id).map((session) => (
                 <li key={session.id}>
                   <span>{formatSessionDate(session.startsAt)}</span>
@@ -233,7 +233,7 @@ function ExperiencesAdmin() {
           ) : (
             <p className="muted small">No tiene fechas próximas.</p>
           )}
-        </DetailDrawer>
+        </DetailModal>
       )}
 
       {deleting && (

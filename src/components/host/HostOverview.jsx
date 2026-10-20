@@ -7,12 +7,11 @@ import './HostOverview.css'
 
 function HostOverview({ experiences, sessions, bookings }) {
   const activeBookings = bookings.filter((booking) => !booking.refunded)
-  const income = activeBookings.reduce((sum, booking) => {
-    const experience = experiences.find((item) => item.id === booking.experienceId)
-    const unitPrice = Number(booking.unitPrice ?? experience?.finalPrice ?? experience?.price ?? 0)
-    const quantity = Number(booking.quantity ?? 0)
-    return sum + unitPrice * quantity
-  }, 0)
+  // Lo calcula el back por reserva: lo pagado (con el cupón repartido), la comisión de PLAN y lo que te queda
+  const sumOf = (field) => activeBookings.reduce((sum, booking) => sum + Number(booking[field] ?? 0), 0)
+  const sales = sumOf('paidAmount')
+  const commission = sumOf('commission')
+  const earnings = sumOf('hostEarnings')
   const reviewCount = experiences.reduce((sum, experience) => sum + experience.reviewCount, 0)
   const rating = reviewCount
     ? experiences.reduce((sum, experience) => sum + experience.averageRating * experience.reviewCount, 0) / reviewCount
@@ -25,7 +24,12 @@ function HostOverview({ experiences, sessions, bookings }) {
     <div className="stack host-overview">
       <div className="stat-grid">
         <StatCard icon={CalendarCheck} label="Reservas próximas" value={activeBookings.filter((booking) => !booking.isPast).length} />
-        <StatCard icon={Wallet} label="Ingresos totales" value={formatMoney(income)} />
+        <StatCard
+          icon={Wallet}
+          label="Tu ganancia"
+          value={formatMoney(earnings)}
+          hint={`Ventas ${formatMoney(sales)} − comisión PLAN 10 % ${formatMoney(commission)}`}
+        />
         <StatCard icon={Star} label="Calificación" value={reviewCount ? rating.toFixed(1) : '—'} hint={`${reviewCount} reseñas`} />
         <StatCard icon={Store} label="Experiencias" value={experiences.length} />
       </div>

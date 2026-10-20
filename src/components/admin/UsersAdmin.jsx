@@ -15,7 +15,7 @@ import EmptyState from '../ui/EmptyState'
 import IconButton from '../ui/IconButton'
 import Loading from '../ui/Loading'
 import AdminToolbar from './AdminToolbar'
-import DetailDrawer from './DetailDrawer'
+import DetailModal from './DetailModal'
 
 const ROLE_LABELS = { ADMIN: 'Admin', CLIENTE: 'Cliente' }
 
@@ -152,7 +152,7 @@ function UsersAdmin() {
       />
 
       {selected && (
-        <DetailDrawer
+        <DetailModal
           title={fullName(selected)}
           description={`@${selected.username} · ${selected.email}`}
           onClose={() => setSelectedId(null)}
@@ -180,8 +180,8 @@ function UsersAdmin() {
         >
           {hostExperiences.length > 0 && (
             <>
-              <h3 className="drawer-subtitle">Experiencias que publicó</h3>
-              <ul className="drawer-sessions">
+              <h3 className="detail-subtitle">Experiencias que publicó</h3>
+              <ul className="detail-list">
                 {hostExperiences.map((experience) => (
                   <li key={experience.id}>
                     <Link to={`/experiencias/${experience.id}`}>{experience.title}</Link>
@@ -191,7 +191,7 @@ function UsersAdmin() {
               </ul>
             </>
           )}
-        </DetailDrawer>
+        </DetailModal>
       )}
 
       {confirming && selected && (

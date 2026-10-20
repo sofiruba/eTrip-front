@@ -15,6 +15,7 @@ function EditorPreview({ form, user }) {
     images: form.images.map((image) => (typeof image === 'string' ? image : image.preview)),
     price,
     discountPercentage,
+    adultsOnly: form.adultsOnly,
     finalPrice: getFinalPrice({ price, discountPercentage }),
     publisherName: fullName(user),
     location: buildLocation(form.area || 'Tu barrio', form.city || 'Tu ciudad'),
@@ -27,7 +28,7 @@ function EditorPreview({ form, user }) {
   return (
     <aside className="editor-preview">
       <span className="eyebrow">Vista previa</span>
-      <ExperienceCard experience={preview} to={null} showFavorite={false} />
+      <ExperienceCard experience={preview} to={null} />
       <p className="muted small">Así se va a ver en el listado.</p>
     </aside>
   )

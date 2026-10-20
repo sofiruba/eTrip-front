@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { CalendarCheck, Heart, MessageSquare, Store } from 'lucide-react'
+import { CalendarCheck, MessageSquare, Store } from 'lucide-react'
 import EditProfileModal from '../components/profile/EditProfileModal'
-import FavoritesSection from '../components/profile/FavoritesSection'
 import InterestsSection from '../components/profile/InterestsSection'
 import MyReviewsSection from '../components/profile/MyReviewsSection'
 import ProfileHero from '../components/profile/ProfileHero'
@@ -10,9 +9,7 @@ import SavedCardsSection from '../components/profile/SavedCardsSection'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import StatCard from '../components/ui/StatCard'
 import { useAuth } from '../hooks/useAuth'
-import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useFavorites } from '../hooks/useFavorites'
 import { useSavedCards } from '../hooks/useSavedCards'
 import { useToast } from '../hooks/useToast'
 import { deleteReview, getMyReviews } from '../services/reviewsService'
@@ -24,8 +21,6 @@ import { byNewest } from '../utils/experiences'
 function ProfilePage() {
   useDocumentTitle('Mi perfil')
   const { user, updateProfile } = useAuth()
-  const { experiences } = useCatalog() // para mostrar los favoritos
-  const { favoriteIds } = useFavorites()
   const savedCards = useSavedCards()
   const notify = useToast()
   const [myReviews, setMyReviews] = useState([])
@@ -48,7 +43,6 @@ function ProfilePage() {
   }, [])
 
   const published = me.publishedExperiences ?? 0
-  const favorites = experiences.filter((experience) => favoriteIds.includes(experience.id))
   const interests = user.interests ?? []
 
   // DELETE en el back y, si sale bien, la sacamos de la lista local (sin volver a pedir todo)
@@ -81,13 +75,11 @@ function ProfilePage() {
       <div className="stat-grid section">
         <StatCard icon={CalendarCheck} label="Reservas" value={me.bookingsCount ?? 0} />
         <StatCard icon={MessageSquare} label="Reseñas" value={me.reviewsCount ?? 0} />
-        <StatCard icon={Heart} label="Guardados" value={favorites.length} />
         <StatCard icon={Store} label="Experiencias publicadas" value={published} />
       </div>
 
       <InterestsSection interests={interests} draft={interestsDraft} onDraftChange={setInterestsDraft} onSave={saveInterests} />
       <SavedCardsSection cards={savedCards.cards} onDelete={setDeletingCard} />
-      <FavoritesSection experiences={favorites} />
       <MyReviewsSection reviews={myReviews} onDelete={setDeletingReview} />
 
       {editingProfile && <EditProfileModal onClose={() => setEditingProfile(false)} />}

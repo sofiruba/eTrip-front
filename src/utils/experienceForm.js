@@ -10,6 +10,7 @@ export const toForm = (experience) => ({
   area: experience ? getArea(experience.location) : '',
   price: experience?.price ?? '',
   discountPercentage: experience?.discountPercentage ?? 0,
+  adultsOnly: experience?.adultsOnly ?? false,
   images: experience?.images ?? [],
 })
 

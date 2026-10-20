@@ -2,10 +2,8 @@ import { countSeats } from './guests'
 
 /**
  * Filtros del catálogo guardados en la URL (así el link de una búsqueda se puede compartir).
- * Categoría, ciudad/zona y "solo ofertas" los resuelve el back (GET /experiences?...).
- * El resto se aplica en el front (ver utils/experiences.js) porque el back no los tiene igual:
- * texto (busca en título, lugar y anfitrión, sin acentos), precio final con descuento,
- * fechas con lugar para el grupo, "solo con lugares", viajeros, duración, horario y orden.
+ * TODOS los resuelve el back (GET /experiences?...): el front solo arma la consulta (toBackQuery),
+ * ordena el resultado y lo muestra de a una página (ver HomePage).
  */
 
 export const PAGE_SIZE = 8
@@ -29,11 +27,11 @@ export const DURATION_STEPS = [
   { minutes: 300, label: '5 h o más' },
 ]
 
-/** Franjas horarias según la hora de inicio de cada fecha. */
+/** Franjas horarias según la hora de inicio de cada fecha (el back filtra con los mismos cortes). */
 export const TIME_SLOTS = [
-  { id: 'manana', label: 'Mañana', hint: 'Antes de las 12:00', matches: (hour) => hour < 12 },
-  { id: 'tarde', label: 'Tarde', hint: 'Entre las 12:00 y las 17:00', matches: (hour) => hour >= 12 && hour < 17 },
-  { id: 'noche', label: 'Tarde-noche', hint: 'Después de las 17:00', matches: (hour) => hour >= 17 },
+  { id: 'manana', label: 'Mañana', hint: 'Antes de las 12:00' },
+  { id: 'tarde', label: 'Tarde', hint: 'Entre las 12:00 y las 17:00' },
+  { id: 'noche', label: 'Tarde-noche', hint: 'Después de las 17:00' },
 ]
 
 // Nombre en la URL de los filtros que no son del back
@@ -94,17 +92,32 @@ export function readFilters(params) {
   }
 }
 
-/** Query string con los filtros que resuelve el back, o '' si no hay ninguno (entonces se usa el catálogo completo). */
+/**
+ * Query string de GET /experiences con todos los filtros (salvo el orden y la página, que son del front),
+ * o '' si no hay ninguno: entonces se usa el catálogo que ya está cargado.
+ */
 export function toBackQuery(filters) {
   const params = new URLSearchParams()
-  if (filters.categoryId) params.set('categoryId', filters.categoryId)
-  if (filters.location.trim()) params.set('location', filters.location.trim())
-  if (filters.onlyDiscounted) params.set('onlyDiscounted', 'true')
+  const add = (name, value) => {
+    if (value !== null && value !== undefined && value !== '' && value !== false) params.set(name, String(value))
+  }
+  add('title', filters.title.trim())
+  add('categoryId', filters.categoryId)
+  add('location', filters.location.trim())
+  add('minPrice', filters.minPrice)
+  add('maxPrice', filters.maxPrice)
+  add('onlyDiscounted', filters.onlyDiscounted)
+  add('dateFrom', filters.dateFrom)
+  add('dateTo', filters.dateTo)
+  add('guests', filters.guests)
+  add('onlyAvailable', filters.onlyAvailable)
+  add('durationMin', filters.durationMin)
+  add('durationMax', filters.durationMax)
+  add('timeSlots', filters.times.join(','))
+  // Con niños o bebés el back no muestra las experiencias solo para mayores de 18
+  add('withKids', filters.children > 0 || filters.infants > 0)
   return params.toString()
 }
-
-/** Los mismos filtros sin los que ya aplicó el back (para no repetirlos en el front). */
-export const withoutBackFilters = (filters) => ({ ...filters, categoryId: null, location: '', onlyDiscounted: false })
 
 /** Fecha local como "2026-10-07" (formato de <input type="date">). */
 export function toDateParam(date) {

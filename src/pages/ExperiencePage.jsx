@@ -3,7 +3,6 @@ import { Share2 } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import BookingPanel from '../components/experience/BookingPanel'
 import ExperienceMeta from '../components/experience/ExperienceMeta'
-import FavoriteButton from '../components/experience/FavoriteButton'
 import Gallery from '../components/experience/Gallery'
 import HostCard from '../components/experience/HostCard'
 import LocationMap from '../components/experience/LocationMap'
@@ -12,6 +11,7 @@ import ReviewsSection from '../components/experience/ReviewsSection'
 import StickyBookingBar from '../components/experience/StickyBookingBar'
 import IconButton from '../components/ui/IconButton'
 import Loading from '../components/ui/Loading'
+import Notice from '../components/ui/Notice'
 import PageHeader from '../components/ui/PageHeader'
 import { useAuth } from '../hooks/useAuth'
 import { useCatalog } from '../hooks/useCatalog'
@@ -80,7 +80,8 @@ function ExperiencePage({ id }) {
   useDocumentTitle(experience?.title ?? 'Experiencia')
 
   if (loading) return <Loading text="Cargando la experiencia..." />
-  if (notFound || !experience || !experience.active) {
+  // Una pausada el back solo se la devuelve a su anfitrión y a los administradores
+  if (notFound || !experience) {
     return <NotFoundPage title="Esta experiencia no está disponible" text="Puede que el anfitrión la haya despublicado." />
   }
 
@@ -123,13 +124,12 @@ function ExperiencePage({ id }) {
         ]}
         eyebrow={experience.categoryName}
         title={experience.title}
-        actions={
-          <>
-            <IconButton icon={Share2} label="Copiar link" onClick={share} />
-            <FavoriteButton experienceId={experience.id} variant="default" />
-          </>
-        }
+        actions={<IconButton icon={Share2} label="Copiar link" onClick={share} />}
       />
+
+      {!experience.active && (
+        <Notice tone="warning">Esta experiencia está pausada: no aparece en el catálogo y solo la ven su anfitrión y los administradores.</Notice>
+      )}
 
       <ExperienceMeta experience={experience} duration={duration} />
 

@@ -47,8 +47,6 @@ function CartProvider({ children }) {
     // DELETE no devuelve el carrito: lo volvemos a pedir para tener el total actualizado
     remove: (itemId) => cartService.removeCartItem(userId, itemId).then(loadCart),
 
-    clear: () => cartService.clearCart(userId).then(() => setCart({ ...cart, items: [], total: 0 })),
-
     reload: loadCart,
   }
 

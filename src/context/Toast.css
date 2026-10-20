@@ -49,15 +49,6 @@
   color: #ffd27a;
 }
 
-.toast--favorite svg {
-  color: #ff8a7a;
-  fill: #ff8a7a;
-}
-
-.toast--unfavorite svg {
-  color: #c9c6bf;
-}
-
 @keyframes toast-in {
   from {
     opacity: 0;

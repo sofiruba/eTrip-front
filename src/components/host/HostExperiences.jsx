@@ -44,7 +44,6 @@ function HostExperiences({ experiences, bookings, setExperiences }) {
           <ExperienceCard
             key={experience.id}
             experience={experience}
-            showFavorite={false}
             footer={
               <>
                 <Button size="sm" variant="secondary" icon={Pencil} to={`/anfitrion/experiencias/${experience.id}/editar`}>

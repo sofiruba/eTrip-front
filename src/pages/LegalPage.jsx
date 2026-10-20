@@ -37,7 +37,7 @@ const DOCUMENTS = {
     sections: [
       {
         title: 'Qué datos guardamos',
-        text: 'Tu nombre, apellido, nombre de usuario, email, tus reservas, reseñas, favoritos y las experiencias que publiques. Si guardás una tarjeta, solo conservamos la marca, los últimos 4 dígitos y el vencimiento.',
+        text: 'Tu nombre, apellido, nombre de usuario, email, tus reservas, reseñas y las experiencias que publiques. Si guardás una tarjeta, solo conservamos la marca, los últimos 4 dígitos y el vencimiento.',
       },
       {
         title: 'Para qué los usamos',

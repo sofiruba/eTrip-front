@@ -351,7 +351,7 @@ function HeroSearch({ id, value, destinations, availableDates, experiences = [],
                 </li>
               ))}
             </ul>
-            <p className="hero-search__note">Algunas experiencias tienen edad mínima: con niños o bebés te mostramos solo las que los admiten.</p>
+            <p className="hero-search__note">Algunas experiencias son solo para mayores de 18: si sumás niños o bebés, no te las mostramos.</p>
           </div>
         )}
       </div>

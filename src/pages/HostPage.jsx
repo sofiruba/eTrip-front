@@ -44,17 +44,19 @@ function HostPage() {
       .then((data) => setSales(data))
       .catch((error) => console.error('Error al traer tus ventas:', error))
 
+  // Todas las fechas de mis experiencias, también las pasadas y las canceladas
+  const loadSessions = () =>
+    getManagedSessions()
+      .then((data) => setSessions(data))
+      .catch((error) => console.error('Error al traer las fechas:', error))
+
   useEffect(() => {
     getMyExperiences()
       .then((data) => setExperiences(data))
       .catch((error) => console.error('Error al traer tus experiencias:', error))
       .then(() => setLoading(false))
 
-    // Todas las fechas de mis experiencias, también las pasadas y las canceladas
-    getManagedSessions()
-      .then((data) => setSessions(data))
-      .catch((error) => console.error('Error al traer las fechas:', error))
-
+    loadSessions()
     loadSales()
   }, [])
 
@@ -74,7 +76,8 @@ function HostPage() {
     experiencias: <HostExperiences experiences={myExperiences} bookings={myBookings} setExperiences={setExperiences} />,
     // Cancelar una fecha reembolsa sus reservas: después volvemos a pedir las ventas
     calendario: <HostCalendar experiences={myExperiences} sessions={mySessions} setSessions={setSessions} onChange={loadSales} />,
-    reservas: <HostBookings bookings={myBookings} sessions={sessions} setBookings={setSales} />,
+    // Un reembolso devuelve lugares: volvemos a pedir las fechas para que se vean los cupos libres
+    reservas: <HostBookings bookings={myBookings} sessions={sessions} setBookings={setSales} onRefunded={loadSessions} />,
   }
 
   return (

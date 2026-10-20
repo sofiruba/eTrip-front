@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarX, Heart, LayoutDashboard, Pencil, ShoppingBag } from 'lucide-react'
+import { CalendarX, LayoutDashboard, Pencil, ShoppingBag } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LOW_SEATS } from '../../utils/experiences'
 import { useAuth } from '../../hooks/useAuth'
@@ -90,9 +90,9 @@ function BookingPanel({ id, ref, experience, sessions }) {
         <EmptyState icon={CalendarX} title="Sin fechas disponibles" text="El anfitrión todavía no publicó nuevas sesiones." />
       ) : !bookable.length ? (
         <EmptyState
-          icon={Heart}
+          icon={CalendarX}
           title="Agotado"
-          text="Se agotaron los lugares de todas las fechas. Guardala en favoritos para no perderla de vista."
+          text="Se agotaron los lugares de todas las fechas. Volvé a mirar más adelante por si se suman nuevas."
         />
       ) : (
         <>

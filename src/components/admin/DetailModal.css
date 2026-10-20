@@ -1,6 +1,8 @@
+/* Los datos van en dos columnas: el modal es ancho y así se lee todo sin scrollear */
 .detail-fields {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--space-6);
   margin: 0;
 }
 
@@ -24,7 +26,7 @@
   text-align: right;
 }
 
-.drawer-list {
+.detail-cards {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -35,12 +37,12 @@
   color: var(--color-brand-text);
 }
 
-.drawer-subtitle {
+.detail-subtitle {
   margin: var(--space-5) 0 var(--space-3);
   font-size: var(--text-md);
 }
 
-.drawer-sessions {
+.detail-list {
   display: flex;
   flex-direction: column;
   margin: 0;
@@ -48,7 +50,7 @@
   list-style: none;
 }
 
-.drawer-sessions li {
+.detail-list li {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -56,4 +58,10 @@
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-line);
   font-size: var(--text-sm);
+}
+
+@media (max-width: 600px) {
+  .detail-fields {
+    grid-template-columns: 1fr;
+  }
 }

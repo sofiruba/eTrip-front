@@ -1,5 +1,5 @@
 /** Fecha local en formato "2026-10-13T18:00:00" (el que esperan los LocalDateTime del back). */
-export function toLocalIso(date) {
+function toLocalIso(date) {
   const pad = (value) => String(value).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`
 }

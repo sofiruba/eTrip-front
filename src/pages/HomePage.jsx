@@ -14,8 +14,8 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { getBookings } from '../services/bookingsService'
 import { searchExperiences } from '../services/experiencesService'
 import { addBookingInfo, splitBookings } from '../utils/bookings'
-import { applyFilters, PAGE_SIZE, readFilters, toBackQuery, withoutBackFilters } from '../utils/catalogFilters'
-import { addSessionInfo, filterExperiences, sortExperiences } from '../utils/experiences'
+import { applyFilters, PAGE_SIZE, readFilters, toBackQuery } from '../utils/catalogFilters'
+import { addSessionInfo, sortExperiences } from '../utils/experiences'
 import { matchesLocation } from '../utils/location'
 import './HomePage.css'
 
@@ -36,8 +36,8 @@ function HomePage() {
   const filters = readFilters(params)
   const backQuery = toBackQuery(filters)
 
-  // Filtros que resuelve el back: cada vez que cambian (están en el array de dependencias) se vuelve a pedir
-  // la lista. Si cambian antes de que llegue la respuesta, la vieja se descarta en el return (limpieza).
+  // La búsqueda la resuelve el back con TODOS los filtros (toBackQuery): cada vez que cambian (están en el array
+  // de dependencias) se vuelve a pedir. Si cambian antes de que llegue la respuesta, la vieja se descarta (limpieza).
   useEffect(() => {
     if (!backQuery) return undefined
     let ignore = false
@@ -53,6 +53,14 @@ function HomePage() {
     }
   }, [backQuery, attempt])
 
+  // Cada vez que se entra al Home se vuelve a pedir el catálogo: así aparece lo que publicaron
+  // o compraron otras personas desde que se abrió la app (mientras llega, se ve lo que ya estaba).
+  // Si se entra justo al abrir la app, el catálogo ya se está pidiendo: no lo pedimos dos veces.
+  const [firstVisit] = useState(loading)
+  useEffect(() => {
+    if (!firstVisit) reload()
+  }, [firstVisit, reload])
+
   // Las reservas del usuario se piden cuando inicia sesión (por eso userId va en las dependencias)
   const userId = user?.id
   useEffect(() => {
@@ -62,11 +70,11 @@ function HomePage() {
       .catch((error) => console.error('Error al traer tus reservas:', error))
   }, [userId, isAdmin])
 
-  // Sin filtros del back se usa el catálogo que ya está cargado (no hace falta otro pedido)
+  // Sin filtros se usa el catálogo que ya está cargado (no hace falta otro pedido).
+  // El front no filtra nada: solo ordena lo que mandó el back y lo muestra de a una página ("Ver más")
   const searching = Boolean(backQuery) && search.query !== backQuery
   const base = backQuery ? addSessionInfo(searching ? [] : search.results, sessions) : experiences
-  const frontFilters = backQuery ? withoutBackFilters(filters) : filters
-  const results = sortExperiences(filterExperiences(base, sessions, frontFilters), filters.sort)
+  const results = sortExperiences(base, filters.sort)
   const visible = results.slice(0, (filters.page + 1) * PAGE_SIZE)
   const hasFilters = [...params.keys()].some((key) => !['orden', 'page'].includes(key))
   const deals = experiences.filter((experience) => experience.discountPercentage > 0 && experience.nextSession).slice(0, MAX_DEALS)

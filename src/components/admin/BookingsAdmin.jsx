@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CalendarCheck } from 'lucide-react'
+import { useCatalog } from '../../hooks/useCatalog'
 import { useToast } from '../../hooks/useToast'
 import { getBookings, refundBooking } from '../../services/bookingsService'
 import { addBookingInfo, getBookingStatus } from '../../utils/bookings'
@@ -21,6 +22,7 @@ const STATUS_FILTERS = [
 function BookingsAdmin() {
   const [bookings, setBookings] = useState([])
   const notify = useToast()
+  const { refreshSessions } = useCatalog() // un reembolso devuelve lugares: el catálogo tiene que enterarse
   const [refunding, setRefunding] = useState(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -97,7 +99,8 @@ function BookingsAdmin() {
             refundBooking(refunding.id)
               .then((updated) => {
                 setBookings((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-                notify('Reserva reembolsada')
+                refreshSessions()
+                notify('Reserva reembolsada: los lugares vuelven a estar disponibles')
               })
               .catch((error) => notify(error.message, 'error'))
           }

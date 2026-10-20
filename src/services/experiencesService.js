@@ -4,7 +4,7 @@ import { request, requestList } from './api'
  * El back manda las fotos en base64 (`imagesBase64`). Las pasamos a un formato
  * que entiende <img src> y dejamos los precios como números.
  */
-export function toExperience(data) {
+function toExperience(data) {
   return {
     ...data,
     images: (data.imagesBase64 ?? []).map((image) => `data:image/jpeg;base64,${image}`),
@@ -19,8 +19,8 @@ export function toExperience(data) {
 /** Arma el FormData que espera el back: la parte "experience" (JSON) y las fotos nuevas. */
 export function toFormData(experience, photos) {
   const form = new FormData()
-  const { title, description, price, location, categoryId } = experience
-  form.append('experience', JSON.stringify({ title, description, price, location, categoryId }))
+  const { title, description, price, location, categoryId, adultsOnly = false } = experience
+  form.append('experience', JSON.stringify({ title, description, price, location, categoryId, adultsOnly }))
   photos.forEach((photo) => form.append('images', photo))
   return form
 }

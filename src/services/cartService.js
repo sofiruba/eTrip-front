@@ -9,5 +9,3 @@ export const updateCartItem = (userId, itemId, quantity) =>
   request(`/carts/user/${userId}/items/${itemId}?quantity=${quantity}`, 'PATCH')
 
 export const removeCartItem = (userId, itemId) => request(`/carts/user/${userId}/items/${itemId}`, 'DELETE')
-
-export const clearCart = (userId) => request(`/carts/user/${userId}`, 'DELETE')

@@ -78,6 +78,7 @@ function ExperienceEditorPage() {
       location: buildLocation(form.area, canonicalCity(form.city, getDestinations(experiences).map((city) => city.name))),
       categoryId: Number(form.categoryId),
       price: Number(form.price),
+      adultsOnly: form.adultsOnly,
     }
     const discount = Number(form.discountPercentage)
     // El back reemplaza TODAS las fotos cuando recibe alguna: si cambiaron, mandamos todas las que quedaron.
@@ -164,6 +165,10 @@ function ExperienceEditorPage() {
               </FormField>
             </div>
             <LocationFields city={form.city} area={form.area} errors={errors} onChange={changeField} />
+            <label className="checkbox">
+              <input type="checkbox" checked={form.adultsOnly} onChange={(event) => changeField('adultsOnly', event.target.checked)} />
+              Solo para mayores de 18 (si alguien busca con niños o bebés, no la ve)
+            </label>
           </EditorSection>
 
           <EditorSection step="03" title="Precio" description="Podés cambiarlo cuando quieras. La duración se define en cada fecha.">

@@ -5,11 +5,8 @@ import { useModalBehavior } from '../../hooks/useModalBehavior'
 import IconButton from './IconButton'
 import './Modal.css'
 
-/**
- * Modal accesible (Esc, foco, scroll bloqueado).
- * variant="drawer" lo muestra como panel lateral.
- */
-function Modal({ title, description, onClose, footer, size = 'md', variant = 'dialog', children }) {
+/** Modal accesible (Esc, foco, scroll bloqueado). size: md | lg | xl */
+function Modal({ title, description, onClose, footer, size = 'md', children }) {
   const titleId = useId()
   const panelRef = useRef(null)
   useModalBehavior(onClose, panelRef)
@@ -20,12 +17,12 @@ function Modal({ title, description, onClose, footer, size = 'md', variant = 'di
 
   return createPortal(
     <div
-      className={`modal-backdrop modal-backdrop--${variant}`}
+      className="modal-backdrop"
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
       <section
         ref={panelRef}
-        className={`modal modal--${variant} modal--${size}`}
+        className={`modal modal--${size}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

@@ -6,14 +6,13 @@ import Badge from '../ui/Badge'
 import ImageWithFallback from '../ui/ImageWithFallback'
 import Money from '../ui/Money'
 import { Rating } from '../ui/Rating'
-import FavoriteButton from './FavoriteButton'
 import './ExperienceCard.css'
 
 /**
  * Tarjeta de experiencia. `to` permite cambiar el destino (por ejemplo, en el editor
  * se usa sin link para la vista previa) y `footer` agrega acciones debajo.
  */
-function ExperienceCard({ experience, to = `/experiencias/${experience.id}`, footer, showFavorite = true }) {
+function ExperienceCard({ experience, to = `/experiencias/${experience.id}`, footer }) {
   const { title, images, location, publisherName, finalPrice, price, discountPercentage, nextSession } = experience
   const Wrapper = to ? Link : 'div'
   const soldOut = isSoldOut(experience)
@@ -30,9 +29,10 @@ function ExperienceCard({ experience, to = `/experiencias/${experience.id}`, foo
             </div>
           )}
           <div className="experience-card__badges">
-            {/* Solo se ve en "Mis experiencias": el catálogo nunca muestra experiencias pausadas */}
-            {experience.status === 'PAUSED_NO_DATES' && <Badge tone="warning">Pausada: agregale una fecha</Badge>}
+            {/* Solo se ven en "Mis experiencias": el catálogo no muestra pausadas ni experiencias sin fechas */}
+            {experience.status === 'NO_DATES' && <Badge tone="warning">No aparece en el catálogo</Badge>}
             {experience.status === 'INACTIVE' && <Badge tone="neutral">Pausada</Badge>}
+            {experience.adultsOnly && <Badge tone="neutral">+18</Badge>}
             {soldOut ? (
               <Badge tone="danger">Agotado</Badge>
             ) : (
@@ -60,7 +60,6 @@ function ExperienceCard({ experience, to = `/experiencias/${experience.id}`, foo
           </p>
         </div>
       </Wrapper>
-      {showFavorite && <FavoriteButton experienceId={experience.id} className="experience-card__favorite" />}
       {footer && <div className="experience-card__footer">{footer}</div>}
     </article>
   )

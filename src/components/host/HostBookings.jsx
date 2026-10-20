@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Undo2, Users } from 'lucide-react'
+import { useCatalog } from '../../hooks/useCatalog'
 import { useToast } from '../../hooks/useToast'
 import { refundBooking } from '../../services/bookingsService'
-import { formatLongDate, formatTime, pluralize } from '../../utils/format'
+import { formatLongDate, formatMoney, formatTime, pluralize } from '../../utils/format'
 import Avatar from '../ui/Avatar'
 import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -12,10 +13,12 @@ import './HostBookings.css'
 
 /**
  * Huéspedes agrupados por sesión (solo próximas y no reembolsadas).
- * `setBookings` actualiza la lista del padre después de un reembolso.
+ * `setBookings` actualiza la lista del padre después de un reembolso y `onRefunded` le avisa
+ * que vuelva a pedir las fechas (el back devolvió los lugares).
  */
-function HostBookings({ bookings, sessions, setBookings }) {
+function HostBookings({ bookings, sessions, setBookings, onRefunded }) {
   const notify = useToast()
+  const { refreshSessions } = useCatalog() // el catálogo público también recupera esos lugares
   const [refunding, setRefunding] = useState(null)
   const active = bookings.filter((booking) => !booking.isPast && !booking.refunded)
 
@@ -52,7 +55,7 @@ function HostBookings({ bookings, sessions, setBookings }) {
                 <span className="guest-list__name">
                   <strong>{booking.buyerName}</strong>
                   <small className="muted">
-                    {pluralize(booking.quantity, 'persona')} · {booking.voucherCode}
+                    {pluralize(booking.quantity, 'persona')} · {booking.voucherCode} · Recibís {formatMoney(booking.hostEarnings ?? 0)}
                   </small>
                 </span>
                 <Button size="sm" variant="danger" icon={Undo2} onClick={() => setRefunding(booking)}>
@@ -72,7 +75,9 @@ function HostBookings({ bookings, sessions, setBookings }) {
             refundBooking(refunding.id)
               .then((updated) => {
                 setBookings((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-                notify('Reserva reembolsada')
+                onRefunded()
+                refreshSessions()
+                notify('Reserva reembolsada: los lugares vuelven a estar disponibles')
               })
               .catch((error) => notify(error.message, 'error'))
           }

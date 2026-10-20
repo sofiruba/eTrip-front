@@ -11,7 +11,8 @@ import DataTable from '../ui/DataTable'
 import EmptyState from '../ui/EmptyState'
 import IconButton from '../ui/IconButton'
 import AdminToolbar from './AdminToolbar'
-import DetailDrawer from './DetailDrawer'
+import DetailModal from './DetailModal'
+import { useCatalog } from '../../hooks/useCatalog'
 import { useToast } from '../../hooks/useToast'
 
 // Estado que calcula el back según las reservas de la orden → texto y color de la etiqueta
@@ -28,6 +29,7 @@ function OrdersAdmin() {
   const [selected, setSelected] = useState(null)
   const [cancelling, setCancelling] = useState(null)
   const notify = useToast()
+  const { refreshSessions } = useCatalog() // cancelar una orden devuelve lugares: el catálogo tiene que enterarse
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('')
 
@@ -137,7 +139,7 @@ function OrdersAdmin() {
       />
 
       {selected && (
-        <DetailDrawer
+        <DetailModal
           title={`Orden #${selected.id}`}
           description={selected.buyer}
           onClose={() => setSelected(null)}
@@ -159,12 +161,12 @@ function OrdersAdmin() {
             )
           }
         >
-          <div className="drawer-list">
+          <div className="detail-cards">
             {selected.bookings.map((booking) => (
               <VoucherCard key={booking.id} booking={booking} compact />
             ))}
           </div>
-        </DetailDrawer>
+        </DetailModal>
       )}
       {cancelling && (
         <ConfirmDialog
@@ -176,6 +178,7 @@ function OrdersAdmin() {
               .then((updated) => {
                 setOrders((current) => current.map((order) => (order.id === updated.id ? updated : order)))
                 setSelected(null)
+                refreshSessions()
                 notify('Orden cancelada y reservas reembolsadas')
               })
               .catch((error) => notify(error.message, 'error'))

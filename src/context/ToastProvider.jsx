@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CircleAlert, CircleCheck, Heart, HeartOff, Info } from 'lucide-react'
+import { CircleAlert, CircleCheck, Info } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ToastContext } from '../hooks/useToast'
 import './Toast.css'
 
-const ICONS = { success: CircleCheck, error: CircleAlert, info: Info, favorite: Heart, unfavorite: HeartOff }
+const ICONS = { success: CircleCheck, error: CircleAlert, info: Info }
 const DURATION = 3200
 
 function ToastProvider({ children }) {

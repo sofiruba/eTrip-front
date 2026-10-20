@@ -1,11 +1,11 @@
 import './IconButton.css'
 
 /** Botón cuadrado solo con ícono. `label` es obligatorio por accesibilidad. */
-function IconButton({ icon: Icon, label, variant = 'default', active = false, className = '', ...props }) {
+function IconButton({ icon: Icon, label, variant = 'default', className = '', ...props }) {
   return (
     <button
       type="button"
-      className={`icon-btn icon-btn--${variant} ${active ? 'is-active' : ''} ${className}`}
+      className={`icon-btn icon-btn--${variant} ${className}`}
       aria-label={label}
       title={label}
       {...props}

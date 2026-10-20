@@ -32,7 +32,7 @@ export function detectBrand(value) {
   return null
 }
 
-export function maxCardLength(brand) {
+function maxCardLength(brand) {
   return brand ? Math.max(...CARD_BRANDS[brand].lengths) : 19
 }
 
@@ -45,7 +45,7 @@ export function formatCardNumber(value) {
 }
 
 /** Algoritmo de Luhn: detecta errores de tipeo en el número. */
-export function passesLuhn(digits) {
+function passesLuhn(digits) {
   let sum = 0
   for (let i = 0; i < digits.length; i++) {
     let digit = Number(digits[digits.length - 1 - i])
@@ -68,12 +68,12 @@ export function formatExpiry(value, previous = '') {
   return digits
 }
 
-export function parseExpiry(value) {
+function parseExpiry(value) {
   const [month, year] = value.split('/').map((part) => Number(part))
   return { month, year: year + 2000 }
 }
 
-export function validateCardNumber(value) {
+function validateCardNumber(value) {
   const digits = onlyDigits(value)
   if (!digits) return 'Ingresá el número de la tarjeta.'
   const brand = detectBrand(digits)
@@ -87,7 +87,7 @@ export function validateCardNumber(value) {
   return ''
 }
 
-export function validateExpiry(value, today = new Date()) {
+function validateExpiry(value, today = new Date()) {
   if (!value) return 'Ingresá el vencimiento.'
   if (!/^\d{2}\/\d{2}$/.test(value)) return 'Usá el formato MM/AA.'
   const { month, year } = parseExpiry(value)
@@ -99,14 +99,14 @@ export function validateExpiry(value, today = new Date()) {
   return ''
 }
 
-export function validateCvv(value, brand) {
+function validateCvv(value, brand) {
   const size = brand ? CARD_BRANDS[brand].cvv : 3
   if (!value) return 'Ingresá el código de seguridad.'
   if (!new RegExp(`^\\d{${size}}$`).test(value)) return `El código tiene ${size} dígitos${size === 4 ? ' (está en el frente)' : ''}.`
   return ''
 }
 
-export function validateHolder(value) {
+function validateHolder(value) {
   const name = value.trim()
   if (!name) return 'Ingresá el nombre como figura en la tarjeta.'
   if (!/^[\p{L}' .-]+$/u.test(name)) return 'Usá solo letras.'
@@ -114,7 +114,7 @@ export function validateHolder(value) {
   return ''
 }
 
-export function validatePostalCode(value, country) {
+function validatePostalCode(value, country) {
   const code = value.trim().toUpperCase()
   if (!code) return 'Ingresá el código postal.'
   if (country === 'AR' && !/^(\d{4}|[A-Z]\d{4}[A-Z]{3})$/.test(code)) return 'Usá 4 dígitos (1425) o el CPA (C1425ABC).'

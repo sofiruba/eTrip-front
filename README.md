@@ -24,7 +24,7 @@ Otros comandos: `npm run build` (versión de producción en `dist/`), `npm run l
 
 ```
 src/services/   llamadas al back con fetch (.then / .catch); api.js agrega el token y maneja errores
-src/context/    estado global: sesión, catálogo público, carrito, favoritos, toasts
+src/context/    estado global: sesión, catálogo público, carrito, toasts
 src/hooks/      hooks propios (useCatalog, useCart, useAuth…)
 src/routes/     rutas protegidas (RequireAuth, CustomerOnly) y RemountOnParam
 src/pages/      una página por ruta (las rutas están en App.jsx)
@@ -32,5 +32,4 @@ src/components/ componentes por sección (home, experience, checkout, host, admi
 src/utils/      funciones puras (filtros, fechas, carrito, órdenes, cupones…)
 ```
 
-Más detalle (decisiones, reglas de negocio, pendientes) en [CONTEXTO-MEJORAS.md](CONTEXTO-MEJORAS.md).
 Los endpoints del back están en `eTrip-back/insomnia/ENDPOINTS.md`.

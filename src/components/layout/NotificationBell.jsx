@@ -12,6 +12,11 @@ function NotificationBell() {
   const [open, setOpen] = useState(false)
   const unread = notifications.filter((notification) => !notification.read)
 
+  const load = () =>
+    getNotifications()
+      .then((data) => setNotifications(data))
+      .catch((error) => console.error('Error al traer las notificaciones:', error))
+
   // Se piden cuando hay un usuario (y de nuevo si cambia de cuenta)
   const userId = user?.id
   useEffect(() => {
@@ -20,6 +25,12 @@ function NotificationBell() {
       .then((data) => setNotifications(data))
       .catch((error) => console.error('Error al traer las notificaciones:', error))
   }, [userId])
+
+  // Al abrir el panel se vuelven a pedir: así aparecen las que llegaron mientras se usaba la app
+  const toggle = () => {
+    if (!open) load()
+    setOpen(!open)
+  }
 
   // PATCH y reemplazamos la notificación por la que devuelve el back (ya leída)
   const markRead = (notification) =>
@@ -33,7 +44,7 @@ function NotificationBell() {
         icon={Bell}
         label={`Notificaciones${unread.length ? `, ${unread.length} sin leer` : ''}`}
         variant="ghost"
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggle}
       />
       {unread.length > 0 && <span className="notification-bell__count">{unread.length > 9 ? '9+' : unread.length}</span>}
       {open && (

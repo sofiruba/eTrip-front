@@ -48,6 +48,7 @@ function CheckoutSummary({ lines, subtotal, discount, coupon, onApplyCoupon, onR
           </dd>
         </div>
       </dl>
+      <p className="muted small">Incluye la tarifa de servicio de PLAN.</p>
     </aside>
   )
 }

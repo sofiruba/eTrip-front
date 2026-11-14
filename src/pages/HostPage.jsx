@@ -1,21 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { CalendarDays, LayoutGrid, Plus, Store, Users } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { useParams } from 'react-router-dom'
 import HostBookings from '../components/host/HostBookings'
 import HostCalendar from '../components/host/HostCalendar'
 import HostExperiences from '../components/host/HostExperiences'
 import HostOverview from '../components/host/HostOverview'
 import Button from '../components/ui/Button'
+import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import Tabs from '../components/ui/Tabs'
-import { useAuth } from '../hooks/useAuth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { getSales } from '../services/bookingsService'
-import { getMyExperiences } from '../services/experiencesService'
-import { getManagedSessions } from '../services/sessionsService'
+import { selectUser } from '../redux/authSlice'
+import { fetchSales } from '../redux/bookingsSlice'
+import { fetchManagedExperiences, selectManagedExperiences } from '../redux/experiencesSlice'
+import { fetchManagedSessions } from '../redux/sessionsSlice'
 import { addBookingInfo } from '../utils/bookings'
-import { addSessionInfo, byStartsAt } from '../utils/experiences'
+import { byStartsAt } from '../utils/experiences'
 import NotFoundPage from './NotFoundPage'
 import './HostPage.css'
 
@@ -27,58 +29,50 @@ const TABS = [
 ]
 
 /**
- * Modo anfitrión. Esta página es la dueña de los datos: los pide al montarse
- * y les pasa a cada pestaña los datos y las funciones para actualizarlos.
+ * Modo anfitrión. Pide sus datos al montarse (una sola vez por sesión: si se vuelve a entrar, ya están en el store).
+ * Cada pestaña recibe los datos por props y, cuando cambia algo, despacha su acción: el reducer actualiza el store
+ * y esta página (suscripta con useSelector) le pasa los datos nuevos. Ya no hace falta pasar funciones "setX" a los hijos.
  */
 function HostPage() {
   const { tab = 'resumen' } = useParams()
-  const { user } = useAuth()
-  const [experiences, setExperiences] = useState([])
-  const [sessions, setSessions] = useState([])
-  const [sales, setSales] = useState([])
-  const [loading, setLoading] = useState(true)
+  const dispatch = useDispatch()
+  const user = useSelector(selectUser)
+  const experiences = useSelector(selectManagedExperiences) // las mías, con la info de sus fechas
+  const managed = useSelector((state) => state.experiences.managed) // { loaded, error }
+  const sessions = useSelector((state) => state.sessions.managed.items)
+  const sales = useSelector((state) => state.bookings.sales.items)
   useDocumentTitle('Modo anfitrión')
 
-  const loadSales = () =>
-    getSales()
-      .then((data) => setSales(data))
-      .catch((error) => console.error('Error al traer tus ventas:', error))
-
-  // Todas las fechas de mis experiencias, también las pasadas y las canceladas
-  const loadSessions = () =>
-    getManagedSessions()
-      .then((data) => setSessions(data))
-      .catch((error) => console.error('Error al traer las fechas:', error))
-
   useEffect(() => {
-    getMyExperiences()
-      .then((data) => setExperiences(data))
-      .catch((error) => console.error('Error al traer tus experiencias:', error))
-      .then(() => setLoading(false))
-
-    loadSessions()
-    loadSales()
-  }, [])
+    dispatch(fetchManagedExperiences())
+    dispatch(fetchManagedSessions()) // todas las fechas de mis experiencias, también las pasadas y las canceladas
+    dispatch(fetchSales())
+  }, [dispatch])
 
   if (!TABS.some((item) => item.id === tab)) return <NotFoundPage />
 
-  const myExperiences = addSessionInfo(experiences, sessions)
   const myIds = experiences.map((experience) => experience.id)
   const mySessions = sessions.filter((session) => myIds.includes(session.experienceId)).sort(byStartsAt)
   const myBookings = addBookingInfo(sales, experiences)
 
   const panels = {
     resumen: experiences.length ? (
-      <HostOverview experiences={myExperiences} sessions={mySessions} bookings={myBookings} />
+      <HostOverview experiences={experiences} sessions={mySessions} bookings={myBookings} />
     ) : (
-      <HostExperiences experiences={[]} bookings={[]} setExperiences={setExperiences} />
+      <HostExperiences experiences={[]} bookings={[]} />
     ),
-    experiencias: <HostExperiences experiences={myExperiences} bookings={myBookings} setExperiences={setExperiences} />,
-    // Cancelar una fecha reembolsa sus reservas: después volvemos a pedir las ventas
-    calendario: <HostCalendar experiences={myExperiences} sessions={mySessions} setSessions={setSessions} onChange={loadSales} />,
-    // Un reembolso devuelve lugares: volvemos a pedir las fechas para que se vean los cupos libres
-    reservas: <HostBookings bookings={myBookings} sessions={sessions} setBookings={setSales} onRefunded={loadSessions} />,
+    experiencias: <HostExperiences experiences={experiences} bookings={myBookings} />,
+    calendario: <HostCalendar experiences={experiences} sessions={mySessions} />,
+    reservas: <HostBookings bookings={myBookings} sessions={sessions} />,
   }
+
+  const content = managed.error ? (
+    <ErrorState title="No pudimos cargar tus experiencias" message={managed.error} onRetry={() => dispatch(fetchManagedExperiences())} />
+  ) : !managed.loaded ? (
+    <Loading />
+  ) : (
+    panels[tab]
+  )
 
   return (
     <div className="container page">
@@ -93,7 +87,7 @@ function HostPage() {
         }
       />
       <Tabs items={TABS} label="Secciones del modo anfitrión" />
-      <div className="host-page__panel">{loading ? <Loading /> : panels[tab]}</div>
+      <div className="host-page__panel">{content}</div>
     </div>
   )
 }

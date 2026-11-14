@@ -35,10 +35,13 @@ export function validate(form) {
   return errors
 }
 
+/** "data:image/jpeg;base64,..." → File. Se decodifica acá mismo: no se le pide nada a ningún servidor. */
+function dataUrlToFile(dataUrl, name) {
+  const [header, base64] = dataUrl.split(',')
+  const type = header.match(/^data:(.*?);/)?.[1] ?? 'image/jpeg'
+  const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
+  return new File([bytes], name, { type })
+}
+
 /** Una foto del formulario como File: las nuevas ya lo son; las que vinieron del back (base64) se convierten. */
-export const toFile = (image, index) =>
-  image.file
-    ? Promise.resolve(image.file)
-    : fetch(image)
-        .then((response) => response.blob())
-        .then((blob) => new File([blob], `foto-${index + 1}.jpg`, { type: blob.type }))
+export const toFile = (image, index) => Promise.resolve(image.file ?? dataUrlToFile(image, `foto-${index + 1}.jpg`))

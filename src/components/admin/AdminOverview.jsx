@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { CalendarCheck, CalendarX, ChevronRight, CircleCheck, HandCoins, MessageSquareWarning, Receipt, Star, Store, TicketPercent, UserX, Users, Wallet } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
-import { getBookings } from '../../services/bookingsService'
-import { getCoupons } from '../../services/couponsService'
-import { getAllExperiences } from '../../services/experiencesService'
-import { getOrderStats, getOrders } from '../../services/ordersService'
-import { getReviews } from '../../services/reviewsService'
-import { getManagedSessions } from '../../services/sessionsService'
-import { getUsers } from '../../services/usersService'
+import { fetchBookings } from '../../redux/bookingsSlice'
+import { fetchCoupons } from '../../redux/couponsSlice'
+import { fetchManagedExperiences, selectManagedExperiences } from '../../redux/experiencesSlice'
+import { fetchOrders, fetchOrderStats } from '../../redux/ordersSlice'
+import { fetchAllReviews } from '../../redux/reviewsSlice'
+import { fetchManagedSessions } from '../../redux/sessionsSlice'
+import { fetchUsers } from '../../redux/usersSlice'
 import { getCouponStatus } from '../../utils/coupons'
-import { addSessionInfo, byNewest, isSoldOut } from '../../utils/experiences'
+import { byNewest, isSoldOut } from '../../utils/experiences'
 import { formatFullDate, formatMoney, isPast, pluralize } from '../../utils/format'
 import DataTable from '../ui/DataTable'
 import ErrorState from '../ui/ErrorState'
@@ -21,6 +22,8 @@ import { COUPON_EXPIRY_WARNING_DAYS, LOW_RATING } from './adminRules'
 import './AdminOverview.css'
 
 const RECENT_ORDERS = 5
+// Todo lo que muestra el resumen. Cada GET se hace una sola vez: lo que ya se cargó en otra sección del panel se reutiliza
+const LOADERS = [fetchOrders, fetchOrderStats, fetchBookings, fetchUsers, fetchAllReviews, fetchCoupons, fetchManagedExperiences, fetchManagedSessions]
 const TOP_EXPERIENCES = 5
 const DAY_MS = 86400000
 
@@ -46,43 +49,48 @@ function getAlerts({ experiences, reviews, users, coupons }) {
 }
 
 function AdminOverview() {
-  const [orders, setOrders] = useState([])
-  const [stats, setStats] = useState(null) // ventas y comisión calculadas por el back
-  const [bookings, setBookings] = useState([])
-  const [users, setUsers] = useState([])
-  const [reviews, setReviews] = useState([])
-  const [coupons, setCoupons] = useState([])
-  const [experiences, setExperiences] = useState([])
-  const [sessions, setSessions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [attempt, setAttempt] = useState(0) // "Reintentar" lo incrementa y el efecto vuelve a pedir
+  const dispatch = useDispatch()
+  // Cada parte del estado global que usa el resumen ({ items, loading, loaded, error })
+  const orders = useSelector((state) => state.orders)
+  const stats = useSelector((state) => state.orders.stats) // ventas y comisión calculadas por el back
+  const bookings = useSelector((state) => state.bookings)
+  const users = useSelector((state) => state.users)
+  const coupons = useSelector((state) => state.coupons)
+  const experiences = useSelector((state) => state.experiences.managed)
+  const sessions = useSelector((state) => state.sessions.managed)
+  const reviews = useSelector((state) => state.reviews)
+  const catalog = useSelector(selectManagedExperiences) // todas las experiencias con la info de sus fechas
 
-  // Al entrar al resumen pedimos todo en paralelo. Promise.all espera las ocho respuestas:
-  // si alguna falla se muestra el error (antes, un error se veía como "0 ventas")
+  // Al entrar: despachamos todos los GET (los que ya se hicieron en otra sección no se repiten)
   useEffect(() => {
-    Promise.all([getOrders(), getBookings(), getUsers(), getReviews(), getCoupons(), getAllExperiences(), getManagedSessions(), getOrderStats()])
-      .then(([ordersData, bookingsData, usersData, reviewsData, couponsData, experiencesData, sessionsData, statsData]) => {
-        setOrders(ordersData)
-        setStats(statsData)
-        setBookings(bookingsData)
-        setUsers(usersData)
-        setReviews(reviewsData)
-        setCoupons(couponsData)
-        setExperiences(experiencesData)
-        setSessions(sessionsData)
-        setError('')
-      })
-      .catch((loadError) => setError(loadError.message))
-      .then(() => setLoading(false))
-  }, [attempt])
+    LOADERS.forEach((load) => dispatch(load()))
+  }, [dispatch])
 
-  if (loading) return <Loading />
+  const lists = [orders, stats, bookings, users, coupons, experiences, sessions]
+  // Si algo falla se muestra el error (y no un "0 ventas" engañoso)
+  const error = lists.find((list) => list.error)?.error ?? reviews.error
+  const loading = lists.some((list) => !list.loaded) || !reviews.requested.includes('all') || reviews.loading
+
   if (error) {
-    return <ErrorState title="No pudimos cargar el resumen" message={error} onRetry={() => setAttempt((current) => current + 1)} />
+    return <ErrorState title="No pudimos cargar el resumen" message={error} onRetry={() => LOADERS.forEach((load) => dispatch(load()))} />
   }
+  if (loading) return <Loading />
 
-  const catalog = addSessionInfo(experiences, sessions)
+  return (
+    <OverviewContent
+      catalog={catalog}
+      stats={stats.data}
+      orders={orders.items}
+      bookings={bookings.items}
+      users={users.items}
+      reviews={reviews.items}
+      coupons={coupons.items}
+    />
+  )
+}
+
+/** El resumen ya con todos los datos. */
+function OverviewContent({ catalog, stats, orders, bookings, users, reviews, coupons }) {
   const upcomingBookings = bookings.filter((booking) => !booking.refunded && !isPast(booking.startsAt))
   const recentOrders = [...orders].sort(byNewest).slice(0, RECENT_ORDERS)
   const averageRating = reviews.length ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1) : '—'
@@ -116,7 +124,7 @@ function AdminOverview() {
         <StatCard icon={Receipt} label="Órdenes" value={stats.orderCount} />
         <StatCard icon={CalendarCheck} label="Reservas próximas" value={upcomingBookings.length} />
         <StatCard icon={Users} label="Usuarios activos" value={users.filter((user) => user.active).length} />
-        <StatCard icon={Store} label="Experiencias" value={experiences.length} />
+        <StatCard icon={Store} label="Experiencias" value={catalog.length} />
         <StatCard icon={Star} label="Puntuación promedio" value={averageRating} hint={pluralize(reviews.length, 'reseña')} />
       </div>
 

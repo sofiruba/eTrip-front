@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Search, X } from 'lucide-react'
+import { useSelector } from 'react-redux'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { useCatalog } from '../../hooks/useCatalog'
 import { getAvailableDates, getDestinations } from '../../utils/experiences'
 import { applyFilters, readFilters } from '../../utils/catalogFilters'
 import { formatShortDate } from '../../utils/format'
@@ -106,9 +106,10 @@ function NavbarSearch({ hidden = false }) {
   )
 }
 
-/** Se monta recién al abrir el buscador. Las sugerencias salen del catálogo que ya está cargado (CatalogProvider). */
+/** Se monta recién al abrir el buscador. Las sugerencias salen del catálogo que ya está en el store de Redux. */
 function SearchPanel({ filters, onSearch }) {
-  const { experiences, sessions } = useCatalog()
+  const experiences = useSelector((state) => state.experiences.items)
+  const sessions = useSelector((state) => state.sessions.items)
   return (
     <HeroSearch
       value={filters}

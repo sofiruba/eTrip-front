@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, MailCheck } from 'lucide-react'
-import { useAuth } from '../../hooks/useAuth'
-import { forgotPassword, verifyResetCode } from '../../services/authService'
+import { useDispatch } from 'react-redux'
+import { requestPasswordReset, resetPassword, verifyResetCode } from '../../redux/authSlice'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import CodeInput from './CodeInput'
@@ -22,7 +22,7 @@ function maskEmail(identifier) {
  * Al final el back devuelve un token y la sesión queda iniciada.
  */
 function ForgotPasswordForm({ step, onStepChange, identifier, onIdentifierChange, onBack, onDone }) {
-  const { resetPassword } = useAuth()
+  const dispatch = useDispatch()
   const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -55,7 +55,8 @@ function ForgotPasswordForm({ step, onStepChange, identifier, onIdentifierChange
     setSending(true)
     setFormError('')
     setResent(false)
-    return forgotPassword(identifier.trim())
+    return dispatch(requestPasswordReset(identifier.trim()))
+      .unwrap()
       .then((data) => {
         // Todavía no hay mail: en desarrollo el back devuelve el código y lo mostramos en la consola
         if (data?.devCode) console.info(`%c[eTrip] Código para recuperar la contraseña: ${data.devCode}`, 'font-weight:bold;font-size:14px')
@@ -70,7 +71,8 @@ function ForgotPasswordForm({ step, onStepChange, identifier, onIdentifierChange
   const checkCode = (value) => {
     setSending(true)
     setFormError('')
-    return verifyResetCode(identifier.trim(), value)
+    return dispatch(verifyResetCode({ usernameOrEmail: identifier.trim(), code: value }))
+      .unwrap()
       .then(() => goTo('password'))
       .catch((err) => {
         setCode('')
@@ -93,8 +95,9 @@ function ForgotPasswordForm({ step, onStepChange, identifier, onIdentifierChange
     if (Object.keys(nextErrors).length) return undefined
     setSending(true)
     setFormError('')
-    return resetPassword(identifier.trim(), code, password)
-      .then((user) => onDone(user, 'Listo, cambiamos tu contraseña.'))
+    return dispatch(resetPassword({ usernameOrEmail: identifier.trim(), code, newPassword: password }))
+      .unwrap()
+      .then(({ user }) => onDone(user, 'Listo, cambiamos tu contraseña.'))
       .catch(fail)
   }
 

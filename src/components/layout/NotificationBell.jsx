@@ -1,42 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Bell, Check } from 'lucide-react'
-import { useAuth } from '../../hooks/useAuth'
-import { getNotifications, markNotificationRead } from '../../services/notificationsService'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchNotifications, markNotificationRead } from '../../redux/notificationsSlice'
 import { formatRelativeDate } from '../../utils/format'
 import IconButton from '../ui/IconButton'
 import './NotificationBell.css'
 
+/** Los avisos se piden al iniciar sesión (App.jsx) y quedan en el estado global. */
 function NotificationBell() {
-  const { user } = useAuth()
-  const [notifications, setNotifications] = useState([])
+  const dispatch = useDispatch()
+  const notifications = useSelector((state) => state.notifications.items)
   const [open, setOpen] = useState(false)
   const unread = notifications.filter((notification) => !notification.read)
 
-  const load = () =>
-    getNotifications()
-      .then((data) => setNotifications(data))
-      .catch((error) => console.error('Error al traer las notificaciones:', error))
-
-  // Se piden cuando hay un usuario (y de nuevo si cambia de cuenta)
-  const userId = user?.id
-  useEffect(() => {
-    if (!userId) return
-    getNotifications()
-      .then((data) => setNotifications(data))
-      .catch((error) => console.error('Error al traer las notificaciones:', error))
-  }, [userId])
-
-  // Al abrir el panel se vuelven a pedir: así aparecen las que llegaron mientras se usaba la app
+  // Al abrir el panel se vuelven a pedir: los avisos los generan otros usuarios, así aparecen los que llegaron mientras tanto
   const toggle = () => {
-    if (!open) load()
+    if (!open) dispatch(fetchNotifications())
     setOpen(!open)
   }
-
-  // PATCH y reemplazamos la notificación por la que devuelve el back (ya leída)
-  const markRead = (notification) =>
-    markNotificationRead(notification.id)
-      .then((updated) => setNotifications((current) => current.map((item) => (item.id === updated.id ? updated : item))))
-      .catch((error) => console.error('Error al marcar la notificación:', error))
 
   return (
     <div className="notification-bell">
@@ -57,7 +38,8 @@ function NotificationBell() {
             <ul>
               {notifications.slice(0, 8).map((notification) => (
                 <li key={notification.id} className={notification.read ? '' : 'is-unread'}>
-                  <button type="button" onClick={() => !notification.read && markRead(notification)}>
+                  {/* PATCH: el reducer reemplaza la notificación por la que devuelve el back (ya leída) */}
+                  <button type="button" onClick={() => !notification.read && dispatch(markNotificationRead(notification.id))}>
                     <strong>{notification.title}</strong>
                     <span>{notification.message}</span>
                     <small>{formatRelativeDate(notification.createdAt)}</small>

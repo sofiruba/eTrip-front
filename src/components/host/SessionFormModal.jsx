@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { useToast } from '../../hooks/useToast'
-import { createSession, updateSession } from '../../services/sessionsService'
+import { useDispatch } from 'react-redux'
+import { showToast } from '../../redux/toastsSlice'
+import { createSession, updateSession } from '../../redux/sessionsSlice'
 import { addHours, daysFromToday, hoursBetween } from '../../utils/dates'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
 
-/** Crear o editar una sesión (fecha, hora, duración y cupo). Le pasa al padre la sesión guardada. */
-function SessionFormModal({ session, experiences, defaultExperienceId, onSaved, onClose }) {
-  const notify = useToast()
+/** Crear (POST) o editar (PUT) una sesión: fecha, hora, duración y cupo. El reducer la guarda en el calendario y en el catálogo. */
+function SessionFormModal({ session, experiences, defaultExperienceId, onClose }) {
+  const dispatch = useDispatch()
   const booked = session ? session.capacity - session.availableSeats : 0
   const initialStart = session?.startsAt ?? daysFromToday(7, '18:00')
 
@@ -34,13 +35,13 @@ function SessionFormModal({ session, experiences, defaultExperienceId, onSaved, 
 
     // Mismos campos que ExperienceSessionRequestDTO
     const data = { experienceId: Number(form.experienceId), startsAt, endsAt: addHours(startsAt, duration), capacity }
-    const request = session ? updateSession(session.id, data) : createSession(data)
+    const request = session ? dispatch(updateSession({ id: session.id, ...data })) : dispatch(createSession(data))
 
     setSending(true)
     return request
-      .then((saved) => {
-        onSaved(saved)
-        notify(session ? 'Sesión actualizada' : 'Nueva fecha publicada')
+      .unwrap()
+      .then(() => {
+        dispatch(showToast(session ? 'Sesión actualizada' : 'Nueva fecha publicada'))
         onClose()
       })
       .catch((saveError) => {

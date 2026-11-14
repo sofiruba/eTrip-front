@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarCheck, MessageSquare, Store } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import EditProfileModal from '../components/profile/EditProfileModal'
 import InterestsSection from '../components/profile/InterestsSection'
 import MyReviewsSection from '../components/profile/MyReviewsSection'
@@ -8,51 +9,46 @@ import ProfileSteps from '../components/profile/ProfileSteps'
 import SavedCardsSection from '../components/profile/SavedCardsSection'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import StatCard from '../components/ui/StatCard'
-import { useAuth } from '../hooks/useAuth'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useSavedCards } from '../hooks/useSavedCards'
-import { useToast } from '../hooks/useToast'
-import { deleteReview, getMyReviews } from '../services/reviewsService'
-import { getMe } from '../services/usersService'
+import { selectUser, updateProfileExtras } from '../redux/authSlice'
+import { deleteReview, fetchMyReviews } from '../redux/reviewsSlice'
+import { removeCard, selectSavedCards } from '../redux/savedCardsSlice'
+import { showToast } from '../redux/toastsSlice'
 import { cardLabel } from '../utils/cards'
 import { byNewest } from '../utils/experiences'
 
-/** Perfil del usuario. La página trae los datos y maneja los modales; cada sección es un componente. */
+/** Perfil del usuario. La página lee los datos del store y maneja los modales; cada sección es un componente. */
 function ProfilePage() {
   useDocumentTitle('Mi perfil')
-  const { user, updateProfile } = useAuth()
-  const savedCards = useSavedCards()
-  const notify = useToast()
-  const [myReviews, setMyReviews] = useState([])
-  const [me, setMe] = useState(user)
+  const dispatch = useDispatch()
+  // Los contadores (reservas, reseñas, publicadas) vienen del back en el usuario y los reducers los mantienen al día
+  const user = useSelector(selectUser)
+  const savedCards = useSelector(selectSavedCards)
+  const allReviews = useSelector((state) => state.reviews.items)
   const [editingProfile, setEditingProfile] = useState(false)
   const [interestsDraft, setInterestsDraft] = useState(null) // null = no se está editando
   const [deletingReview, setDeletingReview] = useState(null)
   const [deletingCard, setDeletingCard] = useState(null)
   const avatarButtonRef = useRef(null) // botón "Cambiar foto" del encabezado
 
-  // Al entrar: mis reseñas y mis datos actualizados (los contadores de reservas y reseñas vienen del back)
+  // Al entrar: mis reseñas (una sola vez por sesión)
   useEffect(() => {
-    getMyReviews()
-      .then((data) => setMyReviews(data.sort(byNewest)))
-      .catch((error) => console.error('Error al traer tus reseñas:', error))
+    dispatch(fetchMyReviews())
+  }, [dispatch])
 
-    getMe()
-      .then((data) => setMe(data))
-      .catch((error) => console.error('Error al traer tu perfil:', error))
-  }, [])
-
-  const published = me.publishedExperiences ?? 0
+  const myReviews = useMemo(
+    () => allReviews.filter((review) => review.userId === user.id).sort(byNewest),
+    [allReviews, user.id],
+  )
+  const published = user.publishedExperiences ?? 0
   const interests = user.interests ?? []
 
-  // DELETE en el back y, si sale bien, la sacamos de la lista local (sin volver a pedir todo)
+  // DELETE en el back; el reducer la saca de la lista (sin volver a pedir todo)
   const removeReview = (review) =>
-    deleteReview(review.id)
-      .then(() => {
-        setMyReviews((current) => current.filter((entry) => entry.id !== review.id))
-        notify('Reseña eliminada', 'info')
-      })
-      .catch((error) => notify(error.message, 'error'))
+    dispatch(deleteReview(review))
+      .unwrap()
+      .then(() => dispatch(showToast('Reseña eliminada', 'info')))
+      .catch((error) => dispatch(showToast(error.message, 'error')))
 
   // Desde "Completá tu perfil": cada paso abre lo que hay que completar
   const goToStep = (stepId) => {
@@ -61,10 +57,11 @@ function ProfilePage() {
     else setEditingProfile(true)
   }
 
+  // Los intereses no existen en el back: quedan en el estado global (persistido en el navegador)
   const saveInterests = () => {
-    updateProfile({ interests: interestsDraft })
+    dispatch(updateProfileExtras({ interests: interestsDraft }))
     setInterestsDraft(null)
-    notify('Intereses actualizados')
+    dispatch(showToast('Intereses actualizados'))
   }
 
   return (
@@ -73,13 +70,13 @@ function ProfilePage() {
       <ProfileSteps user={user} onStep={goToStep} />
 
       <div className="stat-grid section">
-        <StatCard icon={CalendarCheck} label="Reservas" value={me.bookingsCount ?? 0} />
-        <StatCard icon={MessageSquare} label="Reseñas" value={me.reviewsCount ?? 0} />
+        <StatCard icon={CalendarCheck} label="Reservas" value={user.bookingsCount ?? 0} />
+        <StatCard icon={MessageSquare} label="Reseñas" value={user.reviewsCount ?? 0} />
         <StatCard icon={Store} label="Experiencias publicadas" value={published} />
       </div>
 
       <InterestsSection interests={interests} draft={interestsDraft} onDraftChange={setInterestsDraft} onSave={saveInterests} />
-      <SavedCardsSection cards={savedCards.cards} onDelete={setDeletingCard} />
+      <SavedCardsSection cards={savedCards} onDelete={setDeletingCard} />
       <MyReviewsSection reviews={myReviews} onDelete={setDeletingReview} />
 
       {editingProfile && <EditProfileModal onClose={() => setEditingProfile(false)} />}
@@ -88,8 +85,8 @@ function ProfilePage() {
           title="¿Eliminar tarjeta?"
           message={`Vas a quitar ${cardLabel(deletingCard)} de tus medios de pago.`}
           onConfirm={() => {
-            savedCards.removeCard(deletingCard.id)
-            notify('Tarjeta eliminada', 'info')
+            dispatch(removeCard({ userId: user.id, cardId: deletingCard.id }))
+            dispatch(showToast('Tarjeta eliminada', 'info'))
           }}
           onClose={() => setDeletingCard(null)}
         />

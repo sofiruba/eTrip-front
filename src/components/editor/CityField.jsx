@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { Building2, MapPin } from 'lucide-react'
+import { useSelector } from 'react-redux'
 import { cities } from '../../data/cities'
-import { useCatalog } from '../../hooks/useCatalog'
 import { getDestinations } from '../../utils/experiences'
 import { normalizeText, pluralize } from '../../utils/format'
 import FormField from '../ui/FormField'
@@ -16,7 +16,7 @@ const MAX_OPTIONS = 6
  * Teclado: ↑ ↓ para moverse, Enter elige, Escape cierra (patrón combobox de ARIA).
  */
 function CityField({ value, error, onChange }) {
-  const { experiences } = useCatalog()
+  const experiences = useSelector((state) => state.experiences.items)
   const listId = useId()
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)

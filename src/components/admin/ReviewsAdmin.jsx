@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { MessageSquare, Trash2 } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useToast } from '../../hooks/useToast'
-import { deleteReview, getReviews } from '../../services/reviewsService'
+import { deleteReview, fetchAllReviews } from '../../redux/reviewsSlice'
+import { showToast } from '../../redux/toastsSlice'
 import { byNewest } from '../../utils/experiences'
 import { formatFullDate, normalizeText } from '../../utils/format'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
 import EmptyState from '../ui/EmptyState'
+import ErrorState from '../ui/ErrorState'
+import Loading from '../ui/Loading'
 import IconButton from '../ui/IconButton'
 import { StarRating } from '../ui/Rating'
 import AdminToolbar from './AdminToolbar'
@@ -25,19 +28,19 @@ const RATING_FILTERS = [
 ]
 
 function ReviewsAdmin() {
-  const [reviews, setReviews] = useState([])
+  const dispatch = useDispatch()
+  const { items: reviews, error } = useSelector((state) => state.reviews)
+  // Listo cuando llegaron TODAS (antes puede haber solo las de alguna experiencia que se abrió)
+  const ready = useSelector((state) => state.reviews.requested.includes('all') && !state.reviews.loading)
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
-  const notify = useToast()
   const [deleting, setDeleting] = useState(null)
   const [search, setSearch] = useState('')
   const [rating, setRating] = useState(() => params.get('puntuacion') ?? '')
 
   useEffect(() => {
-    getReviews()
-      .then((data) => setReviews(data))
-      .catch((error) => notify(error.message, 'error'))
-  }, [notify])
+    dispatch(fetchAllReviews())
+  }, [dispatch])
 
   const all = [...reviews].sort(byNewest)
   const query = normalizeText(search.trim())
@@ -48,6 +51,9 @@ function ReviewsAdmin() {
       if (rating === 'baja') return review.rating <= LOW_RATING
       return review.rating === Number(rating)
     })
+
+  if (error) return <ErrorState message={error} onRetry={() => dispatch(fetchAllReviews())} />
+  if (!ready) return <Loading />
 
   return (
     <>
@@ -96,12 +102,10 @@ function ReviewsAdmin() {
           title="¿Eliminar reseña?"
           message={`Vas a eliminar la reseña de ${deleting.userName} sobre “${deleting.experienceTitle}”.`}
           onConfirm={() =>
-            deleteReview(deleting.id)
-              .then(() => {
-                setReviews((current) => current.filter((item) => item.id !== deleting.id))
-                notify('Reseña eliminada', 'info')
-              })
-              .catch((error) => notify(error.message, 'error'))
+            dispatch(deleteReview(deleting))
+              .unwrap()
+              .then(() => dispatch(showToast('Reseña eliminada', 'info')))
+              .catch((deleteError) => dispatch(showToast(deleteError.message, 'error')))
           }
           onClose={() => setDeleting(null)}
         />

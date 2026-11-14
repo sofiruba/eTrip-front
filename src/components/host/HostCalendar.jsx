@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { CalendarPlus, CalendarX, Pencil, Trash2 } from 'lucide-react'
+import { useDispatch } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
-import { useCatalog } from '../../hooks/useCatalog'
-import { useToast } from '../../hooks/useToast'
-import { deleteSession, removeSession } from '../../services/sessionsService'
+import { cancelSession, removeSession } from '../../redux/sessionsSlice'
+import { showToast } from '../../redux/toastsSlice'
 import { formatTime } from '../../utils/format'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
@@ -30,11 +30,11 @@ const bookedSeats = (session) => session.capacity - session.availableSeats
 
 /**
  * Fechas de las experiencias. Lo usan el anfitrión y el admin.
- * `setSessions` actualiza la lista del padre; `onChange` avisa que algo cambió (por ejemplo, para recargar reservas).
+ * Cada acción se despacha al store: los reducers actualizan las fechas (calendario y catálogo público) y,
+ * si se cancela una fecha, sus reservas quedan reembolsadas. No hace falta volver a pedir nada.
  */
-function HostCalendar({ experiences, sessions, setSessions, onChange }) {
-  const notify = useToast()
-  const { refreshSessions } = useCatalog() // el catálogo público también tiene que enterarse de los cambios
+function HostCalendar({ experiences, sessions }) {
+  const dispatch = useDispatch()
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState(null) // sesión, 'new' o null
   const [deleting, setDeleting] = useState(null)
@@ -46,7 +46,7 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
 
   const askDelete = (session) => {
     if (!isEditable(session)) {
-      notify(session.active ? 'No podés cancelar una fecha que ya empezó.' : 'Esta fecha ya está cancelada.', 'error')
+      dispatch(showToast(session.active ? 'No podés cancelar una fecha que ya empezó.' : 'Esta fecha ya está cancelada.', 'error'))
       return
     }
     setDeleting(session)
@@ -122,13 +122,6 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
           session={editing === 'new' ? null : editing}
           experiences={experiences}
           defaultExperienceId={experienceId}
-          onSaved={(saved) => {
-            // Si ya existía la reemplazamos; si es nueva la agregamos al final
-            setSessions((current) =>
-              current.some((item) => item.id === saved.id) ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved],
-            )
-            refreshSessions()
-          }}
           onClose={() => setEditing(null)}
         />
       )}
@@ -140,18 +133,12 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
               ? `La fecha deja de estar disponible y se reembolsan automáticamente las ${bookedSeats(deleting)} plazas reservadas. Los compradores reciben un aviso.`
               : 'La fecha deja de estar disponible para reservar.'
           }
+          // El back no la borra: la marca como cancelada (baja lógica) y reembolsa sus reservas. Queda en el historial
           onConfirm={() =>
-            deleteSession(deleting.id)
-              .then(() => {
-                // El back no la borra: la marca como cancelada y libera los lugares (queda en el historial)
-                setSessions((current) =>
-                  current.map((item) => (item.id === deleting.id ? { ...item, active: false, availableSeats: item.capacity } : item)),
-                )
-                refreshSessions()
-                if (onChange) onChange()
-                notify(bookedSeats(deleting) > 0 ? 'Fecha cancelada y reservas reembolsadas' : 'Fecha cancelada', 'info')
-              })
-              .catch((deleteError) => notify(deleteError.message, 'error'))
+            dispatch(cancelSession(deleting))
+              .unwrap()
+              .then(() => dispatch(showToast(bookedSeats(deleting) > 0 ? 'Fecha cancelada y reservas reembolsadas' : 'Fecha cancelada', 'info')))
+              .catch((deleteError) => dispatch(showToast(deleteError.message, 'error')))
           }
           onClose={() => setDeleting(null)}
         />
@@ -161,13 +148,10 @@ function HostCalendar({ experiences, sessions, setSessions, onChange }) {
           title="¿Eliminar esta fecha?"
           message="Se borra del calendario junto con sus reservas (ya reembolsadas o pasadas). No se puede deshacer."
           onConfirm={() =>
-            removeSession(removing.id)
-              .then(() => {
-                setSessions((current) => current.filter((item) => item.id !== removing.id))
-                if (onChange) onChange()
-                notify('Fecha eliminada', 'info')
-              })
-              .catch((removeError) => notify(removeError.message, 'error'))
+            dispatch(removeSession(removing.id))
+              .unwrap()
+              .then(() => dispatch(showToast('Fecha eliminada', 'info')))
+              .catch((removeError) => dispatch(showToast(removeError.message, 'error')))
           }
           onClose={() => setRemoving(null)}
         />

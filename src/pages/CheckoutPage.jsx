@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { CalendarX, Lock, ShieldCheck, ShoppingBag } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
 import CheckoutSteps from '../components/checkout/CheckoutSteps'
 import CheckoutSummary from '../components/checkout/CheckoutSummary'
@@ -10,16 +11,16 @@ import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
-import { useAuth } from '../hooks/useAuth'
-import { useCart } from '../hooks/useCart'
 import { useCurrency } from '../hooks/useCurrency'
-import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useFreshSessions } from '../hooks/useFreshSessions'
-import { useSavedCards } from '../hooks/useSavedCards'
-import { useToast } from '../hooks/useToast'
-import { validateCoupon } from '../services/couponsService'
-import { createOrder } from '../services/ordersService'
+import { selectUser } from '../redux/authSlice'
+import { fetchCart, updateCartItem } from '../redux/cartSlice'
+import { validateCoupon } from '../redux/couponsSlice'
+import { selectCatalogStatus } from '../redux/experiencesSlice'
+import { createOrder } from '../redux/ordersSlice'
+import { saveCard, selectSavedCards } from '../redux/savedCardsSlice'
+import { fetchSessions } from '../redux/sessionsSlice'
+import { showToast } from '../redux/toastsSlice'
 import { buildCartLines, getCartProblem } from '../utils/cart'
 import {
   CARD_BRANDS,
@@ -34,18 +35,19 @@ import { formatMoney, fullName } from '../utils/format'
 import './CheckoutPage.css'
 
 function CheckoutPage() {
-  const { user } = useAuth()
-  const cart = useCart()
-  const { approx } = useCurrency()
-  const { experiences, sessions, loading, refreshSessions } = useCatalog()
-  const sessionsReady = useFreshSessions() // lugares que quedan ahora, no los de cuando se abrió la app
-  const savedCards = useSavedCards()
-  const notify = useToast()
+  const dispatch = useDispatch()
   const navigate = useNavigate()
+  const user = useSelector(selectUser)
+  const cart = useSelector((state) => state.cart)
+  const experiences = useSelector((state) => state.experiences.items)
+  const sessions = useSelector((state) => state.sessions.items)
+  const { loading: catalogLoading } = useSelector(selectCatalogStatus)
+  const savedCards = useSelector(selectSavedCards)
+  const { approx } = useCurrency()
   useDocumentTitle('Pago')
 
   const [method, setMethod] = useState(() => {
-    const usable = savedCards.cards.find((saved) => !isCardExpired(saved))
+    const usable = savedCards.find((saved) => !isCardExpired(saved))
     return usable ? `saved:${usable.id}` : 'card'
   })
   const [card, setCard] = useState(() => ({ ...EMPTY_CARD, holder: fullName(user) }))
@@ -58,7 +60,9 @@ function CheckoutPage() {
   const formRef = useRef(null)
   const lines = buildCartLines(cart.items, experiences, sessions)
 
-  if ((loading || !sessionsReady) && cart.items.length && !payment) return <Loading text="Revisando los lugares disponibles..." />
+  // Esperamos el carrito (si se recargó la página) y las fechas, para revisar los lugares que quedan
+  const waiting = (!cart.loaded && !cart.error) || (catalogLoading && cart.items.length > 0)
+  if (waiting && !payment) return <Loading text="Revisando los lugares disponibles..." />
 
   if (!lines.length && !payment) {
     return (
@@ -101,7 +105,7 @@ function CheckoutPage() {
       }
     }
     if (method.startsWith('saved:')) {
-      const saved = savedCards.cards.find((entry) => `saved:${entry.id}` === method)
+      const saved = savedCards.find((entry) => `saved:${entry.id}` === method)
       return { provider: `el banco emisor de tu ${CARD_BRANDS[saved.brand].name}`, label: cardLabel(saved) }
     }
     const wallet = WALLETS.find((entry) => entry.id === method)
@@ -124,21 +128,24 @@ function CheckoutPage() {
   }
 
   // POST /orders: el back simula el pago (rechaza la tarjeta de prueba), compra todo lo que hay en el carrito,
-  // descuenta los cupos y vacía el carrito.
+  // descuenta los cupos y vacía el carrito. Los reducers hacen lo mismo en el store con la orden que devuelve
+  // (carrito vacío, lugares descontados, orden y reservas nuevas): no hace falta volver a pedir nada.
   // Devuelve una promesa con { ok, order } o { ok: false, message }: PaymentProcessing decide qué mostrar.
   const confirmOrder = () => {
     if (completingOrder.current) return Promise.resolve({ ok: false, message: 'La compra ya se está confirmando.' })
     completingOrder.current = true
 
-    return createOrder({
+    const newOrder = {
       couponCode: coupon?.valid ? coupon.code : null,
       paymentMethod: method.startsWith('saved:') ? 'saved' : method,
       cardNumber: method === 'card' ? onlyDigits(card.number) : null,
       // El total que se le mostró: si un precio cambió mientras pagaba, el back rechaza en vez de cobrar otro monto
       expectedTotal: Math.round(total * 100) / 100,
-    })
+    }
+    return dispatch(createOrder(newOrder))
+      .unwrap()
       .then((order) => {
-        if (method === 'card' && card.save) savedCards.saveCard(toSavedCard(card))
+        if (method === 'card' && card.save) dispatch(saveCard({ userId: user.id, card: toSavedCard(card) }))
         return { ok: true, order }
       })
       .catch((orderError) => ({ ok: false, message: orderError.message }))
@@ -148,35 +155,36 @@ function CheckoutPage() {
       })
   }
 
-  // El carrito quedó vacío y los cupos cambiaron: actualizamos los dos y vamos a la confirmación
+  // El carrito y los cupos ya se actualizaron en el store (reducers de createOrder): vamos a la confirmación
   const finishOrder = (order) => {
-    cart.reload()
-    refreshSessions()
     navigate(`/checkout/confirmacion/${order.id}`, { replace: true, state: { paymentLabel: payment.label } })
   }
 
-  // El back rechazó la compra: mostramos su motivo y traemos de nuevo carrito y lugares para que se vea qué cambió
+  // El back rechazó la compra (por ejemplo, alguien se llevó los últimos lugares): mostramos su motivo y, como lo que
+  // tenemos en el store quedó viejo, volvemos a pedir carrito y fechas ({ force: true }) para que se vea qué cambió
   const handleOrderFailed = (message) => {
     setPayment(null)
     setError(message)
-    cart.reload()
-    refreshSessions()
+    dispatch(fetchCart({ force: true }))
+    dispatch(fetchSessions({ force: true }))
     // Si cambió algún precio, el descuento del cupón también: lo recalcula el back con el carrito nuevo
     if (coupon?.valid) applyCoupon(coupon.code)
   }
 
+  // El cupón aplicado es estado local de esta página; la validación (GET) la hace el back con el carrito actual
   const applyCoupon = (code) => {
-    validateCoupon(code)
+    dispatch(validateCoupon(code))
+      .unwrap()
       .then((data) => setCoupon(data))
-      .catch((couponError) => notify(couponError.message, 'error'))
+      .catch((couponError) => dispatch(showToast(couponError.message, 'error')))
   }
 
   // Si cambia el carrito, el back vuelve a calcular el descuento del cupón
   const changeQuantity = (line, quantity) =>
-    cart
-      .updateQuantity(line.id, quantity)
+    dispatch(updateCartItem({ itemId: line.id, quantity }))
+      .unwrap()
       .then(() => coupon?.valid && applyCoupon(coupon.code))
-      .catch((quantityError) => notify(quantityError.message, 'error'))
+      .catch((quantityError) => dispatch(showToast(quantityError.message, 'error')))
 
   return (
     <div className="container page">
@@ -193,7 +201,7 @@ function CheckoutPage() {
                 setMethod(value)
                 setSubmitted(false)
               }}
-              savedCards={savedCards.cards}
+              savedCards={savedCards}
               card={card}
               cardErrors={visibleCardErrors}
               onCardChange={(patch) => setCard((current) => ({ ...current, ...patch }))}

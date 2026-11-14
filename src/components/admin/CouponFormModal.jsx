@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { useToast } from '../../hooks/useToast'
-import { createCoupon, updateCoupon } from '../../services/couponsService'
+import { useDispatch } from 'react-redux'
+import { createCoupon, updateCoupon } from '../../redux/couponsSlice'
+import { showToast } from '../../redux/toastsSlice'
 import { daysFromToday } from '../../utils/dates'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
 
-/** Crear o editar un cupón. Le pasa al padre el cupón guardado (onSaved). */
-function CouponFormModal({ coupon, coupons, onSaved, onClose }) {
-  const notify = useToast()
+/** Crear (POST) o editar (PUT) un cupón. El reducer lo agrega o lo reemplaza en el store. */
+function CouponFormModal({ coupon, coupons, onClose }) {
+  const dispatch = useDispatch()
   const [form, setForm] = useState({
     code: coupon?.code ?? '',
     percentage: coupon?.percentage ?? 10,
@@ -40,11 +41,11 @@ function CouponFormModal({ coupon, coupons, onSaved, onClose }) {
       active: form.active,
     }
     setSending(true)
-    const request = coupon ? updateCoupon(coupon.id, data) : createCoupon(data)
+    const request = coupon ? dispatch(updateCoupon({ id: coupon.id, ...data })) : dispatch(createCoupon(data))
     request
-      .then((saved) => {
-        onSaved(saved)
-        notify(coupon ? 'Cupón actualizado' : 'Cupón creado')
+      .unwrap()
+      .then(() => {
+        dispatch(showToast(coupon ? 'Cupón actualizado' : 'Cupón creado'))
         onClose()
       })
       .catch((saveError) => {

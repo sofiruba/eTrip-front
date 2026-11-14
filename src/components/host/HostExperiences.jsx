@@ -1,18 +1,17 @@
 import { useState } from 'react'
 import { CalendarDays, Eye, Pencil, Percent, Plus, Store, Trash2 } from 'lucide-react'
-import { useCatalog } from '../../hooks/useCatalog'
-import { useToast } from '../../hooks/useToast'
-import { deleteExperience } from '../../services/experiencesService'
+import { useDispatch } from 'react-redux'
+import { deleteExperience } from '../../redux/experiencesSlice'
+import { showToast } from '../../redux/toastsSlice'
 import ExperienceCard from '../experience/ExperienceCard'
 import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import EmptyState from '../ui/EmptyState'
 import DiscountModal from './DiscountModal'
 
-/** Las experiencias del anfitrión. `setExperiences` es la función del padre para actualizar la lista. */
-function HostExperiences({ experiences, bookings, setExperiences }) {
-  const notify = useToast()
-  const { reload: reloadCatalog } = useCatalog() // lo que cambia acá también cambia el catálogo público
+/** Las experiencias del anfitrión. Los cambios se despachan al store: el padre (suscripto) recibe la lista actualizada. */
+function HostExperiences({ experiences, bookings }) {
+  const dispatch = useDispatch()
   const [deleting, setDeleting] = useState(null)
   const [discounting, setDiscounting] = useState(null)
 
@@ -21,7 +20,7 @@ function HostExperiences({ experiences, bookings, setExperiences }) {
 
   const askDelete = (experience) => {
     if (hasActiveBookings(experience.id)) {
-      notify('No podés eliminarla: tiene reservas próximas.', 'error')
+      dispatch(showToast('No podés eliminarla: tiene reservas próximas.', 'error'))
       return
     }
     setDeleting(experience)
@@ -62,28 +61,19 @@ function HostExperiences({ experiences, bookings, setExperiences }) {
       </div>
 
       {discounting && (
-        <DiscountModal
-          experience={discounting}
-          onSaved={(updated) => {
-            setExperiences((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-            reloadCatalog()
-          }}
-          onClose={() => setDiscounting(null)}
-        />
+        <DiscountModal experience={discounting} onClose={() => setDiscounting(null)} />
       )}
 
       {deleting && (
         <ConfirmDialog
           title="¿Eliminar experiencia?"
           message={`“${deleting.title}” se elimina junto con sus fechas, sus reservas pasadas y sus reseñas. No se puede deshacer.`}
+          // DELETE: los reducers la sacan de las listas (y sus fechas, reservas pasadas y reseñas)
           onConfirm={() =>
-            deleteExperience(deleting.id)
-              .then(() => {
-                setExperiences((current) => current.filter((item) => item.id !== deleting.id))
-                reloadCatalog()
-                notify('Experiencia eliminada', 'info')
-              })
-              .catch((error) => notify(error.message, 'error'))
+            dispatch(deleteExperience(deleting))
+              .unwrap()
+              .then(() => dispatch(showToast('Experiencia eliminada', 'info')))
+              .catch((error) => dispatch(showToast(error.message, 'error')))
           }
           onClose={() => setDeleting(null)}
         />

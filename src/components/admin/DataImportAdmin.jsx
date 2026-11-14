@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { CircleAlert, CircleCheck, CircleMinus, Download, FileUp, Upload } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import sampleData from '../../data/sampleData.json'
-import { useCatalog } from '../../hooks/useCatalog'
-import { useToast } from '../../hooks/useToast'
-import { importData } from '../../services/importService'
+import { importData } from '../../redux/importSlice'
+import { showToast } from '../../redux/toastsSlice'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import Notice from '../ui/Notice'
@@ -14,17 +14,14 @@ const LOG_ICONS = { ok: CircleCheck, skip: CircleMinus, error: CircleAlert }
 
 /**
  * Carga datos de prueba desde un JSON (categorías, cupones, usuarios con sus experiencias y fechas).
- * No toca el back: usa los mismos endpoints que el resto de la app (ver services/importService.js).
+ * No toca el back: usa los mismos endpoints que el resto de la app (ver redux/importSlice.js).
+ * El progreso (`log`) está en el estado global: cada paso que termina se ve acá enseguida.
  */
 function DataImportAdmin() {
-  const notify = useToast()
-  const { reload: reloadCatalog } = useCatalog() // lo que cambia acá también cambia el catálogo público
+  const dispatch = useDispatch()
+  const { log, running } = useSelector((state) => state.dataImport)
   const [text, setText] = useState(SAMPLE_TEXT)
   const [error, setError] = useState('')
-  const [log, setLog] = useState([])
-  const [running, setRunning] = useState(false)
-
-  const addLog = (message, type) => setLog((current) => [...current, { message, type }])
 
   // Lee un archivo .json elegido por el usuario
   const loadFile = (event) => {
@@ -56,15 +53,11 @@ function DataImportAdmin() {
       return setError('El texto no es un JSON válido. Revisá comas, comillas y llaves.')
     }
     setError('')
-    setLog([])
-    setRunning(true)
-    return importData(data, addLog)
-      .then(() => {
-        reloadCatalog()
-        notify('Carga terminada')
-      })
-      .catch((importError) => addLog(importError.message, 'error'))
-      .then(() => setRunning(false))
+    // Al terminar, el thunk vuelve a pedir lo que cambió (catálogo, categorías…). Si algo falla, queda en el log
+    return dispatch(importData(data))
+      .unwrap()
+      .then(() => dispatch(showToast('Carga terminada')))
+      .catch(() => dispatch(showToast('La carga no terminó: revisá el detalle', 'error')))
   }
 
   return (

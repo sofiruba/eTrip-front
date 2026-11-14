@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useToast } from '../../hooks/useToast'
-import { updateDiscount } from '../../services/experiencesService'
+import { useDispatch } from 'react-redux'
+import { updateDiscount } from '../../redux/experiencesSlice'
+import { showToast } from '../../redux/toastsSlice'
 import { formatMoney } from '../../utils/format'
 import { getFinalPrice } from '../../utils/orders'
 import Button from '../ui/Button'
@@ -11,9 +12,12 @@ import Modal from '../ui/Modal'
 const MAX_DISCOUNT = 90
 const PRESETS = [0, 10, 15, 20, 30]
 
-/** Cambia solo el descuento de una experiencia (PATCH /experiences/{id}/discount). */
-function DiscountModal({ experience, onSaved, onClose }) {
-  const notify = useToast()
+/**
+ * Cambia solo el descuento de una experiencia (PATCH /experiences/{id}/discount: se manda solo el campo que cambia).
+ * El reducer reemplaza la experiencia en el store, así el modo anfitrión y el catálogo muestran el precio nuevo.
+ */
+function DiscountModal({ experience, onClose }) {
+  const dispatch = useDispatch()
   const [value, setValue] = useState(String(experience.discountPercentage ?? 0))
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false) // evita mandar dos veces el mismo PATCH
@@ -25,10 +29,10 @@ function DiscountModal({ experience, onSaved, onClose }) {
     event.preventDefault()
     if (!valid) return setError(`Ingresá un número entero entre 0 y ${MAX_DISCOUNT}.`)
     setSending(true)
-    return updateDiscount(experience.id, percentage)
-      .then((updated) => {
-        onSaved(updated)
-        notify(percentage ? `Descuento del ${percentage}% aplicado` : 'Descuento quitado')
+    return dispatch(updateDiscount({ id: experience.id, discountPercentage: percentage }))
+      .unwrap()
+      .then(() => {
+        dispatch(showToast(percentage ? `Descuento del ${percentage}% aplicado` : 'Descuento quitado'))
         onClose()
       })
       .catch((discountError) => {

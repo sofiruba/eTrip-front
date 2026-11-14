@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useToast } from '../../hooks/useToast'
-import { refundBooking } from '../../services/bookingsService'
+import { useDispatch } from 'react-redux'
+import { refundBooking } from '../../redux/bookingsSlice'
+import { showToast } from '../../redux/toastsSlice'
 import { formatMoney, formatSessionDate } from '../../utils/format'
 import { getRefundAmount } from '../../utils/orders'
 import Button from '../ui/Button'
@@ -8,21 +9,22 @@ import Modal from '../ui/Modal'
 import Notice from '../ui/Notice'
 
 /**
- * Pide el reembolso al back (POST /bookings/{id}/refund) y le pasa al padre la reserva actualizada (onRefunded).
+ * Pide el reembolso al back (POST /bookings/{id}/refund). Con la reserva que devuelve, los reducers actualizan
+ * la reserva, la orden y los lugares de la fecha (que vuelven a estar disponibles) sin volver a pedir nada.
  * El back vuelve a chequear la política de 48 h: si ya pasó el plazo, se muestra su mensaje.
  */
-function RefundModal({ booking, order, onRefunded, onClose }) {
-  const notify = useToast()
+function RefundModal({ booking, order, onClose }) {
+  const dispatch = useDispatch()
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
 
   const handleSubmit = (event) => {
     event.preventDefault()
     setSending(true)
-    return refundBooking(booking.id)
-      .then((updated) => {
-        onRefunded(updated)
-        notify('Reembolso confirmado. Te devolvemos el dinero en 5 a 10 días hábiles.')
+    return dispatch(refundBooking(booking.id))
+      .unwrap()
+      .then(() => {
+        dispatch(showToast('Reembolso confirmado. Te devolvemos el dinero en 5 a 10 días hábiles.'))
         onClose()
       })
       .catch((refundError) => {

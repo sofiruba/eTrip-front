@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
 import UpcomingPlans from '../components/booking/UpcomingPlans'
 import CatalogFilters from '../components/experience/CatalogFilters'
@@ -8,11 +9,12 @@ import DealsSection from '../components/home/DealsSection'
 import HomeHero from '../components/home/HomeHero'
 import HostInvite from '../components/home/HostInvite'
 import SectionHeader from '../components/ui/SectionHeader'
-import { useAuth } from '../hooks/useAuth'
-import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { getBookings } from '../services/bookingsService'
-import { searchExperiences } from '../services/experiencesService'
+import { selectIsAdmin, selectUser } from '../redux/authSlice'
+import { fetchBookings } from '../redux/bookingsSlice'
+import { fetchCategories } from '../redux/categoriesSlice'
+import { fetchExperiences, searchExperiences, selectCatalog, selectCatalogStatus } from '../redux/experiencesSlice'
+import { fetchSessions } from '../redux/sessionsSlice'
 import { addBookingInfo, splitBookings } from '../utils/bookings'
 import { applyFilters, PAGE_SIZE, readFilters, toBackQuery } from '../utils/catalogFilters'
 import { addSessionInfo, sortExperiences } from '../utils/experiences'
@@ -23,62 +25,47 @@ const MAX_DEALS = 4
 
 /** Inicio: buscador, próximos planes, catálogo con filtros (guardados en la URL) y ofertas. */
 function HomePage() {
-  const { experiences, sessions, categories, loading, error, reload } = useCatalog()
-  const { user, isAdmin } = useAuth()
+  const dispatch = useDispatch()
+  // useSelector: el Home se suscribe a las partes del estado global que muestra.
+  // El catálogo ya está en el store (se pidió una sola vez al abrir la app, en App.jsx)
+  const experiences = useSelector(selectCatalog)
+  const sessions = useSelector((state) => state.sessions.items)
+  const categories = useSelector((state) => state.categories.items)
+  const { loading, error } = useSelector(selectCatalogStatus)
+  const user = useSelector(selectUser)
+  const isAdmin = useSelector(selectIsAdmin)
+  const myBookings = useSelector((state) => state.bookings.items)
   const [params, setParams] = useSearchParams()
-  const [myBookings, setMyBookings] = useState([])
-  // Última búsqueda que respondió el back: { query, results, error }
-  const [search, setSearch] = useState({ query: '', results: [], error: '' })
-  const [attempt, setAttempt] = useState(0) // "Reintentar" lo incrementa para repetir la búsqueda
   const resultsRef = useRef(null)
   useDocumentTitle(null)
 
   const filters = readFilters(params)
   const backQuery = toBackQuery(filters)
+  // Resultado guardado de esta búsqueda: { items, loading, error }, o undefined si todavía no se pidió
+  const search = useSelector((state) => state.experiences.searches[backQuery])
 
-  // La búsqueda la resuelve el back con TODOS los filtros (toBackQuery): cada vez que cambian (están en el array
-  // de dependencias) se vuelve a pedir. Si cambian antes de que llegue la respuesta, la vieja se descarta (limpieza).
+  // Con filtros, la búsqueda la resuelve el back. Cada búsqueda queda guardada en el store con su query:
+  // si se vuelve a una que ya se hizo, no se repite el GET.
   useEffect(() => {
-    if (!backQuery) return undefined
-    let ignore = false
-    searchExperiences(backQuery)
-      .then((results) => {
-        if (!ignore) setSearch({ query: backQuery, results, error: '' })
-      })
-      .catch((searchError) => {
-        if (!ignore) setSearch({ query: backQuery, results: [], error: searchError.message })
-      })
-    return () => {
-      ignore = true
-    }
-  }, [backQuery, attempt])
+    if (backQuery && !search) dispatch(searchExperiences(backQuery))
+  }, [backQuery, search, dispatch])
 
-  // Cada vez que se entra al Home se vuelve a pedir el catálogo: así aparece lo que publicaron
-  // o compraron otras personas desde que se abrió la app (mientras llega, se ve lo que ya estaba).
-  // Si se entra justo al abrir la app, el catálogo ya se está pidiendo: no lo pedimos dos veces.
-  const [firstVisit] = useState(loading)
-  useEffect(() => {
-    if (!firstVisit) reload()
-  }, [firstVisit, reload])
-
-  // Las reservas del usuario se piden cuando inicia sesión (por eso userId va en las dependencias)
+  // Mis reservas (para "Tus próximos planes"): una sola vez, cuando hay un cliente logueado
   const userId = user?.id
   useEffect(() => {
-    if (!userId || isAdmin) return
-    getBookings()
-      .then((data) => setMyBookings(data))
-      .catch((error) => console.error('Error al traer tus reservas:', error))
-  }, [userId, isAdmin])
+    if (userId && !isAdmin) dispatch(fetchBookings())
+  }, [userId, isAdmin, dispatch])
 
   // Sin filtros se usa el catálogo que ya está cargado (no hace falta otro pedido).
   // El front no filtra nada: solo ordena lo que mandó el back y lo muestra de a una página ("Ver más")
-  const searching = Boolean(backQuery) && search.query !== backQuery
-  const base = backQuery ? addSessionInfo(searching ? [] : search.results, sessions) : experiences
+  const searching = Boolean(backQuery) && (!search || search.loading)
+  const base = backQuery ? addSessionInfo(search?.items ?? [], sessions) : experiences
   const results = sortExperiences(base, filters.sort)
   const visible = results.slice(0, (filters.page + 1) * PAGE_SIZE)
   const hasFilters = [...params.keys()].some((key) => !['orden', 'page'].includes(key))
   const deals = experiences.filter((experience) => experience.discountPercentage > 0 && experience.nextSession).slice(0, MAX_DEALS)
-  const upcoming = user ? splitBookings(addBookingInfo(myBookings, experiences)).upcoming : []
+  // El admin no compra: sus "reservas" en el store son las de todo el sitio
+  const upcoming = user && !isAdmin ? splitBookings(addBookingInfo(myBookings, experiences)).upcoming : []
   const sectionTitle = filters.location ? `Planes en ${filters.location}` : filters.title ? `Resultados para “${filters.title}”` : '¿Qué plan pinta?'
 
   // Cualquier cambio de filtro vuelve a la primera página
@@ -114,10 +101,13 @@ function HomePage() {
         />
         <CatalogResults
           loading={loading || searching}
-          error={error || (backQuery ? search.error : '')}
+          error={error || (backQuery ? (search?.error ?? '') : '')}
+          // Reintentar: se vuelve a despachar lo que falló (lo que ya se cargó bien no se repite)
           onRetry={() => {
-            reload()
-            setAttempt((current) => current + 1)
+            dispatch(fetchExperiences())
+            dispatch(fetchSessions())
+            dispatch(fetchCategories())
+            if (backQuery) dispatch(searchExperiences(backQuery))
           }}
           visible={visible}
           total={results.length}

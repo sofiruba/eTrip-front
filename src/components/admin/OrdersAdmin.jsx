@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Ban, Eye, Receipt } from 'lucide-react'
-import { cancelOrder, getOrders } from '../../services/ordersService'
-import { getUsers } from '../../services/usersService'
+import { useDispatch, useSelector } from 'react-redux'
+import { cancelOrder, fetchOrders } from '../../redux/ordersSlice'
+import { showToast } from '../../redux/toastsSlice'
+import { fetchUsers } from '../../redux/usersSlice'
 import { formatFullDate, formatMoney, fullName, normalizeText, pluralize } from '../../utils/format'
 import VoucherCard from '../booking/VoucherCard'
 import Badge from '../ui/Badge'
@@ -9,11 +11,11 @@ import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
 import EmptyState from '../ui/EmptyState'
+import ErrorState from '../ui/ErrorState'
 import IconButton from '../ui/IconButton'
+import Loading from '../ui/Loading'
 import AdminToolbar from './AdminToolbar'
 import DetailModal from './DetailModal'
-import { useCatalog } from '../../hooks/useCatalog'
-import { useToast } from '../../hooks/useToast'
 
 // Estado que calcula el back según las reservas de la orden → texto y color de la etiqueta
 const ORDER_STATUS = {
@@ -24,26 +26,19 @@ const ORDER_STATUS = {
 const statusOf = (order) => ORDER_STATUS[order.status] ?? ORDER_STATUS.PAID
 
 function OrdersAdmin() {
-  const [orders, setOrders] = useState([])
-  const [users, setUsers] = useState([])
+  const dispatch = useDispatch()
+  // Cada orden ya trae sus reservas adentro
+  const { items: orders, loaded, error } = useSelector((state) => state.orders)
+  const users = useSelector((state) => state.users.items) // para mostrar el nombre de quien compró
   const [selected, setSelected] = useState(null)
   const [cancelling, setCancelling] = useState(null)
-  const notify = useToast()
-  const { refreshSessions } = useCatalog() // cancelar una orden devuelve lugares: el catálogo tiene que enterarse
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('')
 
   useEffect(() => {
-    // Cada orden ya trae sus reservas adentro
-    getOrders()
-      .then((data) => setOrders(data))
-      .catch((error) => console.error('Error al traer las órdenes:', error))
-
-    // Para mostrar el nombre de quien compró
-    getUsers()
-      .then((data) => setUsers(data))
-      .catch((error) => console.error('Error al traer los usuarios:', error))
-  }, [])
+    dispatch(fetchOrders())
+    dispatch(fetchUsers())
+  }, [dispatch])
 
   const buyerOf = (order) => {
     const buyer = users.find((user) => user.id === order.userId)
@@ -60,6 +55,9 @@ function OrdersAdmin() {
       return true
     })
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+  if (error) return <ErrorState message={error} onRetry={() => dispatch(fetchOrders())} />
+  if (!loaded) return <Loading />
 
   return (
     <>
@@ -173,15 +171,15 @@ function OrdersAdmin() {
           title={`¿Cancelar la orden #${cancelling.id}?`}
           message="Se reembolsan todas sus reservas que todavía no empezaron y se liberan los lugares. Las que ya pasaron quedan como están. Cada comprador recibe un aviso."
           confirmLabel="Cancelar orden"
+          // Los reducers reemplazan la orden, sus reservas y le devuelven los lugares a cada fecha
           onConfirm={() =>
-            cancelOrder(cancelling.id)
-              .then((updated) => {
-                setOrders((current) => current.map((order) => (order.id === updated.id ? updated : order)))
+            dispatch(cancelOrder(cancelling.id))
+              .unwrap()
+              .then(() => {
                 setSelected(null)
-                refreshSessions()
-                notify('Orden cancelada y reservas reembolsadas')
+                dispatch(showToast('Orden cancelada y reservas reembolsadas'))
               })
-              .catch((error) => notify(error.message, 'error'))
+              .catch((cancelError) => dispatch(showToast(cancelError.message, 'error')))
           }
           onClose={() => setCancelling(null)}
         />

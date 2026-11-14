@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Check } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Navigate, useLocation, useParams } from 'react-router-dom'
 import VoucherCard from '../components/booking/VoucherCard'
 import CheckoutSteps from '../components/checkout/CheckoutSteps'
@@ -8,32 +9,31 @@ import Button from '../components/ui/Button'
 import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { getOrder } from '../services/ordersService'
+import { fetchOrderById, selectOrderById } from '../redux/ordersSlice'
 import { formatMoney, formatSessionDate } from '../utils/format'
 import './CheckoutSuccessPage.css'
 
 function CheckoutSuccessPage() {
   const { orderId } = useParams()
   const { state } = useLocation()
-  const [order, setOrder] = useState(null)
-  const [failed, setFailed] = useState(false)
-  const [error, setError] = useState('')
+  const dispatch = useDispatch()
+  const order = useSelector((store) => selectOrderById(store, orderId))
+  const detail = useSelector((store) => store.orders.details[orderId])
   useDocumentTitle('Compra confirmada')
 
-  // Traemos la orden recién creada (así funciona aunque se recargue la página)
+  // Recién comprada, la orden ya está en el store (la guardó createOrder): no hace falta pedirla.
+  // Solo se pide si se recargó la página (la condición del thunk evita el GET si ya la tenemos)
   useEffect(() => {
-    getOrder(orderId)
-      .then((data) => setOrder(data))
-      .catch((orderError) => ([403, 404].includes(orderError.status) ? setFailed(true) : setError(orderError.message)))
-  }, [orderId])
+    dispatch(fetchOrderById(orderId))
+  }, [orderId, dispatch])
 
   // Orden inexistente o de otro usuario
-  if (failed) return <Navigate to="/mis-reservas" replace />
+  if (detail?.notFound) return <Navigate to="/mis-reservas" replace />
   // La compra ya se hizo: si no podemos mostrar el detalle, igual se puede ver en Mis reservas
-  if (error) {
+  if (detail?.error) {
     return (
       <div className="container page page--narrow">
-        <ErrorState title="Tu compra se hizo, pero no pudimos mostrar el detalle" message={error}>
+        <ErrorState title="Tu compra se hizo, pero no pudimos mostrar el detalle" message={detail.error}>
           <Button to="/mis-reservas">Ver mis reservas</Button>
         </ErrorState>
       </div>

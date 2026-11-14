@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { CalendarCheck } from 'lucide-react'
-import { useCatalog } from '../../hooks/useCatalog'
-import { useToast } from '../../hooks/useToast'
-import { getBookings, refundBooking } from '../../services/bookingsService'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchBookings, refundBooking } from '../../redux/bookingsSlice'
+import { showToast } from '../../redux/toastsSlice'
 import { addBookingInfo, getBookingStatus } from '../../utils/bookings'
 import { formatSessionDate, normalizeText } from '../../utils/format'
 import Badge from '../ui/Badge'
@@ -10,6 +10,8 @@ import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
 import EmptyState from '../ui/EmptyState'
+import ErrorState from '../ui/ErrorState'
+import Loading from '../ui/Loading'
 import AdminToolbar from './AdminToolbar'
 
 const STATUS_FILTERS = [
@@ -20,18 +22,16 @@ const STATUS_FILTERS = [
 ]
 
 function BookingsAdmin() {
-  const [bookings, setBookings] = useState([])
-  const notify = useToast()
-  const { refreshSessions } = useCatalog() // un reembolso devuelve lugares: el catálogo tiene que enterarse
+  const dispatch = useDispatch()
+  // Como admin, el slice de reservas tiene las de todo el sitio
+  const { items: bookings, loaded, error } = useSelector((state) => state.bookings)
   const [refunding, setRefunding] = useState(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
 
   useEffect(() => {
-    getBookings()
-      .then((data) => setBookings(data))
-      .catch((error) => notify(error.message, 'error'))
-  }, [notify])
+    dispatch(fetchBookings())
+  }, [dispatch])
 
   const query = normalizeText(search.trim())
   const all = addBookingInfo(bookings).reverse()
@@ -39,6 +39,9 @@ function BookingsAdmin() {
     .map((booking) => ({ ...booking, status: getBookingStatus(booking) }))
     .filter((booking) => normalizeText(`${booking.experienceTitle} ${booking.buyerName} ${booking.voucherCode}`).includes(query))
     .filter((booking) => !status || booking.status.label === status)
+
+  if (error) return <ErrorState message={error} onRetry={() => dispatch(fetchBookings())} />
+  if (!loaded) return <Loading />
 
   return (
     <>
@@ -95,14 +98,12 @@ function BookingsAdmin() {
           title="¿Reembolsar reserva?"
           message={`Se anula el voucher ${refunding.voucherCode} de ${refunding.buyerName} y se liberan los lugares. Como administrador podés reembolsar aunque falten menos de 48 h.`}
           confirmLabel="Reembolsar"
+          // Los reducers actualizan la reserva, su orden y los lugares de la fecha (el catálogo se entera solo)
           onConfirm={() =>
-            refundBooking(refunding.id)
-              .then((updated) => {
-                setBookings((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-                refreshSessions()
-                notify('Reserva reembolsada: los lugares vuelven a estar disponibles')
-              })
-              .catch((error) => notify(error.message, 'error'))
+            dispatch(refundBooking(refunding.id))
+              .unwrap()
+              .then(() => dispatch(showToast('Reserva reembolsada: los lugares vuelven a estar disponibles')))
+              .catch((refundError) => dispatch(showToast(refundError.message, 'error')))
           }
           onClose={() => setRefunding(null)}
         />

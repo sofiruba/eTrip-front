@@ -1,11 +1,13 @@
 import { ArrowRight } from 'lucide-react'
-import { useAuth } from '../../hooks/useAuth'
+import { useDispatch, useSelector } from 'react-redux'
+import { openAuth } from '../../redux/authSlice'
 import Button from '../ui/Button'
 import './HostInvite.css'
 
 /** Invitación a publicar una experiencia. Sin sesión, primero pide registrarse. */
 function HostInvite() {
-  const { user, openAuth } = useAuth()
+  const dispatch = useDispatch()
+  const user = useSelector((state) => state.auth.user)
 
   return (
     <section className="section host-invite card">
@@ -17,7 +19,7 @@ function HostInvite() {
           de su ciudad o de visita.
         </p>
       </div>
-      <Button iconRight={ArrowRight} {...(user ? { to: '/anfitrion' } : { onClick: () => openAuth('register', '/anfitrion') })}>
+      <Button iconRight={ArrowRight} {...(user ? { to: '/anfitrion' } : { onClick: () => dispatch(openAuth('register', '/anfitrion')) })}>
         Publicá tu experiencia
       </Button>
     </section>

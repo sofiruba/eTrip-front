@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CalendarHeart, History, RotateCcw } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import BookingCard from '../components/booking/BookingCard'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
@@ -7,31 +8,23 @@ import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import Tabs from '../components/ui/Tabs'
-import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { getBookings } from '../services/bookingsService'
+import { fetchBookings } from '../redux/bookingsSlice'
 import { addBookingInfo, splitBookings } from '../utils/bookings'
 import './MyBookingsPage.css'
 
 function MyBookingsPage() {
   useDocumentTitle('Mis reservas')
-  const { experiences } = useCatalog() // para la foto y el lugar de cada reserva (ya están cargadas)
-  const [bookings, setBookings] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [attempt, setAttempt] = useState(0) // "Reintentar" lo incrementa y el efecto vuelve a pedir
+  const dispatch = useDispatch()
+  // Nos suscribimos a las tres propiedades del slice de reservas
+  const { items: bookings, loaded, error } = useSelector((state) => state.bookings)
+  const experiences = useSelector((state) => state.experiences.items) // para la foto y el lugar de cada reserva
   const [tab, setTab] = useState('upcoming')
 
-  // Al entrar: mis reservas. Si el back falla se muestra el error, no "no tenés reservas"
+  // Al entrar: mis reservas. Una sola vez por sesión: una compra nueva se suma sola (reducer de createOrder)
   useEffect(() => {
-    getBookings()
-      .then((data) => {
-        setBookings(data)
-        setError('')
-      })
-      .catch((loadError) => setError(loadError.message))
-      .then(() => setLoading(false))
-  }, [attempt])
+    dispatch(fetchBookings())
+  }, [dispatch])
 
   const groups = splitBookings(addBookingInfo(bookings, experiences))
   const visible = groups[tab]
@@ -51,10 +44,11 @@ function MyBookingsPage() {
       />
 
       <div className="my-bookings__list">
-        {loading ? (
+        {/* Si el back falla se muestra el error, no "no tenés reservas" */}
+        {error ? (
+          <ErrorState title="No pudimos cargar tus reservas" message={error} onRetry={() => dispatch(fetchBookings())} />
+        ) : !loaded ? (
           <Loading />
-        ) : error ? (
-          <ErrorState title="No pudimos cargar tus reservas" message={error} onRetry={() => setAttempt((current) => current + 1)} />
         ) : visible.length ? (
           <div className="booking-list">
             {visible.map((booking) => (

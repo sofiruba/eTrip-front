@@ -1,7 +1,8 @@
 import { useRef } from 'react'
 import { Camera } from 'lucide-react'
-import { useAuth } from '../../hooks/useAuth'
-import { useToast } from '../../hooks/useToast'
+import { useDispatch, useSelector } from 'react-redux'
+import { selectUser, updateProfileExtras } from '../../redux/authSlice'
+import { showToast } from '../../redux/toastsSlice'
 import { fullName } from '../../utils/format'
 import Avatar from '../ui/Avatar'
 import './AvatarUploader.css'
@@ -12,7 +13,8 @@ const TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const AVATAR_SIZE = 320
 
 /**
- * Achica la foto antes de guardarla. localStorage tiene ~5 MB para todo el sitio: una foto de celular
+ * Achica la foto antes de guardarla. La foto queda en el estado global, que redux-persist guarda en el localStorage
+ * (~5 MB para todo el sitio): una foto de celular
  * en base64 no entraba, no se guardaba (sin avisar) y desde ahí tampoco se guardaba el resto del perfil.
  * Devuelve una promesa con el data URL (JPEG de pocos KB).
  */
@@ -40,31 +42,31 @@ function shrinkPhoto(file) {
   })
 }
 
-/** Foto de perfil. El back no guarda fotos de usuario: queda guardada en este navegador. */
+/** Foto de perfil. El back no guarda fotos de usuario: queda en el estado global, persistida en este navegador. */
 // `buttonRef` deja que el padre abra el selector de foto (por ejemplo, desde "Completá tu perfil")
 function AvatarUploader({ buttonRef }) {
-  const { user, updateProfile } = useAuth()
-  const notify = useToast()
+  const dispatch = useDispatch()
+  const user = useSelector(selectUser)
   const inputRef = useRef(null)
 
   const handleFile = (event) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (!TYPES.includes(file.type)) return notify('Usá una foto JPG, PNG o WEBP.', 'error')
-    if (file.size > MAX_MB * 1024 * 1024) return notify(`La foto puede pesar hasta ${MAX_MB} MB.`, 'error')
+    if (!TYPES.includes(file.type)) return dispatch(showToast('Usá una foto JPG, PNG o WEBP.', 'error'))
+    if (file.size > MAX_MB * 1024 * 1024) return dispatch(showToast(`La foto puede pesar hasta ${MAX_MB} MB.`, 'error'))
 
     return shrinkPhoto(file)
       .then((avatarUrl) => {
-        updateProfile({ avatarUrl })
-        notify('Foto de perfil actualizada')
+        dispatch(updateProfileExtras({ avatarUrl }))
+        dispatch(showToast('Foto de perfil actualizada'))
       })
-      .catch(() => notify('No pudimos leer la foto. Probá con otra.', 'error'))
+      .catch(() => dispatch(showToast('No pudimos leer la foto. Probá con otra.', 'error')))
   }
 
   const removePhoto = () => {
-    updateProfile({ avatarUrl: null })
-    notify('Quitaste tu foto de perfil', 'info')
+    dispatch(updateProfileExtras({ avatarUrl: null }))
+    dispatch(showToast('Quitaste tu foto de perfil', 'info'))
   }
 
   return (

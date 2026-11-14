@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { useCatalog } from '../../hooks/useCatalog'
-import { useToast } from '../../hooks/useToast'
-import { deleteCategory, getCategories } from '../../services/categoriesService'
-import { getAllExperiences } from '../../services/experiencesService'
+import { useDispatch, useSelector } from 'react-redux'
+import { deleteCategory, fetchCategories } from '../../redux/categoriesSlice'
+import { fetchManagedExperiences } from '../../redux/experiencesSlice'
+import { showToast } from '../../redux/toastsSlice'
 import { normalizeText, pluralize } from '../../utils/format'
 import { getCategoryIcon } from '../experience/categoryIcons'
 import Button from '../ui/Button'
@@ -14,24 +14,19 @@ import AdminToolbar from './AdminToolbar'
 import CategoryFormModal from './CategoryFormModal'
 
 function CategoriesAdmin() {
-  const [categories, setCategories] = useState([])
-  const [experiences, setExperiences] = useState([])
-  const notify = useToast()
-  const { reload: reloadCatalog } = useCatalog() // lo que cambia acá también cambia el catálogo público
+  const dispatch = useDispatch()
+  // Las categorías ya están en el store (se pidieron al abrir la app): son las mismas que ve el catálogo público
+  const categories = useSelector((state) => state.categories.items)
+  // Para saber cuántas experiencias usa cada categoría (todas, también las pausadas)
+  const experiences = useSelector((state) => state.experiences.managed.items)
   const [editing, setEditing] = useState(null) // categoría, 'new' o null
   const [deleting, setDeleting] = useState(null)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    getCategories()
-      .then((data) => setCategories(data))
-      .catch((error) => notify(error.message, 'error'))
-
-    // Para saber cuántas experiencias usa cada categoría
-    getAllExperiences()
-      .then((data) => setExperiences(data))
-      .catch((error) => console.error('Error al traer las experiencias:', error))
-  }, [notify])
+    dispatch(fetchCategories())
+    dispatch(fetchManagedExperiences())
+  }, [dispatch])
 
   const usage = (categoryId) => experiences.filter((experience) => experience.categoryId === categoryId).length
 
@@ -40,7 +35,7 @@ function CategoriesAdmin() {
   )
 
   const askDelete = (category) => {
-    if (usage(category.id)) return notify('No se puede eliminar: tiene experiencias asociadas.', 'error')
+    if (usage(category.id)) return dispatch(showToast('No se puede eliminar: tiene experiencias asociadas.', 'error'))
     return setDeleting(category)
   }
 
@@ -88,32 +83,17 @@ function CategoriesAdmin() {
       />
 
       {editing && (
-        <CategoryFormModal
-          category={editing === 'new' ? null : editing}
-          categories={categories}
-          onSaved={(saved) => {
-            setCategories((current) =>
-              current.some((item) => item.id === saved.id)
-                ? current.map((item) => (item.id === saved.id ? saved : item))
-                : [...current, saved],
-            )
-            reloadCatalog()
-          }}
-          onClose={() => setEditing(null)}
-        />
+        <CategoryFormModal category={editing === 'new' ? null : editing} categories={categories} onClose={() => setEditing(null)} />
       )}
       {deleting && (
         <ConfirmDialog
           title="¿Eliminar categoría?"
           message={`Vas a eliminar “${deleting.name}”.`}
           onConfirm={() =>
-            deleteCategory(deleting.id)
-              .then(() => {
-                setCategories((current) => current.filter((item) => item.id !== deleting.id))
-                reloadCatalog()
-                notify('Categoría eliminada', 'info')
-              })
-              .catch((error) => notify(error.message, 'error'))
+            dispatch(deleteCategory(deleting.id))
+              .unwrap()
+              .then(() => dispatch(showToast('Categoría eliminada', 'info')))
+              .catch((error) => dispatch(showToast(error.message, 'error')))
           }
           onClose={() => setDeleting(null)}
         />

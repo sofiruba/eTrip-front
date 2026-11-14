@@ -1,8 +1,9 @@
 import { LayoutDashboard } from 'lucide-react'
+import { useSelector } from 'react-redux'
 import { Outlet } from 'react-router-dom'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
-import { useAuth } from '../hooks/useAuth'
+import { selectIsAdmin } from '../redux/authSlice'
 
 /**
  * Secciones de cliente (carrito, compras, reservas, perfil, modo anfitrión).
@@ -10,7 +11,7 @@ import { useAuth } from '../hooks/useAuth'
  * Los invitados pasan (las rutas que piden sesión ya están dentro de RequireAuth).
  */
 function CustomerOnly() {
-  const { isAdmin } = useAuth()
+  const isAdmin = useSelector(selectIsAdmin)
 
   if (isAdmin) {
     return (

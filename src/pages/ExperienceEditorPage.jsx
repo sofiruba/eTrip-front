@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useParams } from 'react-router-dom'
 import EditorPreview from '../components/editor/EditorPreview'
 import EditorSection from '../components/editor/EditorSection'
@@ -10,56 +11,65 @@ import ConfirmDialog from '../components/ui/ConfirmDialog'
 import FormField, { FormActions } from '../components/ui/FormField'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
-import { useAuth } from '../hooks/useAuth'
-import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useToast } from '../hooks/useToast'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
-import { createExperience, getExperience, updateDiscount, updateExperience } from '../services/experiencesService'
+import { selectIsAdmin, selectUser } from '../redux/authSlice'
+import { createExperience, fetchExperienceById, updateDiscount, updateExperience } from '../redux/experiencesSlice'
+import { showToast } from '../redux/toastsSlice'
 import { toFile, toForm, validate } from '../utils/experienceForm'
 import { getDestinations } from '../utils/experiences'
 import { buildLocation, canonicalCity } from '../utils/location'
 import NotFoundPage from './NotFoundPage'
 
-/** Crear (/nueva) o editar (/:id/editar) una experiencia. */
+/**
+ * Crear (/nueva) o editar (/:id/editar) una experiencia.
+ * Esta parte trae la experiencia que se edita y decide qué mostrar; el formulario está en <ExperienceForm>.
+ */
 function ExperienceEditorPage() {
   const { id } = useParams()
-  const { user, isAdmin } = useAuth()
+  const dispatch = useDispatch()
+  const user = useSelector(selectUser)
+  const isAdmin = useSelector(selectIsAdmin)
+  // La experiencia con todas sus fotos (el catálogo solo tiene la portada): { item, loading, error }
+  const detail = useSelector((state) => (id ? state.experiences.details[id] : null))
+
+  // Si estamos editando, la pedimos (si ya estaba en el store, no se repite el GET)
+  useEffect(() => {
+    if (id) dispatch(fetchExperienceById(id))
+  }, [id, dispatch])
+
+  if (id && (!detail || detail.loading)) return <Loading />
+  const experience = detail?.item ?? null
+  // Solo el dueño o un admin pueden editarla (el back también lo controla)
+  if (detail?.error || (experience && experience.publisherId !== user.id && !isAdmin)) {
+    return <NotFoundPage title="No encontramos esta experiencia" text="Solo podés editar experiencias que publicaste vos." />
+  }
+
+  // El formulario arranca con los datos de la experiencia (o vacío, si es nueva)
+  return <ExperienceForm experience={experience} />
+}
+
+function ExperienceForm({ experience }) {
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
+  const user = useSelector(selectUser)
+  const isAdmin = useSelector(selectIsAdmin)
   // El admin edita desde su panel y vuelve ahí; el anfitrión, desde Mis experiencias
   const backTo = isAdmin ? '/admin/experiencias' : '/anfitrion/experiencias'
-  const notify = useToast()
-  const navigate = useNavigate()
-  // Las categorías del select ya están en el catálogo; reload lo actualiza después de guardar
-  const { categories, experiences, reload: reloadCatalog } = useCatalog()
-  const [existing, setExisting] = useState(null)
-  const [initialForm, setInitialForm] = useState(() => toForm(null))
+  // Las categorías del select y las ciudades ya están en el store
+  const categories = useSelector((state) => state.categories.items)
+  const experiences = useSelector((state) => state.experiences.items)
+  // Si la acabamos de crear y falló el PATCH del descuento, la seguimos editando: el reintento hace PUT y no la duplica
+  const [createdId, setCreatedId] = useState(null)
+  const created = useSelector((state) => (createdId ? state.experiences.details[createdId]?.item : null))
+  const existing = experience ?? created ?? null
+  const [initialForm, setInitialForm] = useState(() => toForm(experience))
   const [form, setForm] = useState(initialForm)
   const [errors, setErrors] = useState({})
-  const [loading, setLoading] = useState(Boolean(id))
-  const [notFound, setNotFound] = useState(false)
   const [saving, setSaving] = useState(false)
   const dirty = JSON.stringify(form) !== JSON.stringify(initialForm)
   const { blocker, allowLeave } = useUnsavedChanges(dirty && !saving)
   useDocumentTitle(existing ? `Editar ${existing.title}` : 'Nueva experiencia')
-
-  // Si estamos editando, traemos la experiencia y cargamos el formulario con sus datos
-  useEffect(() => {
-    if (!id) return
-    getExperience(id)
-      .then((data) => {
-        setExisting(data)
-        setInitialForm(toForm(data))
-        setForm(toForm(data))
-      })
-      .catch(() => setNotFound(true))
-      .then(() => setLoading(false))
-  }, [id])
-
-  if (loading) return <Loading />
-  // Solo el dueño o un admin pueden editarla (el back también lo controla)
-  if (notFound || (existing && existing.publisherId !== user.id && !isAdmin)) {
-    return <NotFoundPage title="No encontramos esta experiencia" text="Solo podés editar experiencias que publicaste vos." />
-  }
 
   const changeField = (field, value) => setForm({ ...form, [field]: value })
   const setField = (field) => (event) => changeField(field, event.target.value)
@@ -89,20 +99,26 @@ function ExperienceEditorPage() {
     if (saving) return // mientras se guarda, un segundo clic no manda otra experiencia
     setSaving(true)
     const isNew = !existing
+    // POST (nueva) o PUT (editar). Los reducers la guardan en el store: el Home y el buscador ya la muestran sin otro GET
+    const save = (files) =>
+      existing
+        ? dispatch(updateExperience({ id: existing.id, experience: data, photos: files })).unwrap()
+        : dispatch(createExperience({ experience: data, photos: files })).unwrap()
     photos
-      .then((files) => (existing ? updateExperience(existing.id, data, files) : createExperience(data, files)))
+      .then(save)
       .then((saved) => {
         // Si la creamos recién, la recordamos: si el PATCH de descuento falla y se reintenta, se edita (PUT) y no se duplica
         if (isNew) {
-          setExisting(saved)
+          setCreatedId(saved.id)
           setInitialForm(form)
         }
         // El descuento tiene su propio endpoint (PATCH): solo lo llamamos si cambió
-        return discount !== saved.discountPercentage ? updateDiscount(saved.id, discount) : saved
+        return discount !== saved.discountPercentage
+          ? dispatch(updateDiscount({ id: saved.id, discountPercentage: discount })).unwrap()
+          : saved
       })
       .then((saved) => {
-        reloadCatalog() // que el Home y el buscador ya la muestren (o muestren los cambios)
-        notify(isNew ? '¡Experiencia publicada! Ahora sumale fechas desde el calendario.' : 'Cambios guardados')
+        dispatch(showToast(isNew ? '¡Experiencia publicada! Ahora sumale fechas desde el calendario.' : 'Cambios guardados'))
         allowLeave()
         navigate(isNew ? `/anfitrion/calendario?experiencia=${saved.id}` : backTo)
       })

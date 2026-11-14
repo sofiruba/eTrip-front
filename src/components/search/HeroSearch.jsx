@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Building2, Clock, LoaderCircle, MapPin, Navigation, Search, X } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { cities } from '../../data/cities'
-import { useRecentSearches } from '../../hooks/useRecentSearches'
+import { addRecentSearch } from '../../redux/preferencesSlice'
 import { getDatePresets } from '../../utils/catalogFilters'
 import { formatShortDate, normalizeText, pluralize } from '../../utils/format'
 import { describeGuests, GUEST_TYPES, MAX_GUESTS } from '../../utils/guests'
@@ -66,7 +67,9 @@ function HeroSearch({ id, value, destinations, availableDates, experiences = [],
   const [draft, setDraft] = useState(() => toDraft(value))
   const [open, setOpen] = useState(autoFocus ? 'lugar' : null) // 'lugar' | 'fechas' | 'viajeros' | null
   const [nearby, setNearby] = useState({ status: 'idle', message: '' })
-  const { recent, add } = useRecentSearches()
+  const dispatch = useDispatch()
+  // Últimas búsquedas: solo de front, en el estado global (persistido en el navegador)
+  const recent = useSelector((state) => state.preferences.recentSearches)
   const rootRef = useRef(null)
 
   // Si la URL cambia desde afuera (quitar un chip, limpiar filtros), el borrador se resincroniza
@@ -106,7 +109,7 @@ function HeroSearch({ id, value, destinations, availableDates, experiences = [],
   const submit = (next = draft) => {
     setOpen(null)
     const search = { ...next, location: next.location.trim() }
-    add(search)
+    dispatch(addRecentSearch(search))
     // Los ceros se mandan como null para que no queden en la URL
     onSearch({ ...search, adults: search.adults || null, children: search.children || null, infants: search.infants || null })
   }

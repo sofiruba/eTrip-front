@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, Eye, Users } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../../hooks/useAuth'
-import { useToast } from '../../hooks/useToast'
-import { getAllExperiences } from '../../services/experiencesService'
-import { getUsers, updateUserRole, updateUserStatus } from '../../services/usersService'
+import { fetchManagedExperiences } from '../../redux/experiencesSlice'
+import { showToast } from '../../redux/toastsSlice'
+import { fetchUsers, updateUserRole, updateUserStatus } from '../../redux/usersSlice'
 import { fullName, normalizeText } from '../../utils/format'
 import Avatar from '../ui/Avatar'
 import Badge from '../ui/Badge'
@@ -12,6 +12,7 @@ import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
 import EmptyState from '../ui/EmptyState'
+import ErrorState from '../ui/ErrorState'
 import IconButton from '../ui/IconButton'
 import Loading from '../ui/Loading'
 import AdminToolbar from './AdminToolbar'
@@ -20,13 +21,12 @@ import DetailModal from './DetailModal'
 const ROLE_LABELS = { ADMIN: 'Admin', CLIENTE: 'Cliente' }
 
 function UsersAdmin() {
-  const [users, setUsers] = useState([])
-  const [experiences, setExperiences] = useState([])
-  const [loading, setLoading] = useState(true)
+  const dispatch = useDispatch()
+  const { items: users, loaded, error } = useSelector((state) => state.users)
+  const experiences = useSelector((state) => state.experiences.managed.items) // las que publicó cada usuario
+  const currentUser = useSelector((state) => state.auth.user)
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
-  const { user: currentUser } = useAuth()
-  const notify = useToast()
   const [selectedId, setSelectedId] = useState(null)
   const [confirming, setConfirming] = useState(null) // 'role' | 'active' | null
   const [search, setSearch] = useState('')
@@ -34,16 +34,9 @@ function UsersAdmin() {
   const [state, setState] = useState(() => params.get('estado') ?? '')
 
   useEffect(() => {
-    getUsers()
-      .then((data) => setUsers(data))
-      .catch((error) => notify(error.message, 'error'))
-      .then(() => setLoading(false))
-
-    // Para listar las experiencias de cada usuario en el detalle
-    getAllExperiences()
-      .then((data) => setExperiences(data))
-      .catch((error) => console.error('Error al traer las experiencias:', error))
-  }, [notify])
+    dispatch(fetchUsers())
+    dispatch(fetchManagedExperiences())
+  }, [dispatch])
 
   const query = normalizeText(search.trim())
   // Los contadores vienen en el UserResponseDTO del back
@@ -60,20 +53,24 @@ function UsersAdmin() {
   const isSelf = selected?.id === currentUser.id
   const hostExperiences = selected ? experiences.filter((experience) => experience.publisherId === selected.id) : []
 
-  // PATCH al back y reemplazamos el usuario en la lista con lo que devuelve
+  // PATCH al back (solo el campo que cambia): el reducer reemplaza el usuario en la lista con lo que devuelve
   const applyChange = () => {
     const nextRole = selected.role === 'ADMIN' ? 'CLIENTE' : 'ADMIN'
-    const request = confirming === 'role' ? updateUserRole(selected.id, nextRole) : updateUserStatus(selected.id, !selected.active)
+    const request =
+      confirming === 'role'
+        ? dispatch(updateUserRole({ id: selected.id, role: nextRole }))
+        : dispatch(updateUserStatus({ id: selected.id, active: !selected.active }))
     return request
+      .unwrap()
       .then((updated) => {
-        setUsers((current) => current.map((user) => (user.id === updated.id ? updated : user)))
-        if (confirming === 'role') notify(`${updated.firstName} ahora es ${nextRole === 'ADMIN' ? 'administrador' : 'cliente'}`)
-        else notify(updated.active ? 'Cuenta activada' : 'Cuenta desactivada: ya no puede ingresar', 'info')
+        if (confirming === 'role') dispatch(showToast(`${updated.firstName} ahora es ${nextRole === 'ADMIN' ? 'administrador' : 'cliente'}`))
+        else dispatch(showToast(updated.active ? 'Cuenta activada' : 'Cuenta desactivada: ya no puede ingresar', 'info'))
       })
-      .catch((error) => notify(error.message, 'error'))
+      .catch((changeError) => dispatch(showToast(changeError.message, 'error')))
   }
 
-  if (loading) return <Loading />
+  if (error) return <ErrorState message={error} onRetry={() => dispatch(fetchUsers())} />
+  if (!loaded) return <Loading />
 
   return (
     <>

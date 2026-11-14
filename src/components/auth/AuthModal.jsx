@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../hooks/useAuth'
-import { useToast } from '../../hooks/useToast'
+import { closeAuth } from '../../redux/authSlice'
+import { showToast } from '../../redux/toastsSlice'
 import Modal from '../ui/Modal'
 import ForgotPasswordForm from './ForgotPasswordForm'
 import LoginForm from './LoginForm'
@@ -22,8 +23,8 @@ const COPY = {
 
 /** Login, registro y "Olvidé mi contraseña" en un mismo modal. Cada flujo maneja sus pasos. */
 function AuthModal() {
-  const { authMode, authRedirect, closeAuth } = useAuth()
-  const notify = useToast()
+  const dispatch = useDispatch()
+  const { mode: authMode, redirect: authRedirect } = useSelector((state) => state.auth.authModal)
   const navigate = useNavigate()
   const [view, setView] = useState({ mode: authMode, step: FIRST_STEP[authMode] })
   // Email o usuario que se comparte entre login y recuperar contraseña (y el email repetido del registro)
@@ -34,7 +35,7 @@ function AuthModal() {
 
   // Cuando el back confirma la sesión: saludamos y llevamos a donde corresponda
   const handleDone = (user, message) => {
-    notify(message)
+    dispatch(showToast(message))
     if (authRedirect) navigate(authRedirect)
     else if (user.role === 'ADMIN') navigate('/admin')
   }
@@ -42,7 +43,7 @@ function AuthModal() {
   const copy = COPY[view.step ? `${view.mode}:${view.step}` : view.mode]
 
   return (
-    <Modal title={copy.title} description={copy.description} onClose={closeAuth}>
+    <Modal title={copy.title} description={copy.description} onClose={() => dispatch(closeAuth())}>
       <div className="auth-view" key={view.mode}>
         {view.mode === 'login' && (
           <LoginForm

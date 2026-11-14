@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, CircleCheck, CircleX, LoaderCircle } from 'lucide-react'
+import { useDispatch } from 'react-redux'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../../hooks/useAuth'
-import { checkAvailability } from '../../services/authService'
+import { checkAvailability, register } from '../../redux/authSlice'
 import { normalizeText } from '../../utils/format'
 import InterestPicker from '../profile/InterestPicker'
 import Avatar from '../ui/Avatar'
@@ -78,7 +78,7 @@ const USERNAME_STATUS = {
  * usuario están libres, así nadie elige intereses para después enterarse de que el mail ya existe.
  */
 function RegisterForm({ step, onStepChange, onLogin, onDone }) {
-  const { register } = useAuth()
+  const dispatch = useDispatch()
   const [form, setForm] = useState(EMPTY_FORM)
   const [interests, setInterests] = useState([])
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -97,13 +97,19 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
   const usernameStatus = usernameCheck?.value === form.username ? usernameCheck.status : null
   const nameKey = `${form.firstname}|${form.lastname}`
 
-  const isUsernameFree = (username) => {
-    if (username in checked.current) return Promise.resolve(checked.current[username])
-    return checkAvailability({ username }).then((data) => {
-      checked.current[username] = data.usernameAvailable
-      return data.usernameAvailable
-    })
-  }
+  // useCallback: la misma función en cada render (dispatch no cambia), así los efectos de abajo la pueden usar
+  const isUsernameFree = useCallback(
+    (username) => {
+      if (username in checked.current) return Promise.resolve(checked.current[username])
+      return dispatch(checkAvailability({ username }))
+        .unwrap()
+        .then((data) => {
+          checked.current[username] = data.usernameAvailable
+          return data.usernameAvailable
+        })
+    },
+    [dispatch],
+  )
 
   const setField = (field) => (event) => {
     setForm({ ...form, [field]: event.target.value })
@@ -129,7 +135,7 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
         .catch(() => setUsernameCheck(null))
     }, CHECK_DELAY)
     return () => clearTimeout(timer)
-  }, [form.username])
+  }, [form.username, isUsernameFree])
 
   // Sugerencias de usuario según el nombre: solo mostramos las que están libres
   useEffect(() => {
@@ -142,14 +148,15 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
         .catch(() => setSuggestions({ name, list: [] }))
     }, CHECK_DELAY)
     return () => clearTimeout(timer)
-  }, [form.firstname, form.lastname])
+  }, [form.firstname, form.lastname, isUsernameFree])
 
   const submitAccount = () => {
     const nextErrors = validateAccount(form, acceptedTerms)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return undefined
     setSending(true)
-    return checkAvailability({ email: form.email.trim() })
+    return dispatch(checkAvailability({ email: form.email.trim() }))
+      .unwrap()
       .then((data) => {
         if (data.emailAvailable === false) {
           setEmailTaken(true)
@@ -181,8 +188,10 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
     setSending(true)
     setFormError('')
     const data = { ...form, email: form.email.trim(), firstname: form.firstname.trim(), lastname: form.lastname.trim() }
-    return register(data, chosen)
-      .then((user) => onDone(user, `¡Bienvenido/a, ${user.firstName}! Tu cuenta está lista.`))
+    // unwrap(): la promesa de dispatch devuelve lo que devolvió el back, o el error para mostrarlo en el formulario
+    return dispatch(register({ account: data, interests: chosen }))
+      .unwrap()
+      .then(({ user }) => onDone(user, `¡Bienvenido/a, ${user.firstName}! Tu cuenta está lista.`))
       .catch((err) => {
         setSending(false)
         // Por si alguien tomó el usuario o el email mientras tanto: volvemos al paso que corresponde

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Pencil, Plus, TicketPercent, Trash2 } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
-import { useToast } from '../../hooks/useToast'
-import { deleteCoupon, getCoupons } from '../../services/couponsService'
-import { getOrders } from '../../services/ordersService'
+import { deleteCoupon, fetchCoupons } from '../../redux/couponsSlice'
+import { fetchOrders } from '../../redux/ordersSlice'
+import { showToast } from '../../redux/toastsSlice'
 import { getCouponStatus } from '../../utils/coupons'
 import { formatShortDate, normalizeText } from '../../utils/format'
 import Badge from '../ui/Badge'
@@ -11,33 +12,29 @@ import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
 import EmptyState from '../ui/EmptyState'
+import ErrorState from '../ui/ErrorState'
 import IconButton from '../ui/IconButton'
+import Loading from '../ui/Loading'
 import AdminToolbar from './AdminToolbar'
 import CouponFormModal from './CouponFormModal'
 
 const STATUS_OPTIONS = ['Activo', 'Programado', 'Vencido', 'Inactivo']
 
 function CouponsAdmin() {
-  const [coupons, setCoupons] = useState([])
-  const [orders, setOrders] = useState([])
+  const dispatch = useDispatch()
+  const { items: coupons, loaded, error } = useSelector((state) => state.coupons)
+  const orders = useSelector((state) => state.orders.items) // para contar cuántas órdenes usaron cada cupón
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
-  const notify = useToast()
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState(() => params.get('estado') ?? '')
 
   useEffect(() => {
-    getCoupons()
-      .then((data) => setCoupons(data))
-      .catch((error) => notify(error.message, 'error'))
-
-    // Para contar cuántas órdenes usaron cada cupón
-    getOrders()
-      .then((data) => setOrders(data))
-      .catch((error) => console.error('Error al traer las órdenes:', error))
-  }, [notify])
+    dispatch(fetchCoupons())
+    dispatch(fetchOrders())
+  }, [dispatch])
 
   const usesOf = (coupon) => orders.filter((order) => order.couponCode === coupon.code).length
 
@@ -46,21 +43,16 @@ function CouponsAdmin() {
     .filter((coupon) => normalizeText(coupon.code).includes(normalizeText(search.trim())))
     .filter((coupon) => !status || coupon.status.label === status)
 
-  const saveCoupon = (saved) =>
-    setCoupons((current) =>
-      current.some((item) => item.id === saved.id) ? current.map((item) => (item.id === saved.id ? saved : item)) : [...current, saved],
-    )
-
   // La regla la aplica el back: si el cupón ya se usó lo desactiva en vez de borrarlo (para no romper órdenes viejas).
-  // Como no sabemos cuál de las dos hizo, volvemos a pedir la lista.
+  // Con la cantidad de usos, el reducer hace lo mismo en el store: lo saca de la lista o lo deja desactivado
   const confirmDelete = () =>
-    deleteCoupon(deleting.id)
-      .then(() => getCoupons())
-      .then((data) => {
-        setCoupons(data)
-        notify(deleting.used > 0 ? 'El cupón ya se había usado: quedó desactivado' : 'Cupón eliminado', 'info')
-      })
-      .catch((error) => notify(error.message, 'error'))
+    dispatch(deleteCoupon({ id: deleting.id, used: deleting.used }))
+      .unwrap()
+      .then(() => dispatch(showToast(deleting.used > 0 ? 'El cupón ya se había usado: quedó desactivado' : 'Cupón eliminado', 'info')))
+      .catch((deleteError) => dispatch(showToast(deleteError.message, 'error')))
+
+  if (error) return <ErrorState message={error} onRetry={() => dispatch(fetchCoupons())} />
+  if (!loaded) return <Loading />
 
   return (
     <>
@@ -133,7 +125,7 @@ function CouponsAdmin() {
       />
 
       {editing && (
-        <CouponFormModal coupon={editing === 'new' ? null : editing} coupons={coupons} onSaved={saveCoupon} onClose={() => setEditing(null)} />
+        <CouponFormModal coupon={editing === 'new' ? null : editing} coupons={coupons} onClose={() => setEditing(null)} />
       )}
       {deleting && (
         <ConfirmDialog

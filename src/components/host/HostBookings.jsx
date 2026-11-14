@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Undo2, Users } from 'lucide-react'
-import { useCatalog } from '../../hooks/useCatalog'
-import { useToast } from '../../hooks/useToast'
-import { refundBooking } from '../../services/bookingsService'
+import { useDispatch } from 'react-redux'
+import { refundBooking } from '../../redux/bookingsSlice'
+import { showToast } from '../../redux/toastsSlice'
 import { formatLongDate, formatMoney, formatTime, pluralize } from '../../utils/format'
 import Avatar from '../ui/Avatar'
 import Button from '../ui/Button'
@@ -13,12 +13,10 @@ import './HostBookings.css'
 
 /**
  * Huéspedes agrupados por sesión (solo próximas y no reembolsadas).
- * `setBookings` actualiza la lista del padre después de un reembolso y `onRefunded` le avisa
- * que vuelva a pedir las fechas (el back devolvió los lugares).
+ * Al reembolsar, los reducers actualizan la reserva y le devuelven los lugares a la fecha (en el calendario y en el catálogo).
  */
-function HostBookings({ bookings, sessions, setBookings, onRefunded }) {
-  const notify = useToast()
-  const { refreshSessions } = useCatalog() // el catálogo público también recupera esos lugares
+function HostBookings({ bookings, sessions }) {
+  const dispatch = useDispatch()
   const [refunding, setRefunding] = useState(null)
   const active = bookings.filter((booking) => !booking.isPast && !booking.refunded)
 
@@ -72,14 +70,10 @@ function HostBookings({ bookings, sessions, setBookings, onRefunded }) {
           message={`Se anula el voucher ${refunding.voucherCode} y se le devuelve el dinero a ${refunding.buyerName}.`}
           confirmLabel="Reembolsar"
           onConfirm={() =>
-            refundBooking(refunding.id)
-              .then((updated) => {
-                setBookings((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-                onRefunded()
-                refreshSessions()
-                notify('Reserva reembolsada: los lugares vuelven a estar disponibles')
-              })
-              .catch((error) => notify(error.message, 'error'))
+            dispatch(refundBooking(refunding.id))
+              .unwrap()
+              .then(() => dispatch(showToast('Reserva reembolsada: los lugares vuelven a estar disponibles')))
+              .catch((error) => dispatch(showToast(error.message, 'error')))
           }
           onClose={() => setRefunding(null)}
         />

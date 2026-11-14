@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { CalendarX, LayoutDashboard, Pencil, ShoppingBag } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { LOW_SEATS } from '../../utils/experiences'
-import { useAuth } from '../../hooks/useAuth'
-import { useCart } from '../../hooks/useCart'
 import { useCurrency } from '../../hooks/useCurrency'
-import { useToast } from '../../hooks/useToast'
+import { openAuth, selectIsAdmin, selectUser } from '../../redux/authSlice'
+import { addToCart, selectQuantityInCart } from '../../redux/cartSlice'
+import { showToast } from '../../redux/toastsSlice'
+import { LOW_SEATS } from '../../utils/experiences'
 import { formatLongDate, formatTime, pluralize } from '../../utils/format'
 import Button from '../ui/Button'
 import EmptyState from '../ui/EmptyState'
@@ -15,10 +16,10 @@ import './BookingPanel.css'
 
 /** Panel lateral del detalle: elegir sesión + cantidad y reservar. `ref` (React 19) apunta al panel, para scrollear hasta él. */
 function BookingPanel({ id, ref, experience, sessions }) {
-  const { user, isAdmin, openAuth } = useAuth()
-  const cart = useCart()
+  const dispatch = useDispatch()
+  const user = useSelector(selectUser)
+  const isAdmin = useSelector(selectIsAdmin)
   const { format } = useCurrency()
-  const notify = useToast()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const bookable = sessions.filter((session) => session.availableSeats > 0)
@@ -32,26 +33,25 @@ function BookingPanel({ id, ref, experience, sessions }) {
   const isOwner = user?.id === experience.publisherId
 
   // Lo que ya está en el carrito para esta sesión cuenta contra los cupos
-  const inCart = selected ? cart.quantityOf(selected.id) : 0
+  const inCart = useSelector((state) => (selected ? selectQuantityInCart(state, selected.id) : 0))
   const maxQuantity = selected ? Math.max(selected.availableSeats - inCart, 0) : 0
   const amount = Math.min(quantity, Math.max(maxQuantity, 1))
 
-  // POST al carrito. Recién cuando el back responde avisamos (o mostramos el error que mandó)
-  const addToCart = (goToCart) => {
-    if (!user) return openAuth('login')
+  // POST al carrito: el reducer guarda el carrito que devuelve el back (el navbar se actualiza solo, está suscripto).
+  // Recién cuando el back responde avisamos (o mostramos el error que mandó)
+  const handleAdd = (goToCart) => {
+    if (!user) return dispatch(openAuth('login'))
     if (maxQuantity === 0) return goToCart && navigate('/carrito')
     if (adding) return undefined
     setAdding(true)
-    return cart
-      .add(selected.id, amount)
+    return dispatch(addToCart({ sessionId: selected.id, quantity: amount }))
+      .unwrap()
       .then(() => {
         if (goToCart) return navigate('/carrito')
-        return notify(`${pluralize(amount, 'lugar', 'lugares')} agregado${amount === 1 ? '' : 's'} al carrito`, 'success', {
-          label: 'Ver carrito',
-          to: '/carrito',
-        })
+        const message = `${pluralize(amount, 'lugar', 'lugares')} agregado${amount === 1 ? '' : 's'} al carrito`
+        return dispatch(showToast(message, 'success', { label: 'Ver carrito', to: '/carrito' }))
       })
-      .catch((error) => notify(error.message, 'error'))
+      .catch((error) => dispatch(showToast(error.message, 'error')))
       .then(() => setAdding(false))
   }
 
@@ -146,10 +146,10 @@ function BookingPanel({ id, ref, experience, sessions }) {
             <strong>{format(experience.finalPrice * amount)}</strong>
           </div>
 
-          <Button full onClick={() => addToCart(true)} disabled={adding}>
+          <Button full onClick={() => handleAdd(true)} disabled={adding}>
             Reservar
           </Button>
-          <Button full variant="secondary" icon={ShoppingBag} onClick={() => addToCart(false)} disabled={maxQuantity === 0 || adding}>
+          <Button full variant="secondary" icon={ShoppingBag} onClick={() => handleAdd(false)} disabled={maxQuantity === 0 || adding}>
             Agregar al carrito
           </Button>
           <p className="muted small booking-panel__hint">No se te cobra nada todavía.</p>

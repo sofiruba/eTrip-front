@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Printer, Star, Undo2 } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { useParams } from 'react-router-dom'
 import BookingInfoCard from '../components/booking/BookingInfoCard'
 import CancellationPolicy from '../components/booking/CancellationPolicy'
@@ -12,12 +13,12 @@ import Button from '../components/ui/Button'
 import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
-import { useCatalog } from '../hooks/useCatalog'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { getBooking } from '../services/bookingsService'
-import { getExperience } from '../services/experiencesService'
-import { getOrder } from '../services/ordersService'
-import { getMyReviews } from '../services/reviewsService'
+import { selectUser } from '../redux/authSlice'
+import { fetchBookingById, selectBookingById } from '../redux/bookingsSlice'
+import { fetchExperienceById } from '../redux/experiencesSlice'
+import { fetchOrderById, selectOrderById } from '../redux/ordersSlice'
+import { fetchMyReviews } from '../redux/reviewsSlice'
 import { getBookingStatus } from '../utils/bookings'
 import { getCancellationPolicy } from '../utils/cancellation'
 import { formatFullDate, isPast } from '../utils/format'
@@ -25,50 +26,57 @@ import { toSummaryItems } from '../utils/orders'
 import NotFoundPage from './NotFoundPage'
 import './BookingDetailPage.css'
 
-// `onRetry` lo pasa RemountOnParam (App.jsx): vuelve a montar la página para pedir todo de nuevo
-function BookingDetailPage({ onRetry }) {
+function BookingDetailPage() {
   const { id } = useParams()
-  const { refreshSessions } = useCatalog()
+  const dispatch = useDispatch()
+  const user = useSelector(selectUser)
   useDocumentTitle(`Reserva #${id}`)
-  const [booking, setBooking] = useState(null)
-  const [order, setOrder] = useState(null)
-  const [experience, setExperience] = useState(null)
-  const [myReview, setMyReview] = useState(null)
-  const [notFound, setNotFound] = useState(false)
-  const [error, setError] = useState('')
   const [modal, setModal] = useState(null) // 'refund' | 'review' | null
 
-  // 1) La reserva, apenas entramos. 404/403 = no existe o no es tuya; otro error = el back falló
-  useEffect(() => {
-    getBooking(id)
-      .then((data) => setBooking(data))
-      .catch((bookingError) => ([403, 404].includes(bookingError.status) ? setNotFound(true) : setError(bookingError.message)))
-  }, [id])
-
-  // 2) Cuando ya tenemos la reserva: su orden, su experiencia y si ya la reseñé
+  // La reserva: de "Mis reservas" si ya estaba en el store, o pedida aparte (si se entró por link)
+  const booking = useSelector((state) => selectBookingById(state, id))
+  const bookingDetail = useSelector((state) => state.bookings.details[id])
   const orderId = booking?.orderId
+  const order = useSelector((state) => (orderId ? selectOrderById(state, orderId) : null))
+  const orderDetail = useSelector((state) => state.orders.details[orderId])
+  // La experiencia (foto y lugar): del catálogo, o pedida aparte si ya no está publicada
   const experienceId = booking?.experienceId
+  const fromCatalog = useSelector((state) => state.experiences.items.find((entry) => entry.id === experienceId))
+  const fromDetail = useSelector((state) => state.experiences.details[experienceId]?.item)
+  const catalogLoaded = useSelector((state) => state.experiences.loaded)
+  const experience = fromCatalog ?? fromDetail ?? null
+  const myReview = useSelector((state) =>
+    state.reviews.items.find((review) => review.experienceId === experienceId && review.userId === user.id),
+  )
+
+  // 1) La reserva y mis reseñas (cada thunk se saltea el GET si ya está en el store)
   useEffect(() => {
-    if (!orderId) return
-    // Sin la orden no se puede mostrar el resumen: si falla, se muestra el error (no un spinner eterno)
-    getOrder(orderId)
-      .then((data) => setOrder(data))
-      .catch((orderError) => setError(orderError.message))
+    dispatch(fetchBookingById(id))
+    dispatch(fetchMyReviews())
+  }, [id, dispatch])
 
-    getExperience(experienceId)
-      .then((data) => setExperience(data))
-      .catch((error) => console.error('Error al traer la experiencia:', error))
+  // 2) Cuando ya tenemos la reserva: su orden (para el resumen)
+  useEffect(() => {
+    if (orderId) dispatch(fetchOrderById(orderId))
+  }, [orderId, dispatch])
 
-    getMyReviews()
-      .then((reviews) => setMyReview(reviews.find((review) => review.experienceId === experienceId) ?? null))
-      .catch((error) => console.error('Error al traer tus reseñas:', error))
-  }, [orderId, experienceId])
+  // 3) Si la experiencia no está en el catálogo (el anfitrión la pausó), la pedimos por id
+  const inCatalog = Boolean(fromCatalog)
+  useEffect(() => {
+    if (experienceId && catalogLoaded && !inCatalog) dispatch(fetchExperienceById(experienceId))
+  }, [experienceId, catalogLoaded, inCatalog, dispatch])
 
-  if (notFound) return <NotFoundPage title="No encontramos esta reserva" />
+  // 404/403 = no existe o no es tuya; otro error = el back falló
+  if (bookingDetail?.notFound) return <NotFoundPage title="No encontramos esta reserva" />
+  const error = bookingDetail?.error || orderDetail?.error
   if (error) {
+    const retry = () => {
+      dispatch(fetchBookingById(id))
+      if (orderId) dispatch(fetchOrderById(orderId))
+    }
     return (
       <div className="container page page--narrow">
-        <ErrorState title="No pudimos cargar tu reserva" message={error} onRetry={onRetry} />
+        <ErrorState title="No pudimos cargar tu reserva" message={error} onRetry={retry} />
       </div>
     )
   }
@@ -82,13 +90,6 @@ function BookingDetailPage({ onRetry }) {
   const canRefund = showPolicy && policy.refundable
   // El back no permite editar reseñas: solo se escribe una vez, cuando la experiencia terminó
   const canReview = isPast(booking.endsAt) && !booking.refunded && !myReview
-
-  // Después del reembolso el back devuelve la reserva actualizada: la guardamos en el estado
-  const handleRefunded = (updated) => {
-    setBooking(updated)
-    setOrder((current) => ({ ...current, bookings: current.bookings.map((entry) => (entry.id === updated.id ? updated : entry)) }))
-    refreshSessions() // los lugares liberados vuelven al catálogo
-  }
 
   return (
     <div className="container page">
@@ -136,16 +137,11 @@ function BookingDetailPage({ onRetry }) {
         </OrderSummary>
       </div>
 
-      {modal === 'refund' && (
-        <RefundModal booking={booking} order={order} onRefunded={handleRefunded} onClose={() => setModal(null)} />
-      )}
+      {/* Después del reembolso o de la reseña, los reducers actualizan la reserva, la orden, los lugares y la reseña:
+          esta página está suscripta a esos datos y se vuelve a dibujar sola */}
+      {modal === 'refund' && <RefundModal booking={booking} order={order} onClose={() => setModal(null)} />}
       {modal === 'review' && (
-        <ReviewFormModal
-          experienceId={booking.experienceId}
-          experienceTitle={booking.experienceTitle}
-          onCreated={(review) => setMyReview(review)}
-          onClose={() => setModal(null)}
-        />
+        <ReviewFormModal experienceId={booking.experienceId} experienceTitle={booking.experienceTitle} onClose={() => setModal(null)} />
       )}
     </div>
   )

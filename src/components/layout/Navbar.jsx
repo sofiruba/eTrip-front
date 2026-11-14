@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Menu, Moon, ShoppingBag, Sun, X } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { useAuth } from '../../hooks/useAuth'
-import { useCart } from '../../hooks/useCart'
 import { useTheme } from '../../hooks/useTheme'
+import { openAuth, selectIsAdmin, selectUser } from '../../redux/authSlice'
+import { selectCartCount } from '../../redux/cartSlice'
 import Button from '../ui/Button'
 import IconButton from '../ui/IconButton'
 import NavbarSearch from '../search/NavbarSearch'
@@ -13,8 +14,10 @@ import NotificationBell from './NotificationBell'
 import './Navbar.css'
 
 function Navbar() {
-  const { user, isAdmin, openAuth } = useAuth()
-  const { count } = useCart()
+  const dispatch = useDispatch()
+  const user = useSelector(selectUser)
+  const isAdmin = useSelector(selectIsAdmin)
+  const count = useSelector(selectCartCount)
   const { pathname } = useLocation()
   const theme = useTheme()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -83,7 +86,7 @@ function Navbar() {
           {user ? (
             <UserMenu />
           ) : (
-            <Button size="sm" onClick={() => openAuth('login')}>
+            <Button size="sm" onClick={() => dispatch(openAuth('login'))}>
               Ingresar
             </Button>
           )}

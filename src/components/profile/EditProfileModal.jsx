@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useAuth } from '../../hooks/useAuth'
-import { useToast } from '../../hooks/useToast'
+import { useDispatch, useSelector } from 'react-redux'
+import { selectUser, updateMe, updateProfileExtras } from '../../redux/authSlice'
+import { showToast } from '../../redux/toastsSlice'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
@@ -9,8 +10,8 @@ const MAX_BIO = 500
 
 /** Editar perfil. El email no se puede cambiar. */
 function EditProfileModal({ onClose }) {
-  const { user, updateProfile } = useAuth()
-  const notify = useToast()
+  const dispatch = useDispatch()
+  const user = useSelector(selectUser)
   const [form, setForm] = useState({
     firstName: user.firstName,
     lastName: user.lastName,
@@ -20,22 +21,20 @@ function EditProfileModal({ onClose }) {
   const [sending, setSending] = useState(false)
   const setField = (field) => (event) => setForm({ ...form, [field]: event.target.value })
 
-  // Nombre y apellido se guardan en el back (PUT /users/me); ciudad y bio, en el navegador
+  // Ciudad y bio no existen en el back: quedan en el estado global (persistido en el navegador).
+  // Nombre y apellido se guardan en el back (PUT /users/me) y el reducer guarda el usuario que devuelve
   const handleSubmit = (event) => {
     event.preventDefault()
     setSending(true)
-    updateProfile({
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      city: form.city.trim(),
-      bio: form.bio.trim(),
-    })
+    dispatch(updateProfileExtras({ city: form.city.trim(), bio: form.bio.trim() }))
+    dispatch(updateMe({ firstName: form.firstName.trim(), lastName: form.lastName.trim() }))
+      .unwrap()
       .then(() => {
-        notify('Perfil actualizado')
+        dispatch(showToast('Perfil actualizado'))
         onClose()
       })
       .catch((error) => {
-        notify(error.message, 'error')
+        dispatch(showToast(error.message, 'error'))
         setSending(false)
       })
   }

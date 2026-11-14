@@ -1,5 +1,7 @@
+import { useDispatch } from 'react-redux'
 import { RATES_DATE } from '../../data/currencies'
 import { useCurrency } from '../../hooks/useCurrency'
+import { setCurrency } from '../../redux/preferencesSlice'
 import Modal from '../ui/Modal'
 import './CurrencyModal.css'
 
@@ -7,7 +9,8 @@ const RATES_LABEL = new Date(`${RATES_DATE}T12:00:00`).toLocaleDateString('es-AR
 
 /** "Elegí una moneda" (estilo Airbnb). Solo cambia cómo se ven los precios: se cobra siempre en pesos. */
 function CurrencyModal({ onClose }) {
-  const { currency, currencies, setCurrency } = useCurrency()
+  const dispatch = useDispatch()
+  const { currency, currencies } = useCurrency()
 
   return (
     <Modal title="Elegí una moneda" onClose={onClose} size="lg">
@@ -21,7 +24,7 @@ function CurrencyModal({ onClose }) {
                 className={`currency-option ${selected ? 'is-selected' : ''}`}
                 aria-pressed={selected}
                 onClick={() => {
-                  setCurrency(entry.code)
+                  dispatch(setCurrency(entry.code))
                   onClose()
                 }}
               >

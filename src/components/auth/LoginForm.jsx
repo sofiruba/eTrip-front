@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { ArrowRight } from 'lucide-react'
-import { useAuth } from '../../hooks/useAuth'
+import { useDispatch } from 'react-redux'
+import { login } from '../../redux/authSlice'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import PasswordField from './PasswordField'
 
 /** Login con email o usuario. `identifier` se comparte con "Olvidé mi contraseña" para no tipearlo dos veces. */
 function LoginForm({ identifier, onIdentifierChange, onForgot, onRegister, onDone }) {
-  const { login } = useAuth()
+  const dispatch = useDispatch()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [formError, setFormError] = useState('')
@@ -19,11 +20,13 @@ function LoginForm({ identifier, onIdentifierChange, onForgot, onRegister, onDon
     if (!identifier.trim()) return setError('Ingresá tu email o nombre de usuario.')
 
     setSending(true)
-    return login(identifier.trim(), password)
-      .then((user) => onDone(user, `¡Hola, ${user.firstName}!`))
+    // El reducer guarda el token y el usuario en el estado global; con unwrap() recibimos el resultado acá
+    return dispatch(login({ usernameOrEmail: identifier.trim(), password }))
+      .unwrap()
+      .then(({ user }) => onDone(user, `¡Hola, ${user.firstName}!`))
       .catch((err) => {
-        // 401/403 en el login = usuario o contraseña incorrectos
-        setFormError([401, 403].includes(err.status) ? 'El email/usuario o la contraseña no son correctos.' : err.message)
+        // El back explica qué pasó: datos incorrectos (401) o cuenta desactivada
+        setFormError(err.message)
         setSending(false)
       })
   }

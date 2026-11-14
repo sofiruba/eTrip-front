@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, Eye, Pencil, Power, Store, Trash2 } from 'lucide-react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { useCatalog } from '../../hooks/useCatalog'
-import { useToast } from '../../hooks/useToast'
-import { getBookings } from '../../services/bookingsService'
-import { getCategories } from '../../services/categoriesService'
-import { deleteExperience, getAllExperiences, updateExperienceStatus } from '../../services/experiencesService'
-import { getManagedSessions } from '../../services/sessionsService'
-import { addSessionInfo, getUpcomingSessions, isSoldOut } from '../../utils/experiences'
+import { fetchBookings } from '../../redux/bookingsSlice'
+import {
+  deleteExperience,
+  fetchManagedExperiences,
+  selectManagedExperiences,
+  updateExperienceStatus,
+} from '../../redux/experiencesSlice'
+import { fetchManagedSessions } from '../../redux/sessionsSlice'
+import { showToast } from '../../redux/toastsSlice'
+import { getUpcomingSessions, isSoldOut } from '../../utils/experiences'
 import { formatMoney, formatSessionDate, normalizeText, pluralize } from '../../utils/format'
 import { getCity } from '../../utils/location'
 import Badge from '../ui/Badge'
@@ -15,6 +19,7 @@ import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import DataTable from '../ui/DataTable'
 import EmptyState from '../ui/EmptyState'
+import ErrorState from '../ui/ErrorState'
 import IconButton from '../ui/IconButton'
 import Loading from '../ui/Loading'
 import ImageWithFallback from '../ui/ImageWithFallback'
@@ -38,16 +43,16 @@ function getStatus(experience) {
 
 /** Todas las experiencias publicadas: para revisar el catálogo y dar de baja publicaciones. */
 function ExperiencesAdmin() {
-  const [list, setList] = useState([])
-  const [sessions, setSessions] = useState([])
-  const [bookings, setBookings] = useState([])
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
+  const dispatch = useDispatch()
+  // Como admin, "managed" son TODAS las experiencias (también las pausadas), con la info de sus fechas
+  const managed = useSelector((state) => state.experiences.managed) // { loaded, error }
+  const experiences = useSelector(selectManagedExperiences)
+  const sessions = useSelector((state) => state.sessions.managed.items)
+  const bookings = useSelector((state) => state.bookings.items)
+  const categories = useSelector((state) => state.categories.items)
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
-  const notify = useToast()
   const navigate = useNavigate()
-  const { reload: reloadCatalog } = useCatalog() // lo que cambia acá también cambia el catálogo público
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState(() => params.get('estado') ?? '')
@@ -55,30 +60,17 @@ function ExperiencesAdmin() {
   const [deleting, setDeleting] = useState(null)
 
   useEffect(() => {
-    getAllExperiences()
-      .then((data) => setList(data))
-      .catch((error) => notify(error.message, 'error'))
-      .then(() => setLoading(false))
+    dispatch(fetchManagedExperiences())
+    dispatch(fetchManagedSessions())
+    dispatch(fetchBookings()) // para las ventas de cada una
+  }, [dispatch])
 
-    const showError = (error) => console.error('Error al cargar experiencias:', error)
-    getManagedSessions().then((data) => setSessions(data)).catch(showError)
-    getBookings().then((data) => setBookings(data)).catch(showError)
-    getCategories().then((data) => setCategories(data)).catch(showError)
-  }, [notify])
-
-  const experiences = addSessionInfo(list, sessions)
-
-  // Reemplaza en la lista la experiencia que devolvió el back
-  const replace = (updated) => setList((current) => current.map((item) => (item.id === updated.id ? updated : item)))
-
+  // PATCH (baja lógica): el reducer la reemplaza en el panel y la saca del catálogo público (o la vuelve a poner)
   const toggleActive = (experience) =>
-    updateExperienceStatus(experience.id, !experience.active)
-      .then((updated) => {
-        replace(updated)
-        reloadCatalog()
-        notify(updated.active ? 'Experiencia activada' : 'Experiencia desactivada', 'info')
-      })
-      .catch((error) => notify(error.message, 'error'))
+    dispatch(updateExperienceStatus({ id: experience.id, active: !experience.active }))
+      .unwrap()
+      .then((updated) => dispatch(showToast(updated.active ? 'Experiencia activada' : 'Experiencia desactivada', 'info')))
+      .catch((error) => dispatch(showToast(error.message, 'error')))
 
   // Ventas de cada experiencia (reservas no reembolsadas)
   const salesOf = (experienceId) =>
@@ -102,7 +94,8 @@ function ExperiencesAdmin() {
 
   const selected = selectedId && rows.find((experience) => experience.id === selectedId)
 
-  if (loading) return <Loading />
+  if (managed.error) return <ErrorState message={managed.error} onRetry={() => dispatch(fetchManagedExperiences())} />
+  if (!managed.loaded) return <Loading />
 
   // El back decide si se puede: borra en cascada, salvo que tenga reservas para fechas que todavía no pasaron
   const askDelete = (experience) => setDeleting(experience)
@@ -242,14 +235,13 @@ function ExperiencesAdmin() {
           message={`“${deleting.title}” de ${deleting.publisherName} se elimina junto con sus fechas, sus reservas pasadas y sus reseñas. No se puede deshacer.`}
           confirmLabel="Eliminar"
           onConfirm={() =>
-            deleteExperience(deleting.id)
+            dispatch(deleteExperience(deleting))
+              .unwrap()
               .then(() => {
-                setList((current) => current.filter((item) => item.id !== deleting.id))
-                reloadCatalog()
                 setSelectedId(null)
-                notify('Experiencia eliminada', 'info')
+                dispatch(showToast('Experiencia eliminada', 'info'))
               })
-              .catch((error) => notify(error.message, 'error'))
+              .catch((error) => dispatch(showToast(error.message, 'error')))
           }
           onClose={() => setDeleting(null)}
         />

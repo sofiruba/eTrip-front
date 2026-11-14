@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Route, Routes } from 'react-router-dom'
 import AppLayout from './components/layout/AppLayout'
 import AboutPage from './pages/AboutPage'
@@ -15,6 +16,13 @@ import LegalPage from './pages/LegalPage'
 import MyBookingsPage from './pages/MyBookingsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
+import { isTokenExpired } from './redux/api'
+import { fetchMe, logout } from './redux/authSlice'
+import { fetchCart } from './redux/cartSlice'
+import { fetchCategories } from './redux/categoriesSlice'
+import { fetchExperiences } from './redux/experiencesSlice'
+import { fetchNotifications } from './redux/notificationsSlice'
+import { fetchSessions } from './redux/sessionsSlice'
 import CustomerOnly from './routes/CustomerOnly'
 import RemountOnParam from './routes/RemountOnParam'
 import RequireAuth from './routes/RequireAuth'
@@ -30,6 +38,34 @@ const lazyPage = (Page) => (
 )
 
 function App() {
+  const dispatch = useDispatch()
+  const userId = useSelector((state) => state.auth.user?.id)
+  const token = useSelector((state) => state.auth.token)
+  // El token con el que se abrió la app (redux-persist lo recuperó de una visita anterior). useState se queda con el primero
+  const [savedToken] = useState(token)
+
+  // Al abrir la app: el catálogo público se pide UNA sola vez y queda en el store.
+  // Home, detalle, carrito, checkout y el buscador lo leen de ahí sin volver a pedirlo.
+  useEffect(() => {
+    dispatch(fetchExperiences())
+    dispatch(fetchSessions())
+    dispatch(fetchCategories())
+  }, [dispatch])
+
+  // Sesión guardada: si el token venció se cierra; si no, traemos los datos actualizados del usuario (rol, contadores)
+  useEffect(() => {
+    if (!savedToken) return
+    if (isTokenExpired(savedToken)) dispatch(logout())
+    else dispatch(fetchMe())
+  }, [savedToken, dispatch])
+
+  // Carrito y avisos: se piden cuando hay un usuario (por eso userId va en las dependencias: login / logout)
+  useEffect(() => {
+    if (!userId) return
+    dispatch(fetchCart())
+    dispatch(fetchNotifications())
+  }, [userId, dispatch])
+
   return (
     <Routes>
       <Route element={<AppLayout />}>

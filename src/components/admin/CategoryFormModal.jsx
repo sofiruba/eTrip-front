@@ -1,13 +1,17 @@
 import { useState } from 'react'
-import { useToast } from '../../hooks/useToast'
-import { createCategory, updateCategory } from '../../services/categoriesService'
+import { useDispatch } from 'react-redux'
+import { createCategory, updateCategory } from '../../redux/categoriesSlice'
+import { showToast } from '../../redux/toastsSlice'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
 
-/** Crear o editar una categoría. Le pasa al padre la categoría guardada (onSaved). */
-function CategoryFormModal({ category, categories, onSaved, onClose }) {
-  const notify = useToast()
+/**
+ * Crear (POST) o editar (PUT) una categoría. El reducer la agrega o la reemplaza en el store:
+ * la tabla del panel, los filtros del catálogo y el editor la ven al instante, sin volver a pedirla.
+ */
+function CategoryFormModal({ category, categories, onClose }) {
+  const dispatch = useDispatch()
   const [name, setName] = useState(category?.name ?? '')
   const [description, setDescription] = useState(category?.description ?? '')
   const [error, setError] = useState('')
@@ -23,11 +27,11 @@ function CategoryFormModal({ category, categories, onSaved, onClose }) {
 
     const data = { name: trimmed, description: description.trim() }
     setSending(true)
-    const request = category ? updateCategory(category.id, data) : createCategory(data)
+    const request = category ? dispatch(updateCategory({ id: category.id, ...data })) : dispatch(createCategory(data))
     return request
-      .then((saved) => {
-        onSaved(saved)
-        notify(category ? 'Categoría actualizada' : 'Categoría creada')
+      .unwrap()
+      .then(() => {
+        dispatch(showToast(category ? 'Categoría actualizada' : 'Categoría creada'))
         onClose()
       })
       .catch((saveError) => {

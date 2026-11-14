@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useToast } from '../../hooks/useToast'
-import { createReview } from '../../services/reviewsService'
+import { useDispatch } from 'react-redux'
+import { createReview } from '../../redux/reviewsSlice'
+import { showToast } from '../../redux/toastsSlice'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
@@ -9,9 +10,9 @@ import { StarRating } from '../ui/Rating'
 const MIN_LENGTH = 10
 const RATING_LABELS = ['', 'Malo', 'Regular', 'Bueno', 'Muy bueno', '¡Excelente!']
 
-/** Escribir una reseña (POST /reviews). Le pasa al padre la reseña creada (onCreated). */
-function ReviewFormModal({ experienceId, experienceTitle, onCreated, onClose }) {
-  const notify = useToast()
+/** Escribir una reseña (POST /reviews). El reducer la agrega a las reseñas y recalcula el promedio de la experiencia. */
+function ReviewFormModal({ experienceId, experienceTitle, onClose }) {
+  const dispatch = useDispatch()
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
   const [error, setError] = useState('')
@@ -23,10 +24,10 @@ function ReviewFormModal({ experienceId, experienceTitle, onCreated, onClose }) 
     if (comment.trim().length < MIN_LENGTH) return setError(`Escribí al menos ${MIN_LENGTH} caracteres.`)
 
     setSending(true)
-    return createReview({ experienceId, rating, comment: comment.trim() })
-      .then((review) => {
-        onCreated(review)
-        notify('¡Gracias! Tu reseña ya está publicada')
+    return dispatch(createReview({ experienceId, rating, comment: comment.trim() }))
+      .unwrap()
+      .then(() => {
+        dispatch(showToast('¡Gracias! Tu reseña ya está publicada'))
         onClose()
       })
       .catch((reviewError) => {

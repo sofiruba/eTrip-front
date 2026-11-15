@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CalendarCheck, ChevronDown, LayoutDashboard, LogOut, Store, User } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { logout, selectIsAdmin, selectUser } from '../../redux/authSlice'
+import { logout } from '../../redux/authSlice'
 import { showToast } from '../../redux/toastsSlice'
 import Avatar from '../ui/Avatar'
 import { fullName } from '../../utils/format'
@@ -10,8 +10,8 @@ import './UserMenu.css'
 
 function UserMenu() {
   const dispatch = useDispatch()
-  const user = useSelector(selectUser)
-  const isAdmin = useSelector(selectIsAdmin)
+  const user = useSelector((state) => state.auth.user)
+  const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
@@ -48,7 +48,7 @@ function UserMenu() {
     // Cada slice con datos de la cuenta (carrito, reservas, panel…) vuelve a su estado inicial al escuchar esta acción
     dispatch(logout())
     navigate('/')
-    dispatch(showToast('Cerraste sesión. ¡Hasta pronto!', 'info'))
+    dispatch(showToast({ message: 'Cerraste sesión. ¡Hasta pronto!', tone: 'info' }))
   }
 
   return (

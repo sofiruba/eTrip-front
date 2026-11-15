@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectUser, updateMe, updateProfileExtras } from '../../redux/authSlice'
+import { updateMe, updateProfileExtras } from '../../redux/authSlice'
 import { showToast } from '../../redux/toastsSlice'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
@@ -11,7 +11,7 @@ const MAX_BIO = 500
 /** Editar perfil. El email no se puede cambiar. */
 function EditProfileModal({ onClose }) {
   const dispatch = useDispatch()
-  const user = useSelector(selectUser)
+  const user = useSelector((state) => state.auth.user)
   const [form, setForm] = useState({
     firstName: user.firstName,
     lastName: user.lastName,
@@ -28,14 +28,15 @@ function EditProfileModal({ onClose }) {
     setSending(true)
     dispatch(updateProfileExtras({ city: form.city.trim(), bio: form.bio.trim() }))
     dispatch(updateMe({ firstName: form.firstName.trim(), lastName: form.lastName.trim() }))
-      .unwrap()
-      .then(() => {
-        dispatch(showToast('Perfil actualizado'))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          dispatch(showToast({ message: action.error.message, tone: 'error' }))
+          setSending(false)
+          return
+        }
+        dispatch(showToast({ message: 'Perfil actualizado' }))
         onClose()
-      })
-      .catch((error) => {
-        dispatch(showToast(error.message, 'error'))
-        setSending(false)
       })
   }
 

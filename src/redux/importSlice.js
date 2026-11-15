@@ -2,11 +2,7 @@ import axios from 'axios'
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { addHours, daysFromToday } from '../utils/dates'
 import { api, listOf, withToken } from './api'
-import { fetchCategories } from './categoriesSlice'
-import { fetchCoupons } from './couponsSlice'
-import { fetchExperiences, fetchManagedExperiences, toFormData } from './experiencesSlice'
-import { fetchManagedSessions, fetchSessions } from './sessionsSlice'
-import { fetchUsers } from './usersSlice'
+import { toFormData } from './experiencesSlice'
 
 /**
  * Herramienta del panel de admin: carga un set de datos de prueba (JSON) usando los endpoints que ya existen en el back.
@@ -106,7 +102,8 @@ function getPhoto(experience) {
     .then(({ data: blob }) => new File([blob], 'foto.jpg', { type: blob.type }))
 }
 
-export const importData = createAsyncThunk('dataImport/importData', async (data, { dispatch, getState }) => {
+// Cada paso se anota en el log con la acción logAdded (el thunk recibe dispatch)
+export const importData = createAsyncThunk('dataImport/importData', async (data, { dispatch }) => {
   const log = (message, type) => dispatch(logAdded({ message, type }))
 
   // Para no duplicar: primero vemos qué categorías y cupones ya existen
@@ -121,16 +118,7 @@ export const importData = createAsyncThunk('dataImport/importData', async (data,
   await inOrder(data.coupons, (coupon) => importCoupon(coupon, listOf(coupons), log))
 
   await inOrder(data.users, (user) => importUser(user, categoryIds, log))
-
-  // Se crearon muchas cosas de una en el back: es el único caso en el que volvemos a pedir todo lo que ya estaba cargado
-  const state = getState()
-  dispatch(fetchCategories({ force: true }))
-  dispatch(fetchExperiences({ force: true }))
-  dispatch(fetchSessions({ force: true }))
-  if (state.experiences.managed.loaded) dispatch(fetchManagedExperiences({ force: true }))
-  if (state.sessions.managed.loaded) dispatch(fetchManagedSessions({ force: true }))
-  if (state.coupons.loaded) dispatch(fetchCoupons({ force: true }))
-  if (state.users.loaded) dispatch(fetchUsers({ force: true }))
+  // Al terminar, el panel vuelve a pedir el catálogo y sus listas (ver DataImportAdmin.jsx)
 })
 
 const importSlice = createSlice({

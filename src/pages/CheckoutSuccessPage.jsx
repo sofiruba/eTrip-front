@@ -9,7 +9,7 @@ import Button from '../components/ui/Button'
 import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { fetchOrderById, selectOrderById } from '../redux/ordersSlice'
+import { fetchOrderById } from '../redux/ordersSlice'
 import { formatMoney, formatSessionDate } from '../utils/format'
 import './CheckoutSuccessPage.css'
 
@@ -17,15 +17,15 @@ function CheckoutSuccessPage() {
   const { orderId } = useParams()
   const { state } = useLocation()
   const dispatch = useDispatch()
-  const order = useSelector((store) => selectOrderById(store, orderId))
-  const detail = useSelector((store) => store.orders.details[orderId])
+  const order = useSelector((state) => state.orders.items.find((entry) => entry.id === Number(orderId)) ?? state.orders.details[orderId]?.item)
+  const detail = useSelector((state) => state.orders.details[orderId])
   useDocumentTitle('Compra confirmada')
 
   // Recién comprada, la orden ya está en el store (la guardó createOrder): no hace falta pedirla.
-  // Solo se pide si se recargó la página (la condición del thunk evita el GET si ya la tenemos)
+  // Solo se pide si se recargó la página
   useEffect(() => {
-    dispatch(fetchOrderById(orderId))
-  }, [orderId, dispatch])
+    if (!order && !detail) dispatch(fetchOrderById(orderId))
+  }, [order, detail, orderId, dispatch])
 
   // Orden inexistente o de otro usuario
   if (detail?.notFound) return <Navigate to="/mis-reservas" replace />

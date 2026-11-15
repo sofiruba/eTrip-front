@@ -66,5 +66,5 @@ export const persistor = persistStore(store)
 // axios lee el token del store en cada pedido. Si venció mientras se usaba la app, se cierra la sesión y se pide ingresar de nuevo
 setupInterceptors(store, () => {
   store.dispatch(sessionExpired())
-  store.dispatch(showToast('Tu sesión venció. Ingresá de nuevo para seguir.', 'info'))
+  store.dispatch(showToast({ message: 'Tu sesión venció. Ingresá de nuevo para seguir.', tone: 'info' }))
 })

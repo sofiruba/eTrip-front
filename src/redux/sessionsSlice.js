@@ -1,9 +1,9 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
-import { sessionEnded } from './authSlice'
+import { logout, sessionExpired } from './authSlice'
 import { refundBooking } from './bookingsSlice'
 import { deleteExperience } from './experiencesSlice'
-import { onlyOnce, removeById, replaceById } from './helpers'
+import { removeById, replaceById } from './helpers'
 import { cancelOrder, createOrder } from './ordersSlice'
 
 /**
@@ -17,24 +17,16 @@ const URL = '/experience-sessions'
 // ---------- GET ----------
 
 // Fechas públicas: el back manda las activas y futuras (también las agotadas). Una sola vez, al abrir la app
-export const fetchSessions = createAsyncThunk(
-  'sessions/fetchSessions',
-  async () => {
-    const { data } = await api.get(URL)
-    return listOf(data)
-  },
-  onlyOnce((state) => state.sessions),
-)
+export const fetchSessions = createAsyncThunk('sessions/fetchSessions', async () => {
+  const { data } = await api.get(URL)
+  return listOf(data)
+})
 
 // Para gestionar: también las pasadas y las canceladas. Anfitrión → las de sus experiencias; admin → todas
-export const fetchManagedSessions = createAsyncThunk(
-  'sessions/fetchManagedSessions',
-  async () => {
-    const { data } = await api.get(`${URL}/manage`)
-    return listOf(data)
-  },
-  onlyOnce((state) => state.sessions.managed),
-)
+export const fetchManagedSessions = createAsyncThunk('sessions/fetchManagedSessions', async () => {
+  const { data } = await api.get(`${URL}/manage`)
+  return listOf(data)
+})
 
 // ---------- POST / PUT / DELETE ----------
 
@@ -166,7 +158,11 @@ const sessionsSlice = createSlice({
         state.managed.items = state.managed.items.filter((session) => session.experienceId !== id)
       })
 
-      .addMatcher(sessionEnded, (state) => {
+      // Al cerrar sesión, el calendario de esa cuenta vuelve al estado inicial
+      .addCase(logout, (state) => {
+        state.managed = initialState.managed
+      })
+      .addCase(sessionExpired, (state) => {
         state.managed = initialState.managed
       })
   },

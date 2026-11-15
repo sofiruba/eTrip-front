@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { Share2 } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams } from 'react-router-dom'
@@ -17,13 +17,12 @@ import Notice from '../components/ui/Notice'
 import PageHeader from '../components/ui/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useElementOffscreen } from '../hooks/useElementOffscreen'
-import { selectUser } from '../redux/authSlice'
-import { fetchExperienceById, selectCatalog } from '../redux/experiencesSlice'
-import { fetchReviewsByExperience, replyToReview } from '../redux/reviewsSlice'
+import { fetchExperienceById } from '../redux/experiencesSlice'
+import { experienceKey, fetchReviewsByExperience, replyToReview } from '../redux/reviewsSlice'
 import { showToast } from '../redux/toastsSlice'
 import { fetchUserById } from '../redux/usersSlice'
 import { hoursBetween } from '../utils/dates'
-import { byNewest, getUpcomingSessions } from '../utils/experiences'
+import { addSessionInfo, byNewest, getUpcomingSessions } from '../utils/experiences'
 import { getCity } from '../utils/location'
 import NotFoundPage from './NotFoundPage'
 import './ExperiencePage.css'
@@ -39,32 +38,34 @@ function ExperienceRoute() {
 
 function ExperiencePage({ id }) {
   const dispatch = useDispatch()
-  const user = useSelector(selectUser)
-  const catalog = useSelector(selectCatalog) // para "También te puede gustar"
+  const user = useSelector((state) => state.auth.user)
+  const catalogItems = useSelector((state) => state.experiences.items) // para "También te puede gustar"
   // La experiencia con TODAS sus fotos (el catálogo solo tiene la portada): { item, loading, error, notFound }
   const detail = useSelector((state) => state.experiences.details[id])
   const allSessions = useSelector((state) => state.sessions.items)
-  const allReviews = useSelector((state) => state.reviews.items)
+  const { items: allReviews, requested } = useSelector((state) => state.reviews)
 
   const experience = detail?.item ?? null
   const publisherId = experience?.publisherId
-  const host = useSelector((state) => state.users.profiles[publisherId]?.item)
+  const profile = useSelector((state) => state.users.profiles[publisherId])
+  const host = profile?.item
 
-  // Al montar: la experiencia y sus reseñas. Si ya se habían pedido, están en el store y no se repite el GET
+  // Al montar: la experiencia y sus reseñas, solo si todavía no están en el store (así no se repite el GET)
+  const reviewsRequested = requested.includes(experienceKey(id))
   useEffect(() => {
-    dispatch(fetchExperienceById(id))
-    dispatch(fetchReviewsByExperience(id))
-  }, [id, dispatch])
+    if (!detail) dispatch(fetchExperienceById(id))
+  }, [detail, id, dispatch])
+  useEffect(() => {
+    if (!reviewsRequested) dispatch(fetchReviewsByExperience(id))
+  }, [reviewsRequested, id, dispatch])
 
   // El perfil del anfitrión (público) se pide cuando ya sabemos quién es
   useEffect(() => {
-    if (publisherId) dispatch(fetchUserById(publisherId))
-  }, [publisherId, dispatch])
+    if (publisherId && !profile) dispatch(fetchUserById(publisherId))
+  }, [publisherId, profile, dispatch])
 
-  const reviews = useMemo(
-    () => allReviews.filter((review) => review.experienceId === Number(id)).sort(byNewest),
-    [allReviews, id],
-  )
+  const catalog = addSessionInfo(catalogItems, allSessions)
+  const reviews = allReviews.filter((review) => review.experienceId === Number(id)).sort(byNewest)
 
   // El panel recién existe cuando terminó de cargar
   const loading = !detail || detail.loading
@@ -98,18 +99,20 @@ function ExperiencePage({ id }) {
   // El anfitrión responde una reseña (PUT): el reducer la reemplaza por la que devuelve el back
   const replyReview = (review, text) =>
     dispatch(replyToReview({ id: review.id, reply: text }))
-      .unwrap()
-      .then((updated) => dispatch(showToast(updated.hostReply ? 'Respuesta publicada' : 'Respuesta borrada')))
-      .catch((error) => {
-        dispatch(showToast(error.message, 'error'))
-        throw error // ReviewCard deja el borrador abierto
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          dispatch(showToast({ message: action.error.message, tone: 'error' }))
+          throw action.error // ReviewCard deja el borrador abierto
+        }
+        return dispatch(showToast({ message: action.payload.hostReply ? 'Respuesta publicada' : 'Respuesta borrada' }))
       })
 
   const share = () => {
     navigator.clipboard
       .writeText(window.location.href)
-      .then(() => dispatch(showToast('Link copiado. ¡Compartilo con quien quieras!', 'info')))
-      .catch(() => dispatch(showToast('No pudimos copiar el link', 'error')))
+      .then(() => dispatch(showToast({ message: 'Link copiado. ¡Compartilo con quien quieras!', tone: 'info' })))
+      .catch(() => dispatch(showToast({ message: 'No pudimos copiar el link', tone: 'error' })))
   }
 
   return (

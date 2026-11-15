@@ -13,7 +13,6 @@ import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
-import { selectIsAdmin, selectUser } from '../redux/authSlice'
 import { createExperience, fetchExperienceById, updateDiscount, updateExperience } from '../redux/experiencesSlice'
 import { showToast } from '../redux/toastsSlice'
 import { toFile, toForm, validate } from '../utils/experienceForm'
@@ -28,15 +27,15 @@ import NotFoundPage from './NotFoundPage'
 function ExperienceEditorPage() {
   const { id } = useParams()
   const dispatch = useDispatch()
-  const user = useSelector(selectUser)
-  const isAdmin = useSelector(selectIsAdmin)
+  const user = useSelector((state) => state.auth.user)
+  const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
   // La experiencia con todas sus fotos (el catálogo solo tiene la portada): { item, loading, error }
   const detail = useSelector((state) => (id ? state.experiences.details[id] : null))
 
-  // Si estamos editando, la pedimos (si ya estaba en el store, no se repite el GET)
+  // Si estamos editando, la pedimos solo si no estaba en el store (así no se repite el GET)
   useEffect(() => {
-    if (id) dispatch(fetchExperienceById(id))
-  }, [id, dispatch])
+    if (id && !detail) dispatch(fetchExperienceById(id))
+  }, [id, detail, dispatch])
 
   if (id && (!detail || detail.loading)) return <Loading />
   const experience = detail?.item ?? null
@@ -52,8 +51,8 @@ function ExperienceEditorPage() {
 function ExperienceForm({ experience }) {
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const user = useSelector(selectUser)
-  const isAdmin = useSelector(selectIsAdmin)
+  const user = useSelector((state) => state.auth.user)
+  const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
   // El admin edita desde su panel y vuelve ahí; el anfitrión, desde Mis experiencias
   const backTo = isAdmin ? '/admin/experiencias' : '/anfitrion/experiencias'
   // Las categorías del select y las ciudades ya están en el store
@@ -99,11 +98,16 @@ function ExperienceForm({ experience }) {
     if (saving) return // mientras se guarda, un segundo clic no manda otra experiencia
     setSaving(true)
     const isNew = !existing
+    // dispatch devuelve la acción final. Si es rejected (action.error), cortamos la cadena: el .catch de abajo muestra el error
+    const resultOf = (action) => {
+      if (action.error) throw action.error
+      return action.payload
+    }
     // POST (nueva) o PUT (editar). Los reducers la guardan en el store: el Home y el buscador ya la muestran sin otro GET
     const save = (files) =>
       existing
-        ? dispatch(updateExperience({ id: existing.id, experience: data, photos: files })).unwrap()
-        : dispatch(createExperience({ experience: data, photos: files })).unwrap()
+        ? dispatch(updateExperience({ id: existing.id, experience: data, photos: files })).then(resultOf)
+        : dispatch(createExperience({ experience: data, photos: files })).then(resultOf)
     photos
       .then(save)
       .then((saved) => {
@@ -114,11 +118,11 @@ function ExperienceForm({ experience }) {
         }
         // El descuento tiene su propio endpoint (PATCH): solo lo llamamos si cambió
         return discount !== saved.discountPercentage
-          ? dispatch(updateDiscount({ id: saved.id, discountPercentage: discount })).unwrap()
+          ? dispatch(updateDiscount({ id: saved.id, discountPercentage: discount })).then(resultOf)
           : saved
       })
       .then((saved) => {
-        dispatch(showToast(isNew ? '¡Experiencia publicada! Ahora sumale fechas desde el calendario.' : 'Cambios guardados'))
+        dispatch(showToast({ message: isNew ? '¡Experiencia publicada! Ahora sumale fechas desde el calendario.' : 'Cambios guardados' }))
         allowLeave()
         navigate(isNew ? `/anfitrion/calendario?experiencia=${saved.id}` : backTo)
       })

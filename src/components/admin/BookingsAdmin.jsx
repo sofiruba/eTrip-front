@@ -30,8 +30,8 @@ function BookingsAdmin() {
   const [status, setStatus] = useState('')
 
   useEffect(() => {
-    dispatch(fetchBookings())
-  }, [dispatch])
+    if (!loaded) dispatch(fetchBookings())
+  }, [loaded, dispatch])
 
   const query = normalizeText(search.trim())
   const all = addBookingInfo(bookings).reverse()
@@ -101,9 +101,13 @@ function BookingsAdmin() {
           // Los reducers actualizan la reserva, su orden y los lugares de la fecha (el catálogo se entera solo)
           onConfirm={() =>
             dispatch(refundBooking(refunding.id))
-              .unwrap()
-              .then(() => dispatch(showToast('Reserva reembolsada: los lugares vuelven a estar disponibles')))
-              .catch((refundError) => dispatch(showToast(refundError.message, 'error')))
+              .then((action) => {
+                // rejected: el back respondió con un error (action.error.message, como en el reducer)
+                if (action.error) {
+                  return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+                }
+                return dispatch(showToast({ message: 'Reserva reembolsada: los lugares vuelven a estar disponibles' }))
+              })
           }
           onClose={() => setRefunding(null)}
         />

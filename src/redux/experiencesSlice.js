@@ -1,9 +1,8 @@
-import { createAsyncThunk, createSelector, createSlice } from '@reduxjs/toolkit'
-import { addSessionInfo } from '../utils/experiences'
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
-import { sessionEnded } from './authSlice'
+import { logout, sessionExpired } from './authSlice'
 import { updateCategory } from './categoriesSlice'
-import { onlyOnce, removeById, replaceById, upsertById } from './helpers'
+import { removeById, replaceById, upsertById } from './helpers'
 import { createReview, deleteReview } from './reviewsSlice'
 
 /**
@@ -41,56 +40,35 @@ export function toFormData(experience, photos) {
 // ---------- GET ----------
 
 // Catálogo público (solo activas). Se pide una sola vez, al abrir la app (App.jsx)
-export const fetchExperiences = createAsyncThunk(
-  'experiences/fetchExperiences',
-  async () => {
-    const { data } = await api.get(URL)
-    return listOf(data).map(toExperience)
-  },
-  onlyOnce((state) => state.experiences),
-)
+export const fetchExperiences = createAsyncThunk('experiences/fetchExperiences', async () => {
+  const { data } = await api.get(URL)
+  return listOf(data).map(toExperience)
+})
 
-// Las que gestiona quien inició sesión, también las pausadas: el anfitrión ve las suyas y el admin, todas
-export const fetchManagedExperiences = createAsyncThunk(
-  'experiences/fetchManagedExperiences',
-  async (_, { getState }) => {
-    const isAdmin = getState().auth.user?.role === 'ADMIN'
-    const { data } = await api.get(isAdmin ? `${URL}?includeInactive=true` : `${URL}/mine`)
-    return listOf(data).map(toExperience)
-  },
-  onlyOnce((state) => state.experiences.managed),
-)
+// Modo anfitrión: las mías, también las pausadas (se guardan en `managed`)
+export const fetchMyExperiences = createAsyncThunk('experiences/fetchMyExperiences', async () => {
+  const { data } = await api.get(`${URL}/mine`)
+  return listOf(data).map(toExperience)
+})
 
-// Una experiencia con TODAS sus fotos (los listados del back solo traen la portada). Una vez por experiencia
-export const fetchExperienceById = createAsyncThunk(
-  'experiences/fetchExperienceById',
-  async (id) => {
-    const { data } = await api.get(`${URL}/${id}`)
-    return toExperience(data)
-  },
-  {
-    condition: (id, { getState }) => {
-      const detail = getState().experiences.details[id]
-      return !detail || Boolean(detail.error)
-    },
-  },
-)
+// Panel de admin: todas, también las pausadas (se guardan en `managed`)
+export const fetchAllExperiences = createAsyncThunk('experiences/fetchAllExperiences', async () => {
+  const { data } = await api.get(URL, { params: { includeInactive: true } })
+  return listOf(data).map(toExperience)
+})
+
+// Una experiencia con TODAS sus fotos (los listados del back solo traen la portada)
+export const fetchExperienceById = createAsyncThunk('experiences/fetchExperienceById', async (id) => {
+  const { data } = await api.get(`${URL}/${id}`)
+  return toExperience(data)
+})
 
 // Búsqueda con los filtros que resuelve el back (`query` = "categoryId=2&location=Palermo").
-// Cada búsqueda queda guardada: si se vuelve a una que ya se hizo, no se repite el GET
-export const searchExperiences = createAsyncThunk(
-  'experiences/searchExperiences',
-  async (query) => {
-    const { data } = await api.get(`${URL}?${query}`)
-    return listOf(data).map(toExperience)
-  },
-  {
-    condition: (query, { getState }) => {
-      const search = getState().experiences.searches[query]
-      return !search || Boolean(search.error)
-    },
-  },
-)
+// Cada búsqueda queda guardada con su query: el Home no la vuelve a pedir si ya la tiene
+export const searchExperiences = createAsyncThunk('experiences/searchExperiences', async (query) => {
+  const { data } = await api.get(`${URL}?${query}`)
+  return listOf(data).map(toExperience)
+})
 
 // ---------- POST / PUT / PATCH / DELETE ----------
 
@@ -163,6 +141,27 @@ function applyReview(state, { experienceId, rating }, delta) {
   })
 }
 
+// Los tres estados de la promesa para la lista del anfitrión / admin
+function managedPending(state) {
+  state.managed.loading = true
+  state.managed.error = null
+}
+function managedFulfilled(state, action) {
+  state.managed.loading = false
+  state.managed.loaded = true
+  state.managed.items = action.payload
+}
+function managedRejected(state, action) {
+  state.managed.loading = false
+  state.managed.error = action.error.message
+}
+
+// Al cerrar sesión se olvida lo que era de esa cuenta (las suyas pausadas, el detalle de las que gestionaba)
+function forgetAccount(state) {
+  state.managed = initialState.managed
+  state.details = {}
+}
+
 const experiencesSlice = createSlice({
   name: 'experiences',
   initialState,
@@ -178,28 +177,21 @@ const experiencesSlice = createSlice({
         state.loading = false
         state.loaded = true
         state.items = action.payload
-        // Si se volvió a pedir a propósito (después de cargar datos de prueba), las búsquedas guardadas quedaron viejas
-        if (action.meta.arg?.force) state.searches = {}
+        // Si se volvió a pedir (por ejemplo, después de cargar datos de prueba), las búsquedas guardadas quedaron viejas
+        state.searches = {}
       })
       .addCase(fetchExperiences.rejected, (state, action) => {
         state.loading = false
         state.error = action.error.message
       })
 
-      // GET de las que gestiona el anfitrión / admin
-      .addCase(fetchManagedExperiences.pending, (state) => {
-        state.managed.loading = true
-        state.managed.error = null
-      })
-      .addCase(fetchManagedExperiences.fulfilled, (state, action) => {
-        state.managed.loading = false
-        state.managed.loaded = true
-        state.managed.items = action.payload
-      })
-      .addCase(fetchManagedExperiences.rejected, (state, action) => {
-        state.managed.loading = false
-        state.managed.error = action.error.message
-      })
+      // GET de las que gestiona el anfitrión (las suyas) o el admin (todas): las dos van a `managed`
+      .addCase(fetchMyExperiences.pending, managedPending)
+      .addCase(fetchMyExperiences.fulfilled, managedFulfilled)
+      .addCase(fetchMyExperiences.rejected, managedRejected)
+      .addCase(fetchAllExperiences.pending, managedPending)
+      .addCase(fetchAllExperiences.fulfilled, managedFulfilled)
+      .addCase(fetchAllExperiences.rejected, managedRejected)
 
       // GET por id (detalle)
       .addCase(fetchExperienceById.pending, (state, action) => {
@@ -265,32 +257,9 @@ const experiencesSlice = createSlice({
       .addCase(createReview.fulfilled, (state, action) => applyReview(state, action.payload, 1))
       .addCase(deleteReview.fulfilled, (state, action) => applyReview(state, action.payload, -1))
 
-      // Al cerrar sesión se olvida lo que era de esa cuenta (las suyas pausadas, el detalle de las que gestionaba)
-      .addMatcher(sessionEnded, (state) => {
-        state.managed = initialState.managed
-        state.details = {}
-      })
+      .addCase(logout, forgetAccount)
+      .addCase(sessionExpired, forgetAccount)
   },
 })
-
-// ---------- Selectores ----------
-
-/** Catálogo con la info de sus fechas (próxima fecha con lugar, lugares que quedan…). Se recalcula solo si cambian. */
-export const selectCatalog = createSelector([(state) => state.experiences.items, (state) => state.sessions.items], addSessionInfo)
-
-/** Lo mismo para el modo anfitrión / panel de admin (con todas las fechas, también las pasadas y canceladas). */
-export const selectManagedExperiences = createSelector(
-  [(state) => state.experiences.managed.items, (state) => state.sessions.managed.items],
-  addSessionInfo,
-)
-
-/** Estado de la carga inicial del catálogo (experiencias, fechas y categorías): { loading, error }. */
-export const selectCatalogStatus = createSelector(
-  [(state) => state.experiences, (state) => state.sessions, (state) => state.categories],
-  (...lists) => {
-    const error = lists.find((list) => list.error)?.error ?? null
-    return { loading: !error && !lists.every((list) => list.loaded), error }
-  },
-)
 
 export default experiencesSlice.reducer

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { deleteCategory, fetchCategories } from '../../redux/categoriesSlice'
-import { fetchManagedExperiences } from '../../redux/experiencesSlice'
+import { fetchAllExperiences } from '../../redux/experiencesSlice'
+import { isMissing } from '../../redux/helpers'
 import { showToast } from '../../redux/toastsSlice'
 import { normalizeText, pluralize } from '../../utils/format'
 import { getCategoryIcon } from '../experience/categoryIcons'
@@ -16,17 +17,20 @@ import CategoryFormModal from './CategoryFormModal'
 function CategoriesAdmin() {
   const dispatch = useDispatch()
   // Las categorías ya están en el store (se pidieron al abrir la app): son las mismas que ve el catálogo público
-  const categories = useSelector((state) => state.categories.items)
+  const categoriesState = useSelector((state) => state.categories)
+  const categories = categoriesState.items
   // Para saber cuántas experiencias usa cada categoría (todas, también las pausadas)
-  const experiences = useSelector((state) => state.experiences.managed.items)
+  const managed = useSelector((state) => state.experiences.managed)
+  const experiences = managed.items
   const [editing, setEditing] = useState(null) // categoría, 'new' o null
   const [deleting, setDeleting] = useState(null)
   const [search, setSearch] = useState('')
 
+  // Las categorías ya se pidieron al abrir la app; las experiencias, si todavía no están
   useEffect(() => {
-    dispatch(fetchCategories())
-    dispatch(fetchManagedExperiences())
-  }, [dispatch])
+    if (isMissing(categoriesState)) dispatch(fetchCategories())
+    if (isMissing(managed)) dispatch(fetchAllExperiences())
+  }, [categoriesState, managed, dispatch])
 
   const usage = (categoryId) => experiences.filter((experience) => experience.categoryId === categoryId).length
 
@@ -35,7 +39,7 @@ function CategoriesAdmin() {
   )
 
   const askDelete = (category) => {
-    if (usage(category.id)) return dispatch(showToast('No se puede eliminar: tiene experiencias asociadas.', 'error'))
+    if (usage(category.id)) return dispatch(showToast({ message: 'No se puede eliminar: tiene experiencias asociadas.', tone: 'error' }))
     return setDeleting(category)
   }
 
@@ -91,9 +95,13 @@ function CategoriesAdmin() {
           message={`Vas a eliminar “${deleting.name}”.`}
           onConfirm={() =>
             dispatch(deleteCategory(deleting.id))
-              .unwrap()
-              .then(() => dispatch(showToast('Categoría eliminada', 'info')))
-              .catch((error) => dispatch(showToast(error.message, 'error')))
+              .then((action) => {
+                // rejected: el back respondió con un error (action.error.message, como en el reducer)
+                if (action.error) {
+                  return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+                }
+                return dispatch(showToast({ message: 'Categoría eliminada', tone: 'info' }))
+              })
           }
           onClose={() => setDeleting(null)}
         />

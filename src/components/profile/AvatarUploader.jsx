@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { Camera } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectUser, updateProfileExtras } from '../../redux/authSlice'
+import { updateProfileExtras } from '../../redux/authSlice'
 import { showToast } from '../../redux/toastsSlice'
 import { fullName } from '../../utils/format'
 import Avatar from '../ui/Avatar'
@@ -46,27 +46,27 @@ function shrinkPhoto(file) {
 // `buttonRef` deja que el padre abra el selector de foto (por ejemplo, desde "Completá tu perfil")
 function AvatarUploader({ buttonRef }) {
   const dispatch = useDispatch()
-  const user = useSelector(selectUser)
+  const user = useSelector((state) => state.auth.user)
   const inputRef = useRef(null)
 
   const handleFile = (event) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (!TYPES.includes(file.type)) return dispatch(showToast('Usá una foto JPG, PNG o WEBP.', 'error'))
-    if (file.size > MAX_MB * 1024 * 1024) return dispatch(showToast(`La foto puede pesar hasta ${MAX_MB} MB.`, 'error'))
+    if (!TYPES.includes(file.type)) return dispatch(showToast({ message: 'Usá una foto JPG, PNG o WEBP.', tone: 'error' }))
+    if (file.size > MAX_MB * 1024 * 1024) return dispatch(showToast({ message: `La foto puede pesar hasta ${MAX_MB} MB.`, tone: 'error' }))
 
     return shrinkPhoto(file)
       .then((avatarUrl) => {
         dispatch(updateProfileExtras({ avatarUrl }))
-        dispatch(showToast('Foto de perfil actualizada'))
+        dispatch(showToast({ message: 'Foto de perfil actualizada' }))
       })
-      .catch(() => dispatch(showToast('No pudimos leer la foto. Probá con otra.', 'error')))
+      .catch(() => dispatch(showToast({ message: 'No pudimos leer la foto. Probá con otra.', tone: 'error' })))
   }
 
   const removePhoto = () => {
     dispatch(updateProfileExtras({ avatarUrl: null }))
-    dispatch(showToast('Quitaste tu foto de perfil', 'info'))
+    dispatch(showToast({ message: 'Quitaste tu foto de perfil', tone: 'info' }))
   }
 
   return (

@@ -30,14 +30,15 @@ function DiscountModal({ experience, onClose }) {
     if (!valid) return setError(`Ingresá un número entero entre 0 y ${MAX_DISCOUNT}.`)
     setSending(true)
     return dispatch(updateDiscount({ id: experience.id, discountPercentage: percentage }))
-      .unwrap()
-      .then(() => {
-        dispatch(showToast(percentage ? `Descuento del ${percentage}% aplicado` : 'Descuento quitado'))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          setError(action.error.message)
+          setSending(false)
+          return
+        }
+        dispatch(showToast({ message: percentage ? `Descuento del ${percentage}% aplicado` : 'Descuento quitado' }))
         onClose()
-      })
-      .catch((discountError) => {
-        setError(discountError.message)
-        setSending(false)
       })
   }
 

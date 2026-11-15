@@ -25,14 +25,15 @@ function ReviewFormModal({ experienceId, experienceTitle, onClose }) {
 
     setSending(true)
     return dispatch(createReview({ experienceId, rating, comment: comment.trim() }))
-      .unwrap()
-      .then(() => {
-        dispatch(showToast('¡Gracias! Tu reseña ya está publicada'))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          setError(action.error.message)
+          setSending(false)
+          return
+        }
+        dispatch(showToast({ message: '¡Gracias! Tu reseña ya está publicada' }))
         onClose()
-      })
-      .catch((reviewError) => {
-        setError(reviewError.message)
-        setSending(false)
       })
   }
 

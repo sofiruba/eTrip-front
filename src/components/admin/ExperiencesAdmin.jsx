@@ -3,15 +3,11 @@ import { ExternalLink, Eye, Pencil, Power, Store, Trash2 } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { fetchBookings } from '../../redux/bookingsSlice'
-import {
-  deleteExperience,
-  fetchManagedExperiences,
-  selectManagedExperiences,
-  updateExperienceStatus,
-} from '../../redux/experiencesSlice'
+import { deleteExperience, fetchAllExperiences, updateExperienceStatus } from '../../redux/experiencesSlice'
+import { isMissing } from '../../redux/helpers'
 import { fetchManagedSessions } from '../../redux/sessionsSlice'
 import { showToast } from '../../redux/toastsSlice'
-import { getUpcomingSessions, isSoldOut } from '../../utils/experiences'
+import { addSessionInfo, getUpcomingSessions, isSoldOut } from '../../utils/experiences'
 import { formatMoney, formatSessionDate, normalizeText, pluralize } from '../../utils/format'
 import { getCity } from '../../utils/location'
 import Badge from '../ui/Badge'
@@ -45,10 +41,12 @@ function getStatus(experience) {
 function ExperiencesAdmin() {
   const dispatch = useDispatch()
   // Como admin, "managed" son TODAS las experiencias (también las pausadas), con la info de sus fechas
-  const managed = useSelector((state) => state.experiences.managed) // { loaded, error }
-  const experiences = useSelector(selectManagedExperiences)
-  const sessions = useSelector((state) => state.sessions.managed.items)
-  const bookings = useSelector((state) => state.bookings.items)
+  const managed = useSelector((state) => state.experiences.managed) // { items, loaded, error }
+  const managedSessions = useSelector((state) => state.sessions.managed)
+  const bookingsState = useSelector((state) => state.bookings)
+  const sessions = managedSessions.items
+  const bookings = bookingsState.items
+  const experiences = addSessionInfo(managed.items, sessions)
   const categories = useSelector((state) => state.categories.items)
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
@@ -60,17 +58,21 @@ function ExperiencesAdmin() {
   const [deleting, setDeleting] = useState(null)
 
   useEffect(() => {
-    dispatch(fetchManagedExperiences())
-    dispatch(fetchManagedSessions())
-    dispatch(fetchBookings()) // para las ventas de cada una
-  }, [dispatch])
+    if (isMissing(managed)) dispatch(fetchAllExperiences())
+    if (isMissing(managedSessions)) dispatch(fetchManagedSessions())
+    if (isMissing(bookingsState)) dispatch(fetchBookings()) // para las ventas de cada una
+  }, [managed, managedSessions, bookingsState, dispatch])
 
   // PATCH (baja lógica): el reducer la reemplaza en el panel y la saca del catálogo público (o la vuelve a poner)
   const toggleActive = (experience) =>
     dispatch(updateExperienceStatus({ id: experience.id, active: !experience.active }))
-      .unwrap()
-      .then((updated) => dispatch(showToast(updated.active ? 'Experiencia activada' : 'Experiencia desactivada', 'info')))
-      .catch((error) => dispatch(showToast(error.message, 'error')))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
+        return dispatch(showToast({ message: action.payload.active ? 'Experiencia activada' : 'Experiencia desactivada', tone: 'info' }))
+      })
 
   // Ventas de cada experiencia (reservas no reembolsadas)
   const salesOf = (experienceId) =>
@@ -94,7 +96,7 @@ function ExperiencesAdmin() {
 
   const selected = selectedId && rows.find((experience) => experience.id === selectedId)
 
-  if (managed.error) return <ErrorState message={managed.error} onRetry={() => dispatch(fetchManagedExperiences())} />
+  if (managed.error) return <ErrorState message={managed.error} onRetry={() => dispatch(fetchAllExperiences())} />
   if (!managed.loaded) return <Loading />
 
   // El back decide si se puede: borra en cascada, salvo que tenga reservas para fechas que todavía no pasaron
@@ -236,12 +238,14 @@ function ExperiencesAdmin() {
           confirmLabel="Eliminar"
           onConfirm={() =>
             dispatch(deleteExperience(deleting))
-              .unwrap()
-              .then(() => {
+              .then((action) => {
+                // rejected: el back respondió con un error (action.error.message, como en el reducer)
+                if (action.error) {
+                  return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+                }
                 setSelectedId(null)
-                dispatch(showToast('Experiencia eliminada', 'info'))
+                dispatch(showToast({ message: 'Experiencia eliminada', tone: 'info' }))
               })
-              .catch((error) => dispatch(showToast(error.message, 'error')))
           }
           onClose={() => setDeleting(null)}
         />

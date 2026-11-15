@@ -43,14 +43,15 @@ function CouponFormModal({ coupon, coupons, onClose }) {
     setSending(true)
     const request = coupon ? dispatch(updateCoupon({ id: coupon.id, ...data })) : dispatch(createCoupon(data))
     request
-      .unwrap()
-      .then(() => {
-        dispatch(showToast(coupon ? 'Cupón actualizado' : 'Cupón creado'))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          setErrors({ code: action.error.message })
+          setSending(false)
+          return
+        }
+        dispatch(showToast({ message: coupon ? 'Cupón actualizado' : 'Cupón creado' }))
         onClose()
-      })
-      .catch((saveError) => {
-        setErrors({ code: saveError.message })
-        setSending(false)
       })
   }
 

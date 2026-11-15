@@ -1,8 +1,8 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
-import { sessionEnded } from './authSlice'
+import { logout, sessionExpired } from './authSlice'
 import { deleteExperience } from './experiencesSlice'
-import { onlyOnce, replaceById } from './helpers'
+import { replaceById } from './helpers'
 import { cancelOrder, createOrder } from './ordersSlice'
 import { cancelSession, removeSession } from './sessionsSlice'
 
@@ -13,40 +13,22 @@ const URL = '/bookings'
 // ---------- GET ----------
 
 // Cliente: sus reservas. Administrador: todas. Una vez por sesión
-export const fetchBookings = createAsyncThunk(
-  'bookings/fetchBookings',
-  async () => {
-    const { data } = await api.get(URL)
-    return listOf(data)
-  },
-  onlyOnce((state) => state.bookings),
-)
+export const fetchBookings = createAsyncThunk('bookings/fetchBookings', async () => {
+  const { data } = await api.get(URL)
+  return listOf(data)
+})
 
 // Anfitrión: las reservas de sus experiencias (sus ventas)
-export const fetchSales = createAsyncThunk(
-  'bookings/fetchSales',
-  async () => {
-    const { data } = await api.get(`${URL}/sales`)
-    return listOf(data)
-  },
-  onlyOnce((state) => state.bookings.sales),
-)
+export const fetchSales = createAsyncThunk('bookings/fetchSales', async () => {
+  const { data } = await api.get(`${URL}/sales`)
+  return listOf(data)
+})
 
-// Una reserva (detalle). Si ya tenemos la lista de mis reservas no hace falta pedirla
-export const fetchBookingById = createAsyncThunk(
-  'bookings/fetchBookingById',
-  async (id) => {
-    const { data } = await api.get(`${URL}/${id}`)
-    return data
-  },
-  {
-    condition: (id, { getState }) => {
-      const { items, details } = getState().bookings
-      const known = items.some((booking) => booking.id === Number(id))
-      return !known && (!details[id] || Boolean(details[id].error))
-    },
-  },
-)
+// Una reserva (detalle). La página solo la pide si no estaba ya en "Mis reservas"
+export const fetchBookingById = createAsyncThunk('bookings/fetchBookingById', async (id) => {
+  const { data } = await api.get(`${URL}/${id}`)
+  return data
+})
 
 // ---------- POST ----------
 
@@ -158,12 +140,10 @@ const bookingsSlice = createSlice({
         state.sales.items = state.sales.items.filter(fromOtherExperience)
       })
 
-      .addMatcher(sessionEnded, () => initialState)
+      // Al cerrar sesión vuelve al estado inicial
+      .addCase(logout, () => initialState)
+      .addCase(sessionExpired, () => initialState)
   },
 })
-
-/** Una reserva por id, desde la lista o desde el detalle que se pidió aparte. */
-export const selectBookingById = (state, id) =>
-  state.bookings.items.find((booking) => booking.id === Number(id)) ?? state.bookings.details[id]?.item ?? null
 
 export default bookingsSlice.reducer

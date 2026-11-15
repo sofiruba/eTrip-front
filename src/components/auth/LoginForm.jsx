@@ -20,14 +20,18 @@ function LoginForm({ identifier, onIdentifierChange, onForgot, onRegister, onDon
     if (!identifier.trim()) return setError('Ingresá tu email o nombre de usuario.')
 
     setSending(true)
-    // El reducer guarda el token y el usuario en el estado global; con unwrap() recibimos el resultado acá
+    // El reducer guarda el token y el usuario en el estado global. dispatch devuelve la acción final: fulfilled o rejected
     return dispatch(login({ usernameOrEmail: identifier.trim(), password }))
-      .unwrap()
-      .then(({ user }) => onDone(user, `¡Hola, ${user.firstName}!`))
-      .catch((err) => {
-        // El back explica qué pasó: datos incorrectos (401) o cuenta desactivada
-        setFormError(err.message)
-        setSending(false)
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          // El back explica qué pasó: datos incorrectos (401) o cuenta desactivada
+          setFormError(action.error.message)
+          setSending(false)
+          return
+        }
+        const { user } = action.payload
+        return onDone(user, `¡Hola, ${user.firstName}!`)
       })
   }
 

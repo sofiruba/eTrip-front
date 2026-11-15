@@ -39,14 +39,15 @@ function SessionFormModal({ session, experiences, defaultExperienceId, onClose }
 
     setSending(true)
     return request
-      .unwrap()
-      .then(() => {
-        dispatch(showToast(session ? 'Sesión actualizada' : 'Nueva fecha publicada'))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          setError(action.error.message)
+          setSending(false)
+          return
+        }
+        dispatch(showToast({ message: session ? 'Sesión actualizada' : 'Nueva fecha publicada' }))
         onClose()
-      })
-      .catch((saveError) => {
-        setError(saveError.message)
-        setSending(false)
       })
   }
 

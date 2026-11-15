@@ -71,9 +71,13 @@ function HostBookings({ bookings, sessions }) {
           confirmLabel="Reembolsar"
           onConfirm={() =>
             dispatch(refundBooking(refunding.id))
-              .unwrap()
-              .then(() => dispatch(showToast('Reserva reembolsada: los lugares vuelven a estar disponibles')))
-              .catch((error) => dispatch(showToast(error.message, 'error')))
+              .then((action) => {
+                // rejected: el back respondió con un error (action.error.message, como en el reducer)
+                if (action.error) {
+                  return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+                }
+                return dispatch(showToast({ message: 'Reserva reembolsada: los lugares vuelven a estar disponibles' }))
+              })
           }
           onClose={() => setRefunding(null)}
         />

@@ -4,13 +4,14 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { fetchBookings } from '../../redux/bookingsSlice'
 import { fetchCoupons } from '../../redux/couponsSlice'
-import { fetchManagedExperiences, selectManagedExperiences } from '../../redux/experiencesSlice'
+import { fetchAllExperiences } from '../../redux/experiencesSlice'
+import { isMissing } from '../../redux/helpers'
 import { fetchOrders, fetchOrderStats } from '../../redux/ordersSlice'
 import { fetchAllReviews } from '../../redux/reviewsSlice'
 import { fetchManagedSessions } from '../../redux/sessionsSlice'
 import { fetchUsers } from '../../redux/usersSlice'
 import { getCouponStatus } from '../../utils/coupons'
-import { byNewest, isSoldOut } from '../../utils/experiences'
+import { addSessionInfo, byNewest, isSoldOut } from '../../utils/experiences'
 import { formatFullDate, formatMoney, isPast, pluralize } from '../../utils/format'
 import DataTable from '../ui/DataTable'
 import ErrorState from '../ui/ErrorState'
@@ -22,8 +23,6 @@ import { COUPON_EXPIRY_WARNING_DAYS, LOW_RATING } from './adminRules'
 import './AdminOverview.css'
 
 const RECENT_ORDERS = 5
-// Todo lo que muestra el resumen. Cada GET se hace una sola vez: lo que ya se cargó en otra sección del panel se reutiliza
-const LOADERS = [fetchOrders, fetchOrderStats, fetchBookings, fetchUsers, fetchAllReviews, fetchCoupons, fetchManagedExperiences, fetchManagedSessions]
 const TOP_EXPERIENCES = 5
 const DAY_MS = 86400000
 
@@ -59,21 +58,39 @@ function AdminOverview() {
   const experiences = useSelector((state) => state.experiences.managed)
   const sessions = useSelector((state) => state.sessions.managed)
   const reviews = useSelector((state) => state.reviews)
-  const catalog = useSelector(selectManagedExperiences) // todas las experiencias con la info de sus fechas
+  const catalog = addSessionInfo(experiences.items, sessions.items) // todas las experiencias con la info de sus fechas
+  const allReviewsRequested = reviews.requested.includes('all')
 
-  // Al entrar: despachamos todos los GET (los que ya se hicieron en otra sección no se repiten)
+  // Al entrar: pedimos solo lo que todavía no está en el store (lo que ya se cargó en otra sección del panel se reutiliza)
   useEffect(() => {
-    LOADERS.forEach((load) => dispatch(load()))
-  }, [dispatch])
+    if (isMissing(orders)) dispatch(fetchOrders())
+    if (isMissing(stats)) dispatch(fetchOrderStats())
+    if (isMissing(bookings)) dispatch(fetchBookings())
+    if (isMissing(users)) dispatch(fetchUsers())
+    if (isMissing(coupons)) dispatch(fetchCoupons())
+    if (isMissing(experiences)) dispatch(fetchAllExperiences())
+    if (isMissing(sessions)) dispatch(fetchManagedSessions())
+    if (!allReviewsRequested) dispatch(fetchAllReviews())
+  }, [orders, stats, bookings, users, coupons, experiences, sessions, allReviewsRequested, dispatch])
 
   const lists = [orders, stats, bookings, users, coupons, experiences, sessions]
   // Si algo falla se muestra el error (y no un "0 ventas" engañoso)
   const error = lists.find((list) => list.error)?.error ?? reviews.error
-  const loading = lists.some((list) => !list.loaded) || !reviews.requested.includes('all') || reviews.loading
+  const loading = lists.some((list) => !list.loaded) || !allReviewsRequested || reviews.loading
 
-  if (error) {
-    return <ErrorState title="No pudimos cargar el resumen" message={error} onRetry={() => LOADERS.forEach((load) => dispatch(load()))} />
+  // Reintentar: se vuelve a pedir solo lo que falló
+  const retry = () => {
+    if (orders.error) dispatch(fetchOrders())
+    if (stats.error) dispatch(fetchOrderStats())
+    if (bookings.error) dispatch(fetchBookings())
+    if (users.error) dispatch(fetchUsers())
+    if (coupons.error) dispatch(fetchCoupons())
+    if (experiences.error) dispatch(fetchAllExperiences())
+    if (sessions.error) dispatch(fetchManagedSessions())
+    if (reviews.error) dispatch(fetchAllReviews())
   }
+
+  if (error) return <ErrorState title="No pudimos cargar el resumen" message={error} onRetry={retry} />
   if (loading) return <Loading />
 
   return (

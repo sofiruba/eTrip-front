@@ -46,7 +46,7 @@ function HostCalendar({ experiences, sessions }) {
 
   const askDelete = (session) => {
     if (!isEditable(session)) {
-      dispatch(showToast(session.active ? 'No podés cancelar una fecha que ya empezó.' : 'Esta fecha ya está cancelada.', 'error'))
+      dispatch(showToast({ message: session.active ? 'No podés cancelar una fecha que ya empezó.' : 'Esta fecha ya está cancelada.', tone: 'error' }))
       return
     }
     setDeleting(session)
@@ -136,9 +136,13 @@ function HostCalendar({ experiences, sessions }) {
           // El back no la borra: la marca como cancelada (baja lógica) y reembolsa sus reservas. Queda en el historial
           onConfirm={() =>
             dispatch(cancelSession(deleting))
-              .unwrap()
-              .then(() => dispatch(showToast(bookedSeats(deleting) > 0 ? 'Fecha cancelada y reservas reembolsadas' : 'Fecha cancelada', 'info')))
-              .catch((deleteError) => dispatch(showToast(deleteError.message, 'error')))
+              .then((action) => {
+                // rejected: el back respondió con un error (action.error.message, como en el reducer)
+                if (action.error) {
+                  return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+                }
+                return dispatch(showToast({ message: bookedSeats(deleting) > 0 ? 'Fecha cancelada y reservas reembolsadas' : 'Fecha cancelada', tone: 'info' }))
+              })
           }
           onClose={() => setDeleting(null)}
         />
@@ -149,9 +153,13 @@ function HostCalendar({ experiences, sessions }) {
           message="Se borra del calendario junto con sus reservas (ya reembolsadas o pasadas). No se puede deshacer."
           onConfirm={() =>
             dispatch(removeSession(removing.id))
-              .unwrap()
-              .then(() => dispatch(showToast('Fecha eliminada', 'info')))
-              .catch((removeError) => dispatch(showToast(removeError.message, 'error')))
+              .then((action) => {
+                // rejected: el back respondió con un error (action.error.message, como en el reducer)
+                if (action.error) {
+                  return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+                }
+                return dispatch(showToast({ message: 'Fecha eliminada', tone: 'info' }))
+              })
           }
           onClose={() => setRemoving(null)}
         />

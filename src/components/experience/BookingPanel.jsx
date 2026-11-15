@@ -3,8 +3,8 @@ import { CalendarX, LayoutDashboard, Pencil, ShoppingBag } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCurrency } from '../../hooks/useCurrency'
-import { openAuth, selectIsAdmin, selectUser } from '../../redux/authSlice'
-import { addToCart, selectQuantityInCart } from '../../redux/cartSlice'
+import { openAuth } from '../../redux/authSlice'
+import { addToCart } from '../../redux/cartSlice'
 import { showToast } from '../../redux/toastsSlice'
 import { LOW_SEATS } from '../../utils/experiences'
 import { formatLongDate, formatTime, pluralize } from '../../utils/format'
@@ -17,8 +17,8 @@ import './BookingPanel.css'
 /** Panel lateral del detalle: elegir sesión + cantidad y reservar. `ref` (React 19) apunta al panel, para scrollear hasta él. */
 function BookingPanel({ id, ref, experience, sessions }) {
   const dispatch = useDispatch()
-  const user = useSelector(selectUser)
-  const isAdmin = useSelector(selectIsAdmin)
+  const user = useSelector((state) => state.auth.user)
+  const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
   const { format } = useCurrency()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -33,25 +33,27 @@ function BookingPanel({ id, ref, experience, sessions }) {
   const isOwner = user?.id === experience.publisherId
 
   // Lo que ya está en el carrito para esta sesión cuenta contra los cupos
-  const inCart = useSelector((state) => (selected ? selectQuantityInCart(state, selected.id) : 0))
+  const inCart = useSelector((state) => state.cart.items.find((item) => item.experienceSessionId === selected?.id)?.quantity ?? 0)
   const maxQuantity = selected ? Math.max(selected.availableSeats - inCart, 0) : 0
   const amount = Math.min(quantity, Math.max(maxQuantity, 1))
 
   // POST al carrito: el reducer guarda el carrito que devuelve el back (el navbar se actualiza solo, está suscripto).
   // Recién cuando el back responde avisamos (o mostramos el error que mandó)
   const handleAdd = (goToCart) => {
-    if (!user) return dispatch(openAuth('login'))
+    if (!user) return dispatch(openAuth({ mode: 'login' }))
     if (maxQuantity === 0) return goToCart && navigate('/carrito')
     if (adding) return undefined
     setAdding(true)
     return dispatch(addToCart({ sessionId: selected.id, quantity: amount }))
-      .unwrap()
-      .then(() => {
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
         if (goToCart) return navigate('/carrito')
         const message = `${pluralize(amount, 'lugar', 'lugares')} agregado${amount === 1 ? '' : 's'} al carrito`
-        return dispatch(showToast(message, 'success', { label: 'Ver carrito', to: '/carrito' }))
+        return dispatch(showToast({ message, link: { label: 'Ver carrito', to: '/carrito' } }))
       })
-      .catch((error) => dispatch(showToast(error.message, 'error')))
       .then(() => setAdding(false))
   }
 

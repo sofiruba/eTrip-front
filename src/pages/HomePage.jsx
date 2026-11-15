@@ -10,10 +10,9 @@ import HomeHero from '../components/home/HomeHero'
 import HostInvite from '../components/home/HostInvite'
 import SectionHeader from '../components/ui/SectionHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { selectIsAdmin, selectUser } from '../redux/authSlice'
 import { fetchBookings } from '../redux/bookingsSlice'
 import { fetchCategories } from '../redux/categoriesSlice'
-import { fetchExperiences, searchExperiences, selectCatalog, selectCatalogStatus } from '../redux/experiencesSlice'
+import { fetchExperiences, searchExperiences } from '../redux/experiencesSlice'
 import { fetchSessions } from '../redux/sessionsSlice'
 import { addBookingInfo, splitBookings } from '../utils/bookings'
 import { applyFilters, PAGE_SIZE, readFilters, toBackQuery } from '../utils/catalogFilters'
@@ -28,13 +27,18 @@ function HomePage() {
   const dispatch = useDispatch()
   // useSelector: el Home se suscribe a las partes del estado global que muestra.
   // El catálogo ya está en el store (se pidió una sola vez al abrir la app, en App.jsx)
-  const experiences = useSelector(selectCatalog)
-  const sessions = useSelector((state) => state.sessions.items)
-  const categories = useSelector((state) => state.categories.items)
-  const { loading, error } = useSelector(selectCatalogStatus)
-  const user = useSelector(selectUser)
-  const isAdmin = useSelector(selectIsAdmin)
-  const myBookings = useSelector((state) => state.bookings.items)
+  const catalog = useSelector((state) => state.experiences)
+  const sessionsState = useSelector((state) => state.sessions)
+  const categoriesState = useSelector((state) => state.categories)
+  const sessions = sessionsState.items
+  const categories = categoriesState.items
+  // Cada experiencia con la info de sus fechas (próxima fecha con lugar, lugares que quedan)
+  const experiences = addSessionInfo(catalog.items, sessions)
+  const error = catalog.error || sessionsState.error || categoriesState.error
+  const loading = !error && (!catalog.loaded || !sessionsState.loaded)
+  const user = useSelector((state) => state.auth.user)
+  const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
+  const { items: myBookings, loaded: bookingsLoaded } = useSelector((state) => state.bookings)
   const [params, setParams] = useSearchParams()
   const resultsRef = useRef(null)
   useDocumentTitle(null)
@@ -50,11 +54,11 @@ function HomePage() {
     if (backQuery && !search) dispatch(searchExperiences(backQuery))
   }, [backQuery, search, dispatch])
 
-  // Mis reservas (para "Tus próximos planes"): una sola vez, cuando hay un cliente logueado
+  // Mis reservas (para "Tus próximos planes"): una sola vez, cuando hay un cliente logueado y todavía no las tenemos
   const userId = user?.id
   useEffect(() => {
-    if (userId && !isAdmin) dispatch(fetchBookings())
-  }, [userId, isAdmin, dispatch])
+    if (userId && !isAdmin && !bookingsLoaded) dispatch(fetchBookings())
+  }, [userId, isAdmin, bookingsLoaded, dispatch])
 
   // Sin filtros se usa el catálogo que ya está cargado (no hace falta otro pedido).
   // El front no filtra nada: solo ordena lo que mandó el back y lo muestra de a una página ("Ver más")
@@ -102,12 +106,12 @@ function HomePage() {
         <CatalogResults
           loading={loading || searching}
           error={error || (backQuery ? (search?.error ?? '') : '')}
-          // Reintentar: se vuelve a despachar lo que falló (lo que ya se cargó bien no se repite)
+          // Reintentar: se vuelve a despachar solo lo que falló (lo que ya se cargó bien no se repite)
           onRetry={() => {
-            dispatch(fetchExperiences())
-            dispatch(fetchSessions())
-            dispatch(fetchCategories())
-            if (backQuery) dispatch(searchExperiences(backQuery))
+            if (catalog.error) dispatch(fetchExperiences())
+            if (sessionsState.error) dispatch(fetchSessions())
+            if (categoriesState.error) dispatch(fetchCategories())
+            if (search?.error) dispatch(searchExperiences(backQuery))
           }}
           visible={visible}
           total={results.length}

@@ -12,8 +12,8 @@ import PageHeader from '../components/ui/PageHeader'
 import SectionHeader from '../components/ui/SectionHeader'
 import StatCard from '../components/ui/StatCard'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { selectCatalog, selectCatalogStatus } from '../redux/experiencesSlice'
 import { fetchUserById } from '../redux/usersSlice'
+import { addSessionInfo } from '../utils/experiences'
 import { fullName } from '../utils/format'
 import NotFoundPage from './NotFoundPage'
 import './HostProfilePage.css'
@@ -24,12 +24,18 @@ function HostProfilePage() {
   // Perfil público: { item, loading, error, notFound }
   const profile = useSelector((state) => state.users.profiles[id])
   // Sus experiencias publicadas ya están en el catálogo (con sus fechas): no hace falta otro GET
-  const catalog = useSelector(selectCatalog)
-  const catalogStatus = useSelector(selectCatalogStatus)
+  const catalogState = useSelector((state) => state.experiences)
+  const sessionsState = useSelector((state) => state.sessions)
+  const catalog = addSessionInfo(catalogState.items, sessionsState.items)
+  const catalogStatus = {
+    loading: !catalogState.loaded || !sessionsState.loaded,
+    error: catalogState.error || sessionsState.error,
+  }
 
+  // El perfil se pide una vez por anfitrión (si ya está en el store, no se repite el GET)
   useEffect(() => {
-    dispatch(fetchUserById(id))
-  }, [id, dispatch])
+    if (!profile) dispatch(fetchUserById(id))
+  }, [profile, id, dispatch])
 
   const host = profile?.item ?? null
   const name = host ? fullName(host) : null

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarCheck, MessageSquare, Store } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import EditProfileModal from '../components/profile/EditProfileModal'
@@ -10,9 +10,9 @@ import SavedCardsSection from '../components/profile/SavedCardsSection'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import StatCard from '../components/ui/StatCard'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { selectUser, updateProfileExtras } from '../redux/authSlice'
+import { updateProfileExtras } from '../redux/authSlice'
 import { deleteReview, fetchMyReviews } from '../redux/reviewsSlice'
-import { removeCard, selectSavedCards } from '../redux/savedCardsSlice'
+import { removeCard } from '../redux/savedCardsSlice'
 import { showToast } from '../redux/toastsSlice'
 import { cardLabel } from '../utils/cards'
 import { byNewest } from '../utils/experiences'
@@ -22,9 +22,10 @@ function ProfilePage() {
   useDocumentTitle('Mi perfil')
   const dispatch = useDispatch()
   // Los contadores (reservas, reseñas, publicadas) vienen del back en el usuario y los reducers los mantienen al día
-  const user = useSelector(selectUser)
-  const savedCards = useSelector(selectSavedCards)
-  const allReviews = useSelector((state) => state.reviews.items)
+  const user = useSelector((state) => state.auth.user)
+  const savedCards = useSelector((state) => state.savedCards.byUser[state.auth.user?.id]) ?? []
+  const { items: allReviews, requested } = useSelector((state) => state.reviews)
+  const myReviewsRequested = requested.includes('mine')
   const [editingProfile, setEditingProfile] = useState(false)
   const [interestsDraft, setInterestsDraft] = useState(null) // null = no se está editando
   const [deletingReview, setDeletingReview] = useState(null)
@@ -33,22 +34,23 @@ function ProfilePage() {
 
   // Al entrar: mis reseñas (una sola vez por sesión)
   useEffect(() => {
-    dispatch(fetchMyReviews())
-  }, [dispatch])
+    if (!myReviewsRequested) dispatch(fetchMyReviews())
+  }, [myReviewsRequested, dispatch])
 
-  const myReviews = useMemo(
-    () => allReviews.filter((review) => review.userId === user.id).sort(byNewest),
-    [allReviews, user.id],
-  )
+  const myReviews = allReviews.filter((review) => review.userId === user.id).sort(byNewest)
   const published = user.publishedExperiences ?? 0
   const interests = user.interests ?? []
 
   // DELETE en el back; el reducer la saca de la lista (sin volver a pedir todo)
   const removeReview = (review) =>
     dispatch(deleteReview(review))
-      .unwrap()
-      .then(() => dispatch(showToast('Reseña eliminada', 'info')))
-      .catch((error) => dispatch(showToast(error.message, 'error')))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
+        return dispatch(showToast({ message: 'Reseña eliminada', tone: 'info' }))
+      })
 
   // Desde "Completá tu perfil": cada paso abre lo que hay que completar
   const goToStep = (stepId) => {
@@ -61,7 +63,7 @@ function ProfilePage() {
   const saveInterests = () => {
     dispatch(updateProfileExtras({ interests: interestsDraft }))
     setInterestsDraft(null)
-    dispatch(showToast('Intereses actualizados'))
+    dispatch(showToast({ message: 'Intereses actualizados' }))
   }
 
   return (
@@ -86,7 +88,7 @@ function ProfilePage() {
           message={`Vas a quitar ${cardLabel(deletingCard)} de tus medios de pago.`}
           onConfirm={() => {
             dispatch(removeCard({ userId: user.id, cardId: deletingCard.id }))
-            dispatch(showToast('Tarjeta eliminada', 'info'))
+            dispatch(showToast({ message: 'Tarjeta eliminada', tone: 'info' }))
           }}
           onClose={() => setDeletingCard(null)}
         />

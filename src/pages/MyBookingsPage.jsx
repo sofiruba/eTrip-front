@@ -23,8 +23,8 @@ function MyBookingsPage() {
 
   // Al entrar: mis reservas. Una sola vez por sesión: una compra nueva se suma sola (reducer de createOrder)
   useEffect(() => {
-    dispatch(fetchBookings())
-  }, [dispatch])
+    if (!loaded) dispatch(fetchBookings())
+  }, [loaded, dispatch])
 
   const groups = splitBookings(addBookingInfo(bookings, experiences))
   const visible = groups[tab]

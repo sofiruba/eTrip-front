@@ -12,12 +12,11 @@ import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import Tabs from '../components/ui/Tabs'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { selectUser } from '../redux/authSlice'
 import { fetchSales } from '../redux/bookingsSlice'
-import { fetchManagedExperiences, selectManagedExperiences } from '../redux/experiencesSlice'
+import { fetchMyExperiences } from '../redux/experiencesSlice'
 import { fetchManagedSessions } from '../redux/sessionsSlice'
 import { addBookingInfo } from '../utils/bookings'
-import { byStartsAt } from '../utils/experiences'
+import { addSessionInfo, byStartsAt } from '../utils/experiences'
 import NotFoundPage from './NotFoundPage'
 import './HostPage.css'
 
@@ -36,18 +35,26 @@ const TABS = [
 function HostPage() {
   const { tab = 'resumen' } = useParams()
   const dispatch = useDispatch()
-  const user = useSelector(selectUser)
-  const experiences = useSelector(selectManagedExperiences) // las mías, con la info de sus fechas
-  const managed = useSelector((state) => state.experiences.managed) // { loaded, error }
-  const sessions = useSelector((state) => state.sessions.managed.items)
-  const sales = useSelector((state) => state.bookings.sales.items)
+  const user = useSelector((state) => state.auth.user)
+  const managed = useSelector((state) => state.experiences.managed) // las mías: { items, loaded, error }
+  const managedSessions = useSelector((state) => state.sessions.managed)
+  const salesState = useSelector((state) => state.bookings.sales)
+  const sessions = managedSessions.items
+  const sales = salesState.items
+  const experiences = addSessionInfo(managed.items, sessions) // con la info de sus fechas
   useDocumentTitle('Modo anfitrión')
 
+  // Cada GET una sola vez: si ya se cargó (por ejemplo, al volver a esta sección), no se repite
   useEffect(() => {
-    dispatch(fetchManagedExperiences())
-    dispatch(fetchManagedSessions()) // todas las fechas de mis experiencias, también las pasadas y las canceladas
-    dispatch(fetchSales())
-  }, [dispatch])
+    if (!managed.loaded) dispatch(fetchMyExperiences())
+  }, [managed.loaded, dispatch])
+  useEffect(() => {
+    // Todas las fechas de mis experiencias, también las pasadas y las canceladas
+    if (!managedSessions.loaded) dispatch(fetchManagedSessions())
+  }, [managedSessions.loaded, dispatch])
+  useEffect(() => {
+    if (!salesState.loaded) dispatch(fetchSales())
+  }, [salesState.loaded, dispatch])
 
   if (!TABS.some((item) => item.id === tab)) return <NotFoundPage />
 
@@ -67,7 +74,7 @@ function HostPage() {
   }
 
   const content = managed.error ? (
-    <ErrorState title="No pudimos cargar tus experiencias" message={managed.error} onRetry={() => dispatch(fetchManagedExperiences())} />
+    <ErrorState title="No pudimos cargar tus experiencias" message={managed.error} onRetry={() => dispatch(fetchMyExperiences())} />
   ) : !managed.loaded ? (
     <Loading />
   ) : (

@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSelector, createSlice, isAnyOf } from '@reduxjs/toolkit'
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, withToken } from './api'
 import { createExperience, deleteExperience } from './experiencesSlice'
 import { createOrder } from './ordersSlice'
@@ -53,16 +53,11 @@ export const resetPassword = createAsyncThunk('auth/resetPassword', async ({ use
   return { token: data.access_token, user }
 })
 
-// GET /users/me: al abrir la app con una sesión guardada, para tener el rol y los contadores al día.
-// La condición evita pedirlo dos veces si ya está en camino (en desarrollo StrictMode monta los efectos dos veces)
-export const fetchMe = createAsyncThunk(
-  'auth/fetchMe',
-  async () => {
-    const { data } = await api.get('/users/me')
-    return data
-  },
-  { condition: (_, { getState }) => Boolean(getState().auth.token) && !getState().auth.loadingUser },
-)
+// GET /users/me: al abrir la app con una sesión guardada, para tener el rol y los contadores al día
+export const fetchMe = createAsyncThunk('auth/fetchMe', async () => {
+  const { data } = await api.get('/users/me')
+  return data
+})
 
 // PUT /users/me: el back solo guarda nombre y apellido
 export const updateMe = createAsyncThunk('auth/updateMe', async ({ firstName, lastName }) => {
@@ -74,20 +69,28 @@ export const updateMe = createAsyncThunk('auth/updateMe', async ({ firstName, la
 
 const initialState = {
   token: null,
+  // El usuario que devuelve el back, con lo que se guarda en el navegador (bio, ciudad, intereses y foto) ya sumado
   user: null,
   // Bio, ciudad, intereses y foto no existen en el back: se guardan en este navegador, por usuario ({ [userId]: {...} })
   profileExtras: {},
-  // true mientras se pide /users/me (no se persiste)
-  loadingUser: false,
   // Modal de login / registro / recuperar contraseña: qué vista está abierta (null = cerrado) y a dónde ir después
   authModal: { mode: null, redirect: null },
 }
 
+// El usuario del back + lo que guardamos en el navegador para esa cuenta
+const withExtras = (state, user) => ({ ...user, ...state.profileExtras[user.id] })
+
 // Login, registro y recuperar contraseña terminan igual: guardamos el token y el usuario y cerramos el modal
 function startSession(state, action) {
   state.token = action.payload.token
-  state.user = action.payload.user
+  state.user = withExtras(state, action.payload.user)
   state.authModal.mode = null
+}
+
+// Al cerrar sesión (a mano o porque venció el token)
+function endSession(state) {
+  state.token = null
+  state.user = null
 }
 
 // Suma o resta un contador del perfil (los calcula el back): así no hace falta volver a pedir /users/me
@@ -100,21 +103,16 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     logout: (state) => {
-      state.token = null
-      state.user = null
+      endSession(state)
     },
     // El token venció mientras se usaba la app: se cierra la sesión y se abre el login sobre la página actual
     sessionExpired: (state) => {
-      state.token = null
-      state.user = null
+      endSession(state)
       state.authModal = { mode: 'login', redirect: null }
     },
-    // dispatch(openAuth('register', '/anfitrion')): `prepare` arma el payload con los dos parámetros
-    openAuth: {
-      reducer: (state, action) => {
-        state.authModal = action.payload
-      },
-      prepare: (mode = 'login', redirect = null) => ({ payload: { mode, redirect } }),
+    // dispatch(openAuth({ mode: 'register', redirect: '/anfitrion' }))
+    openAuth: (state, action) => {
+      state.authModal = { mode: action.payload.mode ?? 'login', redirect: action.payload.redirect ?? null }
     },
     closeAuth: (state) => {
       state.authModal.mode = null
@@ -123,6 +121,7 @@ const authSlice = createSlice({
     updateProfileExtras: (state, action) => {
       const userId = state.user.id
       state.profileExtras[userId] = { ...state.profileExtras[userId], ...action.payload }
+      state.user = { ...state.user, ...action.payload }
     },
   },
   extraReducers: (builder) => {
@@ -130,26 +129,18 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, startSession)
       .addCase(resetPassword.fulfilled, startSession)
       .addCase(register.fulfilled, (state, action) => {
-        startSession(state, action)
         state.profileExtras[action.payload.user.id] = { interests: action.payload.interests }
-      })
-      .addCase(fetchMe.pending, (state) => {
-        state.loadingUser = true
+        startSession(state, action)
       })
       .addCase(fetchMe.fulfilled, (state, action) => {
-        state.loadingUser = false
-        state.user = action.payload
+        state.user = withExtras(state, action.payload)
       })
       .addCase(fetchMe.rejected, (state, action) => {
-        state.loadingUser = false
         // 4xx = token inválido o cuenta desactivada: se cierra la sesión. Si el back no respondió, la dejamos como estaba
-        if (action.error.code?.startsWith('4')) {
-          state.token = null
-          state.user = null
-        }
+        if (action.error.code?.startsWith('4')) endSession(state)
       })
       .addCase(updateMe.fulfilled, (state, action) => {
-        state.user = action.payload
+        state.user = withExtras(state, action.payload)
       })
       // Contadores del perfil
       .addCase(createOrder.fulfilled, (state) => addToCounter(state, 'bookingsCount', 1))
@@ -165,18 +156,5 @@ const authSlice = createSlice({
 })
 
 export const { logout, sessionExpired, openAuth, closeAuth, updateProfileExtras } = authSlice.actions
-
-/** Cualquiera de las dos formas de terminar la sesión: los slices con datos del usuario vuelven a su estado inicial. */
-export const sessionEnded = isAnyOf(logout, sessionExpired)
-
-// ---------- Selectores ----------
-
-/** El usuario con lo que se guarda en el navegador (bio, ciudad, intereses, foto). Se recalcula solo si cambia. */
-export const selectUser = createSelector(
-  [(state) => state.auth.user, (state) => state.auth.profileExtras],
-  (user, extras) => (user ? { ...user, ...extras[user.id] } : null),
-)
-
-export const selectIsAdmin = (state) => state.auth.user?.role === 'ADMIN'
 
 export default authSlice.reducer

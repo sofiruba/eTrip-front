@@ -19,8 +19,8 @@ function RequireAuth({ role }) {
     return (
       <div className="container page page--narrow">
         <EmptyState icon={Lock} title="Ingresá para continuar" text="Necesitás una cuenta para ver esta sección. Es gratis y lleva un minuto.">
-          <Button onClick={() => dispatch(openAuth('login'))}>Iniciar sesión</Button>
-          <Button variant="secondary" onClick={() => dispatch(openAuth('register'))}>
+          <Button onClick={() => dispatch(openAuth({ mode: 'login' }))}>Iniciar sesión</Button>
+          <Button variant="secondary" onClick={() => dispatch(openAuth({ mode: 'register' }))}>
             Crear cuenta
           </Button>
         </EmptyState>

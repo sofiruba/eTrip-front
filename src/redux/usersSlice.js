@@ -1,36 +1,23 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
-import { sessionEnded, updateMe } from './authSlice'
-import { onlyOnce, replaceById } from './helpers'
+import { logout, sessionExpired, updateMe } from './authSlice'
+import { replaceById } from './helpers'
 
 /** Usuarios: la lista del panel de admin y los perfiles públicos (por ejemplo, el de un anfitrión). */
 
 const URL = '/users'
 
 // GET (admin): todos los usuarios
-export const fetchUsers = createAsyncThunk(
-  'users/fetchUsers',
-  async () => {
-    const { data } = await api.get(URL)
-    return listOf(data)
-  },
-  onlyOnce((state) => state.users),
-)
+export const fetchUsers = createAsyncThunk('users/fetchUsers', async () => {
+  const { data } = await api.get(URL)
+  return listOf(data)
+})
 
-// GET /users/{id}: perfil público. Una vez por usuario
-export const fetchUserById = createAsyncThunk(
-  'users/fetchUserById',
-  async (id) => {
-    const { data } = await api.get(`${URL}/${id}`)
-    return data
-  },
-  {
-    condition: (id, { getState }) => {
-      const profile = getState().users.profiles[id]
-      return !profile || Boolean(profile.error)
-    },
-  },
-)
+// GET /users/{id}: perfil público (queda guardado por id)
+export const fetchUserById = createAsyncThunk('users/fetchUserById', async (id) => {
+  const { data } = await api.get(`${URL}/${id}`)
+  return data
+})
 
 // PATCH: solo el rol (CLIENTE / ADMIN)
 export const updateUserRole = createAsyncThunk('users/updateUserRole', async ({ id, role }) => {
@@ -94,7 +81,14 @@ const usersSlice = createSlice({
       .addCase(updateMe.fulfilled, (state, action) => replaceUser(state, action.payload))
 
       // La lista completa es del admin: se olvida al cerrar sesión (los perfiles públicos quedan)
-      .addMatcher(sessionEnded, (state) => ({ ...initialState, profiles: state.profiles }))
+      .addCase(logout, (state) => {
+        state.items = []
+        state.loaded = false
+      })
+      .addCase(sessionExpired, (state) => {
+        state.items = []
+        state.loaded = false
+      })
   },
 })
 

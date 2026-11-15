@@ -3,7 +3,6 @@ import { useSelector } from 'react-redux'
 import { Outlet } from 'react-router-dom'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
-import { selectIsAdmin } from '../redux/authSlice'
 
 /**
  * Secciones de cliente (carrito, compras, reservas, perfil, modo anfitrión).
@@ -11,7 +10,7 @@ import { selectIsAdmin } from '../redux/authSlice'
  * Los invitados pasan (las rutas que piden sesión ya están dentro de RequireAuth).
  */
 function CustomerOnly() {
-  const isAdmin = useSelector(selectIsAdmin)
+  const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
 
   if (isAdmin) {
     return (

@@ -20,7 +20,7 @@ function HostExperiences({ experiences, bookings }) {
 
   const askDelete = (experience) => {
     if (hasActiveBookings(experience.id)) {
-      dispatch(showToast('No podés eliminarla: tiene reservas próximas.', 'error'))
+      dispatch(showToast({ message: 'No podés eliminarla: tiene reservas próximas.', tone: 'error' }))
       return
     }
     setDeleting(experience)
@@ -71,9 +71,13 @@ function HostExperiences({ experiences, bookings }) {
           // DELETE: los reducers la sacan de las listas (y sus fechas, reservas pasadas y reseñas)
           onConfirm={() =>
             dispatch(deleteExperience(deleting))
-              .unwrap()
-              .then(() => dispatch(showToast('Experiencia eliminada', 'info')))
-              .catch((error) => dispatch(showToast(error.message, 'error')))
+              .then((action) => {
+                // rejected: el back respondió con un error (action.error.message, como en el reducer)
+                if (action.error) {
+                  return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+                }
+                return dispatch(showToast({ message: 'Experiencia eliminada', tone: 'info' }))
+              })
           }
           onClose={() => setDeleting(null)}
         />

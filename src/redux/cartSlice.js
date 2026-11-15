@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api } from './api'
-import { sessionEnded } from './authSlice'
+import { logout, sessionExpired } from './authSlice'
 import { createOrder } from './ordersSlice'
 
 /**
@@ -9,24 +9,12 @@ import { createOrder } from './ordersSlice'
  */
 
 const URL = '/carts'
-const userIdOf = (getState) => getState().auth.user.id
 
-// GET: el carrito del usuario que inició sesión. Una vez por sesión (al cerrar sesión se vacía este slice)
-export const fetchCart = createAsyncThunk(
-  'cart/fetchCart',
-  async (_, { getState }) => {
-    const { data } = await api.get(`${URL}/user/${userIdOf(getState)}`)
-    return data
-  },
-  {
-    condition: (arg, { getState }) => {
-      const { auth, cart } = getState()
-      // Sin sesión no hay carrito, y los administradores no compran
-      if (!auth.user || auth.user.role === 'ADMIN') return false
-      return Boolean(arg?.force) || (!cart.loaded && !cart.loading)
-    },
-  },
-)
+// GET: el carrito del usuario que inició sesión (App.jsx lo pide al iniciar sesión; al cerrarla se vacía este slice)
+export const fetchCart = createAsyncThunk('cart/fetchCart', async (userId) => {
+  const { data } = await api.get(`${URL}/user/${userId}`)
+  return data
+})
 
 // POST: lugares de una fecha → el back devuelve el carrito completo
 export const addToCart = createAsyncThunk('cart/addToCart', async ({ sessionId, quantity }) => {
@@ -35,14 +23,14 @@ export const addToCart = createAsyncThunk('cart/addToCart', async ({ sessionId, 
 })
 
 // PATCH: solo la cantidad de un ítem → el back devuelve el carrito completo
-export const updateCartItem = createAsyncThunk('cart/updateCartItem', async ({ itemId, quantity }, { getState }) => {
-  const { data } = await api.patch(`${URL}/user/${userIdOf(getState)}/items/${itemId}`, null, { params: { quantity } })
+export const updateCartItem = createAsyncThunk('cart/updateCartItem', async ({ userId, itemId, quantity }) => {
+  const { data } = await api.patch(`${URL}/user/${userId}/items/${itemId}`, null, { params: { quantity } })
   return data
 })
 
 // DELETE: el back no devuelve el carrito, así que devolvemos el id y el reducer recalcula el total
-export const removeCartItem = createAsyncThunk('cart/removeCartItem', async (itemId, { getState }) => {
-  await api.delete(`${URL}/user/${userIdOf(getState)}/items/${itemId}`)
+export const removeCartItem = createAsyncThunk('cart/removeCartItem', async ({ userId, itemId }) => {
+  await api.delete(`${URL}/user/${userId}/items/${itemId}`)
   return itemId
 })
 
@@ -90,17 +78,10 @@ const cartSlice = createSlice({
         state.items = []
         state.total = 0
       })
-      .addMatcher(sessionEnded, () => initialState)
+      // Al cerrar sesión el carrito vuelve al estado inicial
+      .addCase(logout, () => initialState)
+      .addCase(sessionExpired, () => initialState)
   },
 })
-
-// ---------- Selectores ----------
-
-/** Cantidad de lugares en el carrito (el número del navbar). */
-export const selectCartCount = (state) => state.cart.items.reduce((sum, item) => sum + item.quantity, 0)
-
-/** Lugares de una fecha que ya están en el carrito. */
-export const selectQuantityInCart = (state, sessionId) =>
-  state.cart.items.find((item) => item.experienceSessionId === sessionId)?.quantity ?? 0
 
 export default cartSlice.reducer

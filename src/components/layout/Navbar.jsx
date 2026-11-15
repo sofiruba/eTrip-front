@@ -3,8 +3,7 @@ import { Menu, Moon, ShoppingBag, Sun, X } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
-import { openAuth, selectIsAdmin, selectUser } from '../../redux/authSlice'
-import { selectCartCount } from '../../redux/cartSlice'
+import { openAuth } from '../../redux/authSlice'
 import Button from '../ui/Button'
 import IconButton from '../ui/IconButton'
 import NavbarSearch from '../search/NavbarSearch'
@@ -15,9 +14,9 @@ import './Navbar.css'
 
 function Navbar() {
   const dispatch = useDispatch()
-  const user = useSelector(selectUser)
-  const isAdmin = useSelector(selectIsAdmin)
-  const count = useSelector(selectCartCount)
+  const user = useSelector((state) => state.auth.user)
+  const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
+  const count = useSelector((state) => state.cart.items.reduce((sum, item) => sum + item.quantity, 0))
   const { pathname } = useLocation()
   const theme = useTheme()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -86,7 +85,7 @@ function Navbar() {
           {user ? (
             <UserMenu />
           ) : (
-            <Button size="sm" onClick={() => dispatch(openAuth('login'))}>
+            <Button size="sm" onClick={() => dispatch(openAuth({ mode: 'login' }))}>
               Ingresar
             </Button>
           )}

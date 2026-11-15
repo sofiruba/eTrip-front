@@ -35,7 +35,7 @@ function AuthModal() {
 
   // Cuando el back confirma la sesión: saludamos y llevamos a donde corresponda
   const handleDone = (user, message) => {
-    dispatch(showToast(message))
+    dispatch(showToast({ message }))
     if (authRedirect) navigate(authRedirect)
     else if (user.role === 'ADMIN') navigate('/admin')
   }

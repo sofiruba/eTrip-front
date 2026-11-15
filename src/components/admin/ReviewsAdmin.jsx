@@ -38,9 +38,10 @@ function ReviewsAdmin() {
   const [search, setSearch] = useState('')
   const [rating, setRating] = useState(() => params.get('puntuacion') ?? '')
 
+  const requested = useSelector((state) => state.reviews.requested.includes('all'))
   useEffect(() => {
-    dispatch(fetchAllReviews())
-  }, [dispatch])
+    if (!requested) dispatch(fetchAllReviews())
+  }, [requested, dispatch])
 
   const all = [...reviews].sort(byNewest)
   const query = normalizeText(search.trim())
@@ -103,9 +104,13 @@ function ReviewsAdmin() {
           message={`Vas a eliminar la reseña de ${deleting.userName} sobre “${deleting.experienceTitle}”.`}
           onConfirm={() =>
             dispatch(deleteReview(deleting))
-              .unwrap()
-              .then(() => dispatch(showToast('Reseña eliminada', 'info')))
-              .catch((deleteError) => dispatch(showToast(deleteError.message, 'error')))
+              .then((action) => {
+                // rejected: el back respondió con un error (action.error.message, como en el reducer)
+                if (action.error) {
+                  return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+                }
+                return dispatch(showToast({ message: 'Reseña eliminada', tone: 'info' }))
+              })
           }
           onClose={() => setDeleting(null)}
         />

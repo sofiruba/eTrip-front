@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { ExternalLink, Eye, Users } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useSearchParams } from 'react-router-dom'
-import { fetchManagedExperiences } from '../../redux/experiencesSlice'
+import { fetchAllExperiences } from '../../redux/experiencesSlice'
+import { isMissing } from '../../redux/helpers'
 import { showToast } from '../../redux/toastsSlice'
 import { fetchUsers, updateUserRole, updateUserStatus } from '../../redux/usersSlice'
 import { fullName, normalizeText } from '../../utils/format'
@@ -22,8 +23,10 @@ const ROLE_LABELS = { ADMIN: 'Admin', CLIENTE: 'Cliente' }
 
 function UsersAdmin() {
   const dispatch = useDispatch()
-  const { items: users, loaded, error } = useSelector((state) => state.users)
-  const experiences = useSelector((state) => state.experiences.managed.items) // las que publicó cada usuario
+  const usersState = useSelector((state) => state.users)
+  const { items: users, loaded, error } = usersState
+  const managed = useSelector((state) => state.experiences.managed) // las que publicó cada usuario
+  const experiences = managed.items
   const currentUser = useSelector((state) => state.auth.user)
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
@@ -34,9 +37,9 @@ function UsersAdmin() {
   const [state, setState] = useState(() => params.get('estado') ?? '')
 
   useEffect(() => {
-    dispatch(fetchUsers())
-    dispatch(fetchManagedExperiences())
-  }, [dispatch])
+    if (isMissing(usersState)) dispatch(fetchUsers())
+    if (isMissing(managed)) dispatch(fetchAllExperiences())
+  }, [usersState, managed, dispatch])
 
   const query = normalizeText(search.trim())
   // Los contadores vienen en el UserResponseDTO del back
@@ -61,12 +64,14 @@ function UsersAdmin() {
         ? dispatch(updateUserRole({ id: selected.id, role: nextRole }))
         : dispatch(updateUserStatus({ id: selected.id, active: !selected.active }))
     return request
-      .unwrap()
-      .then((updated) => {
-        if (confirming === 'role') dispatch(showToast(`${updated.firstName} ahora es ${nextRole === 'ADMIN' ? 'administrador' : 'cliente'}`))
-        else dispatch(showToast(updated.active ? 'Cuenta activada' : 'Cuenta desactivada: ya no puede ingresar', 'info'))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
+        if (confirming === 'role') dispatch(showToast({ message: `${action.payload.firstName} ahora es ${nextRole === 'ADMIN' ? 'administrador' : 'cliente'}` }))
+        else dispatch(showToast({ message: action.payload.active ? 'Cuenta activada' : 'Cuenta desactivada: ya no puede ingresar', tone: 'info' }))
       })
-      .catch((changeError) => dispatch(showToast(changeError.message, 'error')))
   }
 
   if (error) return <ErrorState message={error} onRetry={() => dispatch(fetchUsers())} />

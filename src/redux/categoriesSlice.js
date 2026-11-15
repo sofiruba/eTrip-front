@@ -1,20 +1,16 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
-import { onlyOnce, removeById, replaceById } from './helpers'
+import { removeById, replaceById } from './helpers'
 
 /** Categorías de experiencias. Las lee todo el sitio (filtros, editor); las gestiona el admin. */
 
 const URL = '/experience-categories'
 
 // GET: una sola vez, al abrir la app
-export const fetchCategories = createAsyncThunk(
-  'categories/fetchCategories',
-  async () => {
-    const { data } = await api.get(URL)
-    return listOf(data)
-  },
-  onlyOnce((state) => state.categories),
-)
+export const fetchCategories = createAsyncThunk('categories/fetchCategories', async () => {
+  const { data } = await api.get(URL)
+  return listOf(data)
+})
 
 // POST: category = { name, description }
 export const createCategory = createAsyncThunk('categories/createCategory', async (newCategory) => {

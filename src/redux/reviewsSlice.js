@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
-import { sessionEnded } from './authSlice'
+import { logout, sessionExpired } from './authSlice'
 import { deleteExperience } from './experiencesSlice'
 import { removeById, replaceById, upsertById } from './helpers'
 
@@ -11,41 +11,26 @@ import { removeById, replaceById, upsertById } from './helpers'
 
 const URL = '/reviews'
 
-// Cada GET se hace una sola vez: `requested` guarda cuáles ya se pidieron ("experience:5", "mine", "all")
-const once = (keyOf) => ({
-  condition: (arg, { getState }) => !getState().reviews.requested.includes(keyOf(arg)),
-})
-const experienceKey = (experienceId) => `experience:${experienceId}`
+// `requested` guarda qué reseñas ya se pidieron ("experience:5", "mine", "all"): los componentes lo miran para no repetir el GET
+export const experienceKey = (experienceId) => `experience:${experienceId}`
 
 // ---------- GET ----------
 
-export const fetchReviewsByExperience = createAsyncThunk(
-  'reviews/fetchReviewsByExperience',
-  async (experienceId) => {
-    const { data } = await api.get(`${URL}/experience/${experienceId}`)
-    return listOf(data)
-  },
-  once(experienceKey),
-)
+export const fetchReviewsByExperience = createAsyncThunk('reviews/fetchReviewsByExperience', async (experienceId) => {
+  const { data } = await api.get(`${URL}/experience/${experienceId}`)
+  return listOf(data)
+})
 
-export const fetchMyReviews = createAsyncThunk(
-  'reviews/fetchMyReviews',
-  async () => {
-    const { data } = await api.get(`${URL}/mine`)
-    return listOf(data)
-  },
-  once(() => 'mine'),
-)
+export const fetchMyReviews = createAsyncThunk('reviews/fetchMyReviews', async () => {
+  const { data } = await api.get(`${URL}/mine`)
+  return listOf(data)
+})
 
 // Administrador: todas
-export const fetchAllReviews = createAsyncThunk(
-  'reviews/fetchAllReviews',
-  async () => {
-    const { data } = await api.get(URL)
-    return listOf(data)
-  },
-  once(() => 'all'),
-)
+export const fetchAllReviews = createAsyncThunk('reviews/fetchAllReviews', async () => {
+  const { data } = await api.get(URL)
+  return listOf(data)
+})
 
 // ---------- POST / PUT / DELETE ----------
 
@@ -120,7 +105,8 @@ const reviewsSlice = createSlice({
         state.items = state.items.filter((review) => review.experienceId !== action.payload.id)
       })
       // "Mis reseñas" y "todas" dependen de quién inició sesión
-      .addMatcher(sessionEnded, () => initialState)
+      .addCase(logout, () => initialState)
+      .addCase(sessionExpired, () => initialState)
   },
 })
 

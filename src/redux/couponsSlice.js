@@ -1,21 +1,17 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
-import { sessionEnded } from './authSlice'
-import { onlyOnce, removeById, replaceById } from './helpers'
+import { logout, sessionExpired } from './authSlice'
+import { removeById, replaceById } from './helpers'
 
 /** Cupones de descuento: el admin los gestiona y el checkout los valida. */
 
 const URL = '/discount-coupons'
 
 // GET (admin)
-export const fetchCoupons = createAsyncThunk(
-  'coupons/fetchCoupons',
-  async () => {
-    const { data } = await api.get(URL)
-    return listOf(data)
-  },
-  onlyOnce((state) => state.coupons),
-)
+export const fetchCoupons = createAsyncThunk('coupons/fetchCoupons', async () => {
+  const { data } = await api.get(URL)
+  return listOf(data)
+})
 
 // GET /discount-coupons/validate?code= → { code, valid, reason, message, percentage, subtotal, discountAmount, total }
 // El back calcula el descuento con el carrito actual. El checkout guarda el resultado en su estado local
@@ -81,7 +77,9 @@ const couponsSlice = createSlice({
         if (used > 0 && coupon) coupon.active = false // baja lógica, igual que en el back
         else removeById(state.items, id)
       })
-      .addMatcher(sessionEnded, () => initialState)
+      // Al cerrar sesión vuelve al estado inicial (la lista es del admin)
+      .addCase(logout, () => initialState)
+      .addCase(sessionExpired, () => initialState)
   },
 })
 

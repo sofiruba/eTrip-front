@@ -45,7 +45,7 @@ Dependencias nuevas (`package.json`):
 src/redux/
   store.js              configureStore: un reducer por slice + redux-persist + interceptores de axios
   api.js                instancia de axios (URL base, token, errores del back)
-  helpers.js            onlyOnce (GET una sola vez) y replaceById / upsertById / removeById (findIndex de clase)
+  helpers.js            replaceById / upsertById / removeById (el findIndex de clase) e isMissing (¿falta pedir esta lista?)
 
   // Un slice por entidad del back
   experiencesSlice.js   experiencias (el "producto")
@@ -134,7 +134,7 @@ componente de la app puede usar el store. `<PersistGate>` espera a que redux-per
 export const fetchCategories = createAsyncThunk('categories/fetchCategories', async () => {
   const { data } = await api.get(URL)        // axios, sin try/catch
   return listOf(data)                        // esto es el payload
-}, onlyOnce((state) => state.categories))    // ver "Un solo GET"
+})
 
 // POST: recibe el objeto nuevo y lo manda como segundo parámetro
 export const createCategory = createAsyncThunk('categories/createCategory', async (newCategory) => {
@@ -193,18 +193,23 @@ const dispatch = useDispatch()
 const { items: bookings, loaded, error } = useSelector((state) => state.bookings)  // suscripción
 
 useEffect(() => {
-  dispatch(fetchBookings())
-}, [dispatch])                      // dispatch en las dependencias: se ejecuta al montar
+  if (!loaded) dispatch(fetchBookings())   // solo si todavía no están en el store: así no se repite el GET
+}, [loaded, dispatch])
 ```
 
-Y para un POST/PUT desde un formulario (ej. `CategoryFormModal.jsx`):
+Y para un POST/PUT desde un formulario (ej. `CategoryFormModal.jsx`). `dispatch` devuelve la acción final:
+`fulfilled` (con `action.payload`) o `rejected` (con `action.error`, lo mismo que lee el reducer):
 
 ```jsx
 const request = category ? dispatch(updateCategory({ id: category.id, ...data })) : dispatch(createCategory(data))
-request
-  .unwrap()          // la promesa de dispatch devuelve lo que respondió el back, o el error para mostrarlo en el modal
-  .then(() => { dispatch(showToast('Categoría creada')); onClose() })
-  .catch((error) => setError(error.message))
+request.then((action) => {
+  if (action.error) {                 // rejected: el back respondió con un error
+    setError(action.error.message)    // se muestra en el modal
+    return
+  }
+  dispatch(showToast({ message: 'Categoría creada' }))
+  onClose()
+})
 ```
 
 La tabla del panel, los filtros del Home y el select del editor están suscriptos a `state.categories`:
@@ -216,7 +221,7 @@ se actualizan solos, sin GET.
 
 | Slice | Estado | Acciones asíncronas (método · endpoint) |
 |---|---|---|
-| **experiences** | `items` (catálogo público), `managed` (anfitrión: las suyas · admin: todas, también pausadas), `details[id]` (una experiencia con **todas** sus fotos), `searches[query]` (resultados de cada búsqueda con filtros) | `fetchExperiences` GET `/experiences` · `fetchManagedExperiences` GET `/experiences/mine` o `?includeInactive=true` · `fetchExperienceById` GET `/experiences/{id}` · `searchExperiences` GET `/experiences?filtros` · `createExperience` POST · `updateExperience` PUT · `updateDiscount` PATCH `/{id}/discount` · `updateExperienceStatus` PATCH `/{id}/status` · `deleteExperience` DELETE |
+| **experiences** | `items` (catálogo público), `managed` (anfitrión: las suyas · admin: todas, también pausadas), `details[id]` (una experiencia con **todas** sus fotos), `searches[query]` (resultados de cada búsqueda con filtros) | `fetchExperiences` GET `/experiences` · `fetchMyExperiences` GET `/experiences/mine` (anfitrión) · `fetchAllExperiences` GET `?includeInactive=true` (admin) · `fetchExperienceById` GET `/experiences/{id}` · `searchExperiences` GET `/experiences?filtros` · `createExperience` POST · `updateExperience` PUT · `updateDiscount` PATCH `/{id}/discount` · `updateExperienceStatus` PATCH `/{id}/status` · `deleteExperience` DELETE |
 | **sessions** | `items` (fechas públicas), `managed` (calendario, también pasadas y canceladas) | `fetchSessions` GET · `fetchManagedSessions` GET `/manage` · `createSession` POST · `updateSession` PUT · `cancelSession` DELETE `/{id}` · `removeSession` DELETE `/{id}/permanent` |
 | **categories** | `items` | GET · POST · PUT · DELETE |
 | **cart** | `items`, `total` | `fetchCart` GET `/carts/user/{id}` · `addToCart` POST `/carts/items` · `updateCartItem` PATCH · `removeCartItem` DELETE |
@@ -241,9 +246,14 @@ se actualizan solos, sin GET.
 
 > "Si no recargo la página, tengo que tener solo un GET […] ya que se hace una vez y queda guardado en el respectivo Store."
 
-Cada GET de lista tiene la opción `condition` de `createAsyncThunk` (`onlyOnce` en `helpers.js`): si los datos ya
-están en el store, o se están trayendo, el thunk **no hace el pedido**. Así cualquier pantalla puede despachar
-`fetchBookings()` al montarse sin repetir la llamada, y StrictMode (que en desarrollo monta los efectos dos veces) tampoco la duplica.
+Cada slice guarda si su lista ya se trajo (`loaded`). Los componentes despachan el GET en su `useEffect` **solo si
+todavía no está en el store**: `if (!loaded) dispatch(fetchBookings())`. Las páginas que piden varias listas usan
+`isMissing(lista)` (`helpers.js`): no se trajo, no se está trayendo y no falló.
+
+> **En desarrollo vas a ver el primer GET de cada lista dos veces** (en la pestaña Network y en Redux DevTools).
+> No es un error: `<StrictMode>` monta cada componente, lo desmonta y lo vuelve a montar a propósito, así que el
+> `useEffect` corre dos veces antes de que llegue la respuesta. Es lo que dice el apunte de la clase 10 sobre `useEffect`.
+> En producción (`npm run build` + `npm run preview`, o el deploy) sale una sola vez. Navegar después no repite ningún GET.
 
 | Cuándo | GET |
 |---|---|
@@ -261,7 +271,7 @@ algo que el front no ve:
 
 - **La campanita**, al abrirla: los avisos los generan otros usuarios (alguien compró, un anfitrión canceló).
 - **Pago rechazado** en el checkout: lo que tenemos quedó viejo (por ejemplo, otra persona se llevó los últimos lugares);
-  se piden carrito y fechas con `{ force: true }`.
+  se vuelven a pedir carrito y fechas.
 - **Carga de datos de prueba** del admin: se crean muchas cosas de una en el back.
 - **Estadísticas del resumen del admin** después de un reembolso o una cancelación (las calcula el back).
 
@@ -322,16 +332,27 @@ la pestaña elegida, los pasos del registro. Los filtros del catálogo siguen en
 
 ---
 
-## 9. Algunas herramientas de Redux Toolkit que se usaron además de lo de clase
+## 9. Solo lo que se vio en clase
 
-| Herramienta | Dónde | Para qué |
-|---|---|---|
-| `condition` (opción de `createAsyncThunk`) | `helpers.js` (`onlyOnce`) y GET por id | Hacer cada GET una sola vez |
-| `dispatch(...).unwrap()` | formularios y modales | Saber en el componente si salió bien (cerrar el modal, navegar) o mostrar el mensaje de error del back |
-| `prepare` en un reducer | `showToast`, `openAuth` | Despachar con parámetros sueltos: `dispatch(showToast('Listo', 'info'))` |
-| `createSelector` | `selectCatalog`, `selectUser`, `selectSavedCards` | Datos calculados (catálogo + fechas) que se recalculan solo si cambia lo que usan |
-| `addMatcher` + `isAnyOf` | `sessionEnded` | Una misma reacción para `logout` y `sessionExpired` en todos los slices |
-| `getState` dentro de un thunk | `fetchCart`, `cancelOrder` | El id del usuario para la URL; comparar la orden antes y después de cancelarla |
+El 15/11 se sacaron las herramientas de Redux Toolkit que no se dieron en clase (`condition`, `unwrap`, `createSelector`,
+`prepare`, `addMatcher`/`isAnyOf` y `getState` en los thunks). **No cambió nada visual ni de funcionamiento**; se
+reemplazaron por la forma de clase:
+
+| Antes | Ahora |
+|---|---|
+| `condition` en el thunk para no repetir el GET | `if (!loaded) dispatch(fetchX())` en el `useEffect` del componente |
+| `dispatch(x).unwrap().then().catch()` | `dispatch(x).then((action) => { if (action.error) … })`: `action.error.message` es lo mismo que lee el reducer |
+| `createSelector` (catálogo + fechas) | Se calcula en el componente con `addSessionInfo(items, sessions)` |
+| `prepare` en `showToast` / `openAuth` | Se despachan con un objeto: `showToast({ message, tone })`, `openAuth({ mode, redirect })` |
+| `addMatcher(isAnyOf(logout, sessionExpired))` | Dos `addCase`: `.addCase(logout, …).addCase(sessionExpired, …)` |
+| `getState()` dentro de thunks | Lo que necesitan llega por parámetro: `fetchCart(userId)`, `cancelOrder(order)`; el GET del anfitrión y el del admin son dos acciones (`fetchMyExperiences`, `fetchAllExperiences`) |
+
+Lo único que no se vio tal cual en clase y **se mantiene** (porque sin eso se pierde funcionalidad):
+
+| Qué | Por qué se queda |
+|---|---|
+| **Interceptores de axios** (`api.js`) | Es configuración de axios, no de Redux. Agregan el token del store a cada pedido y hacen que el error tenga el mensaje del back ("Usuario o contraseña incorrectos", "El banco rechazó la tarjeta"). Sin ellos, `action.error.message` diría "Request failed with status code 400" |
+| **Slices que escuchan acciones de otros slices** | Es el mismo `addCase` de `extraReducers` de clase, con una acción de otro slice. Es lo que hace que, al pagar, los cupos bajen y el carrito se vacíe sin volver a pedir nada |
 
 ---
 
@@ -361,7 +382,7 @@ la pestaña elegida, los pasos del registro. Los filtros del catálogo siguen en
 | `src/routes/RequireAuth.jsx`, `CustomerOnly.jsx` | `useSelector` para el usuario y el rol |
 | `src/pages/HomePage.jsx` | Catálogo del store; búsquedas con filtros guardadas por query; ya no vuelve a pedir el catálogo en cada visita |
 | `src/pages/ExperiencePage.jsx` | Detalle desde `details[id]`, reseñas y anfitrión del store; fechas del catálogo; responder reseñas con `replyToReview` |
-| `src/pages/CartPage.jsx`, `CheckoutPage.jsx` | Carrito y fechas del store; `updateCartItem`, `removeCartItem`, `validateCoupon`, `createOrder`; si el pago se rechaza se sincroniza con `{ force: true }`; esperan a que llegue el carrito si se recarga la página |
+| `src/pages/CartPage.jsx`, `CheckoutPage.jsx` | Carrito y fechas del store; `updateCartItem`, `removeCartItem`, `validateCoupon`, `createOrder`; si el pago se rechaza se vuelven a pedir carrito y fechas; esperan a que llegue el carrito si se recarga la página |
 | `src/pages/CheckoutSuccessPage.jsx` | La orden recién comprada sale del store (solo se pide si se recarga) |
 | `src/pages/MyBookingsPage.jsx`, `BookingDetailPage.jsx` | Reservas, orden y reseñas del store; el reembolso y la reseña nueva actualizan la página solos |
 | `src/pages/ExperienceEditorPage.jsx` | Se separó en la página (trae la experiencia) y `ExperienceForm` (el formulario arranca con sus datos). POST / PUT / PATCH con thunks |
@@ -370,7 +391,7 @@ la pestaña elegida, los pasos del registro. Los filtros del catálogo siguen en
 | `src/pages/ProfilePage.jsx` | Reseñas del store; contadores del usuario del store (los reducers los mantienen al día) |
 | `src/components/admin/*` | Cada sección despacha sus GET (una vez) y sus acciones; muestran error y "Reintentar" si el back falla |
 | `src/components/host/*` | `DiscountModal`, `SessionFormModal`, `HostCalendar`, `HostBookings`, `HostExperiences` despachan sus acciones y dejan de recibir `onSaved` / `setX` |
-| `src/components/auth/*` | Login, registro y recuperar contraseña con thunks + `unwrap()`; el modal lee `state.auth.authModal` |
+| `src/components/auth/*` | Login, registro y recuperar contraseña con thunks; el resultado se lee de la acción (`action.error` / `action.payload`); el modal lee `state.auth.authModal` |
 | `src/components/booking/RefundModal.jsx`, `ReviewFormModal.jsx` | `refundBooking` y `createReview` |
 | `src/components/layout/*` | Navbar, menú de usuario, campanita, moneda y layout con `useSelector` / `useDispatch`; el layout dibuja `<Toaster />` |
 | `src/components/experience/BookingPanel.jsx` | `addToCart`; cuántos lugares ya están en el carrito sale del store |
@@ -420,7 +441,7 @@ Solo en los slices, con `createAsyncThunk` + axios. Los componentes solo despach
 Porque `createAsyncThunk` maneja la promesa: si axios falla, la acción queda `rejected` y el reducer guarda `action.error.message`. El interceptor de `api.js` hace que ese mensaje sea el que manda el back.
 
 **¿Cómo evitan pedir dos veces lo mismo?**
-Cada GET tiene `condition`: si ya está en el store, no se pide. Y después de un POST/PUT/PATCH/DELETE el reducer actualiza el store con la respuesta del back (`push`, `findIndex` + reemplazo, `filter`), así que no hace falta volver a pedir.
+Cada componente pide la lista en su `useEffect` solo si todavía no está en el store (`if (!loaded)`). Y después de un POST/PUT/PATCH/DELETE el reducer actualiza el store con la respuesta del back (`push`, `findIndex` + reemplazo, `filter`), así que no hace falta volver a pedir.
 
 **Si compro, ¿cómo se entera el catálogo de que hay menos lugares?**
 `createOrder` devuelve la orden con sus reservas. El reducer de `sessionsSlice` escucha `createOrder.fulfilled` y le resta a cada fecha los lugares comprados. El detalle, el carrito y el Home están suscriptos a `state.sessions` y se vuelven a dibujar solos.
@@ -440,6 +461,6 @@ Lo que es de un solo componente: formularios mientras se escriben, modales abier
 
 - **Recuperar contraseña:** sigue mostrando el código por consola (`devCode`), como estaba. Mandar el mail de verdad
   es un cambio del **back** (y necesita una cuenta de correo); no se tocó.
-- `npm run build` avisa que el bundle principal pesa más de 500 kB: es una advertencia, no un error (el checkout ya se carga aparte).
+- **Rendimiento (15/11):** el panel de admin, el modo anfitrión y el editor se descargan recién cuando alguien entra (como el checkout). La primera carga bajó de 685 kB a 393 kB y el build ya no avisa nada.
 - `npm audit` marca 2 vulnerabilidades en dependencias **de desarrollo** (`vite` 8.3.0 y `source-map-js`) que ya estaban
   antes de este cambio; se arreglan con `npm audit fix`. Las dependencias de producción no tienen ninguna.

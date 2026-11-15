@@ -3,6 +3,7 @@ import { Pencil, Plus, TicketPercent, Trash2 } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
 import { deleteCoupon, fetchCoupons } from '../../redux/couponsSlice'
+import { isMissing } from '../../redux/helpers'
 import { fetchOrders } from '../../redux/ordersSlice'
 import { showToast } from '../../redux/toastsSlice'
 import { getCouponStatus } from '../../utils/coupons'
@@ -22,8 +23,10 @@ const STATUS_OPTIONS = ['Activo', 'Programado', 'Vencido', 'Inactivo']
 
 function CouponsAdmin() {
   const dispatch = useDispatch()
-  const { items: coupons, loaded, error } = useSelector((state) => state.coupons)
-  const orders = useSelector((state) => state.orders.items) // para contar cuántas órdenes usaron cada cupón
+  const couponsState = useSelector((state) => state.coupons)
+  const { items: coupons, loaded, error } = couponsState
+  const ordersState = useSelector((state) => state.orders) // para contar cuántas órdenes usaron cada cupón
+  const orders = ordersState.items
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
   const [editing, setEditing] = useState(null)
@@ -32,9 +35,9 @@ function CouponsAdmin() {
   const [status, setStatus] = useState(() => params.get('estado') ?? '')
 
   useEffect(() => {
-    dispatch(fetchCoupons())
-    dispatch(fetchOrders())
-  }, [dispatch])
+    if (isMissing(couponsState)) dispatch(fetchCoupons())
+    if (isMissing(ordersState)) dispatch(fetchOrders())
+  }, [couponsState, ordersState, dispatch])
 
   const usesOf = (coupon) => orders.filter((order) => order.couponCode === coupon.code).length
 
@@ -47,9 +50,13 @@ function CouponsAdmin() {
   // Con la cantidad de usos, el reducer hace lo mismo en el store: lo saca de la lista o lo deja desactivado
   const confirmDelete = () =>
     dispatch(deleteCoupon({ id: deleting.id, used: deleting.used }))
-      .unwrap()
-      .then(() => dispatch(showToast(deleting.used > 0 ? 'El cupón ya se había usado: quedó desactivado' : 'Cupón eliminado', 'info')))
-      .catch((deleteError) => dispatch(showToast(deleteError.message, 'error')))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
+        return dispatch(showToast({ message: deleting.used > 0 ? 'El cupón ya se había usado: quedó desactivado' : 'Cupón eliminado', tone: 'info' }))
+      })
 
   if (error) return <ErrorState message={error} onRetry={() => dispatch(fetchCoupons())} />
   if (!loaded) return <Loading />

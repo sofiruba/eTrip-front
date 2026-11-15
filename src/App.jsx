@@ -3,14 +3,11 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Route, Routes } from 'react-router-dom'
 import AppLayout from './components/layout/AppLayout'
 import AboutPage from './pages/AboutPage'
-import AdminPage from './pages/AdminPage'
 import BookingDetailPage from './pages/BookingDetailPage'
 import CartPage from './pages/CartPage'
-import ExperienceEditorPage from './pages/ExperienceEditorPage'
 import ExperiencePage from './pages/ExperiencePage'
 import HelpPage from './pages/HelpPage'
 import HomePage from './pages/HomePage'
-import HostPage from './pages/HostPage'
 import HostProfilePage from './pages/HostProfilePage'
 import LegalPage from './pages/LegalPage'
 import MyBookingsPage from './pages/MyBookingsPage'
@@ -27,19 +24,21 @@ import CustomerOnly from './routes/CustomerOnly'
 import RemountOnParam from './routes/RemountOnParam'
 import RequireAuth from './routes/RequireAuth'
 
-// El checkout solo se descarga cuando alguien va a pagar.
+// Páginas que usa poca gente o solo en un momento: se descargan recién cuando alguien entra (la primera carga pesa menos)
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'))
 const CheckoutSuccessPage = lazy(() => import('./pages/CheckoutSuccessPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const HostPage = lazy(() => import('./pages/HostPage'))
+const ExperienceEditorPage = lazy(() => import('./pages/ExperienceEditorPage'))
 
-const lazyPage = (Page) => (
-  <Suspense fallback={<div className="container page" aria-busy="true" />}>
-    <Page />
-  </Suspense>
-)
+// Mientras se descarga la página se ve un espacio vacío del tamaño de la página
+const lazyElement = (element) => <Suspense fallback={<div className="container page" aria-busy="true" />}>{element}</Suspense>
+const lazyPage = (Page) => lazyElement(<Page />)
 
 function App() {
   const dispatch = useDispatch()
   const userId = useSelector((state) => state.auth.user?.id)
+  const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
   const token = useSelector((state) => state.auth.token)
   // El token con el que se abrió la app (redux-persist lo recuperó de una visita anterior). useState se queda con el primero
   const [savedToken] = useState(token)
@@ -59,12 +58,13 @@ function App() {
     else dispatch(fetchMe())
   }, [savedToken, dispatch])
 
-  // Carrito y avisos: se piden cuando hay un usuario (por eso userId va en las dependencias: login / logout)
+  // Carrito y avisos: se piden cuando hay un usuario (por eso userId va en las dependencias: login / logout).
+  // El admin no compra: no tiene carrito
   useEffect(() => {
     if (!userId) return
-    dispatch(fetchCart())
+    if (!isAdmin) dispatch(fetchCart(userId))
     dispatch(fetchNotifications())
-  }, [userId, dispatch])
+  }, [userId, isAdmin, dispatch])
 
   return (
     <Routes>
@@ -89,18 +89,18 @@ function App() {
             <Route path="mis-reservas" element={<MyBookingsPage />} />
             <Route path="mis-reservas/:id" element={<RemountOnParam page={BookingDetailPage} />} />
             <Route path="perfil" element={<ProfilePage />} />
-            <Route path="anfitrion/:tab?" element={<HostPage />} />
+            <Route path="anfitrion/:tab?" element={lazyPage(HostPage)} />
             {/* Misma página para crear y editar: RemountOnParam la monta de nuevo al pasar de una a otra */}
-            <Route path="anfitrion/experiencias/nueva" element={<RemountOnParam page={ExperienceEditorPage} />} />
-            <Route path="anfitrion/experiencias/:id/editar" element={<RemountOnParam page={ExperienceEditorPage} />} />
+            <Route path="anfitrion/experiencias/nueva" element={lazyElement(<RemountOnParam page={ExperienceEditorPage} />)} />
+            <Route path="anfitrion/experiencias/:id/editar" element={lazyElement(<RemountOnParam page={ExperienceEditorPage} />)} />
           </Route>
         </Route>
 
         {/* Solo administradores */}
         <Route element={<RequireAuth role="ADMIN" />}>
-          <Route path="admin/:section?" element={<AdminPage />} />
+          <Route path="admin/:section?" element={lazyPage(AdminPage)} />
           {/* El admin edita cualquier experiencia (fotos, texto, precio) con el mismo editor del anfitrión */}
-          <Route path="admin/experiencias/:id/editar" element={<RemountOnParam page={ExperienceEditorPage} />} />
+          <Route path="admin/experiencias/:id/editar" element={lazyElement(<RemountOnParam page={ExperienceEditorPage} />)} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

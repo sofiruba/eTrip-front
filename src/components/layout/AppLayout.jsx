@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { LayoutDashboard } from 'lucide-react'
 import { useSelector } from 'react-redux'
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { selectIsAdmin } from '../../redux/authSlice'
 import AuthModal from '../auth/AuthModal'
 import ErrorBoundary from './ErrorBoundary'
 import Footer from './Footer'
@@ -12,7 +11,7 @@ import './AppLayout.css'
 
 function AppLayout() {
   const authMode = useSelector((state) => state.auth.authModal.mode)
-  const isAdmin = useSelector(selectIsAdmin)
+  const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
   const { pathname, hash } = useLocation()
 
   // Al cambiar de página se vuelve arriba, salvo que el link apunte a una sección (#ancla)

@@ -1,8 +1,8 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
-import { sessionEnded } from './authSlice'
+import { logout, sessionExpired } from './authSlice'
 import { refundBooking } from './bookingsSlice'
-import { onlyOnce, replaceById } from './helpers'
+import { replaceById } from './helpers'
 import { cancelSession } from './sessionsSlice'
 
 /** Órdenes: cada checkout genera una orden que agrupa sus reservas. */
@@ -15,40 +15,22 @@ const COMMISSION_RATE = 0.1
 // ---------- GET ----------
 
 // Cliente: sus órdenes. Administrador: todas
-export const fetchOrders = createAsyncThunk(
-  'orders/fetchOrders',
-  async () => {
-    const { data } = await api.get(URL)
-    return listOf(data)
-  },
-  onlyOnce((state) => state.orders),
-)
+export const fetchOrders = createAsyncThunk('orders/fetchOrders', async () => {
+  const { data } = await api.get(URL)
+  return listOf(data)
+})
 
 // Administrador: ventas netas y comisión → { orderCount, grossSales, refunded, netSales, commission, commissionRate }
-export const fetchOrderStats = createAsyncThunk(
-  'orders/fetchOrderStats',
-  async () => {
-    const { data } = await api.get(`${URL}/stats`)
-    return data
-  },
-  onlyOnce((state) => state.orders.stats),
-)
+export const fetchOrderStats = createAsyncThunk('orders/fetchOrderStats', async () => {
+  const { data } = await api.get(`${URL}/stats`)
+  return data
+})
 
-// Una orden. Recién comprada ya está en el store (createOrder la guarda): solo se pide si se recarga la página
-export const fetchOrderById = createAsyncThunk(
-  'orders/fetchOrderById',
-  async (id) => {
-    const { data } = await api.get(`${URL}/${id}`)
-    return data
-  },
-  {
-    condition: (id, { getState }) => {
-      const { items, details } = getState().orders
-      const known = items.some((order) => order.id === Number(id))
-      return !known && (!details[id] || Boolean(details[id].error))
-    },
-  },
-)
+// Una orden. Recién comprada ya está en el store (createOrder la guarda): la página solo la pide si se recargó
+export const fetchOrderById = createAsyncThunk('orders/fetchOrderById', async (id) => {
+  const { data } = await api.get(`${URL}/${id}`)
+  return data
+})
 
 // ---------- POST ----------
 
@@ -59,12 +41,11 @@ export const createOrder = createAsyncThunk('orders/createOrder', async (payment
   return data
 })
 
-// POST /orders/{id}/cancel (admin): reembolsa las reservas que todavía no empezaron
-export const cancelOrder = createAsyncThunk('orders/cancelOrder', async (id, { getState }) => {
-  const before = getState().orders.items.find((order) => order.id === id)
-  const { data } = await api.post(`${URL}/${id}/cancel`)
-  // Las reservas que se reembolsaron recién con esta cancelación: sus lugares vuelven a estar disponibles
-  const wasRefunded = (bookingId) => before?.bookings.some((booking) => booking.id === bookingId && booking.refunded)
+// POST /orders/{id}/cancel (admin): reembolsa las reservas que todavía no empezaron.
+// Recibe la orden como estaba antes, para saber qué reservas se reembolsaron recién (sus lugares vuelven a estar libres)
+export const cancelOrder = createAsyncThunk('orders/cancelOrder', async (order) => {
+  const { data } = await api.post(`${URL}/${order.id}/cancel`)
+  const wasRefunded = (bookingId) => order.bookings.some((booking) => booking.id === bookingId && booking.refunded)
   const released = data.bookings.filter((booking) => booking.refunded && !wasRefunded(booking.id))
   return { order: data, released }
 })
@@ -175,12 +156,10 @@ const ordersSlice = createSlice({
         state.stats.loaded = false
       })
 
-      .addMatcher(sessionEnded, () => initialState)
+      // Al cerrar sesión vuelve al estado inicial
+      .addCase(logout, () => initialState)
+      .addCase(sessionExpired, () => initialState)
   },
 })
-
-/** Una orden por id, desde la lista o desde el detalle. */
-export const selectOrderById = (state, id) =>
-  state.orders.items.find((order) => order.id === Number(id)) ?? state.orders.details[id]?.item ?? null
 
 export default ordersSlice.reducer

@@ -9,9 +9,8 @@ import EmptyState from '../components/ui/EmptyState'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { openAuth, selectUser } from '../redux/authSlice'
+import { openAuth } from '../redux/authSlice'
 import { removeCartItem, updateCartItem } from '../redux/cartSlice'
-import { selectCatalogStatus } from '../redux/experiencesSlice'
 import { showToast } from '../redux/toastsSlice'
 import { buildCartLines, getCartProblem } from '../utils/cart'
 import { formatMoney } from '../utils/format'
@@ -25,8 +24,9 @@ function CartPage() {
   const cart = useSelector((state) => state.cart)
   const experiences = useSelector((state) => state.experiences.items)
   const sessions = useSelector((state) => state.sessions.items)
-  const { loading: catalogLoading } = useSelector(selectCatalogStatus)
-  const user = useSelector(selectUser)
+  // Mientras no llegaron las experiencias y las fechas del catálogo
+  const catalogLoading = useSelector((state) => !state.experiences.loaded || !state.sessions.loaded)
+  const user = useSelector((state) => state.auth.user)
   useDocumentTitle('Carrito')
 
   // Cada ítem del carrito con su experiencia (foto, lugar) y su sesión (lugares que quedan)
@@ -38,13 +38,21 @@ function CartPage() {
 
   // PATCH y DELETE: el reducer actualiza el carrito con lo que responde el back. Si lo rechaza, mostramos su mensaje
   const updateQuantity = (line, quantity) =>
-    dispatch(updateCartItem({ itemId: line.id, quantity }))
-      .unwrap()
-      .catch((error) => dispatch(showToast(error.message, 'error')))
+    dispatch(updateCartItem({ userId: user.id, itemId: line.id, quantity }))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
+      })
   const remove = (line) =>
-    dispatch(removeCartItem(line.id))
-      .unwrap()
-      .catch((error) => dispatch(showToast(error.message, 'error')))
+    dispatch(removeCartItem({ userId: user.id, itemId: line.id }))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
+      })
 
   // Problemas que impedirían pagar: se avisan acá y no recién en el checkout
   const hasProblems = lines.some((line) => getCartProblem(line))
@@ -87,7 +95,7 @@ function CartPage() {
               full
               iconRight={ArrowRight}
               disabled={hasProblems}
-              onClick={() => (user ? navigate('/checkout') : dispatch(openAuth('login', '/checkout')))}
+              onClick={() => (user ? navigate('/checkout') : dispatch(openAuth({ mode: 'login', redirect: '/checkout' })))}
             >
               Continuar al pago
             </Button>

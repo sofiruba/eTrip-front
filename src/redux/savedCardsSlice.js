@@ -1,4 +1,4 @@
-import { createSelector, createSlice } from '@reduxjs/toolkit'
+import { createSlice } from '@reduxjs/toolkit'
 
 /**
  * Tarjetas guardadas, por usuario ({ [userId]: SavedCard[] }). Solo de front y persistidas con redux-persist.
@@ -26,13 +26,5 @@ const savedCardsSlice = createSlice({
 })
 
 export const { saveCard, removeCard } = savedCardsSlice.actions
-
-const NO_CARDS = []
-
-/** Las tarjetas del usuario que inició sesión. */
-export const selectSavedCards = createSelector(
-  [(state) => state.savedCards.byUser, (state) => state.auth.user?.id],
-  (byUser, userId) => (userId && byUser[userId]) || NO_CARDS,
-)
 
 export default savedCardsSlice.reducer

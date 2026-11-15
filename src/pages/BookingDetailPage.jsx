@@ -14,10 +14,9 @@ import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { selectUser } from '../redux/authSlice'
-import { fetchBookingById, selectBookingById } from '../redux/bookingsSlice'
+import { fetchBookingById } from '../redux/bookingsSlice'
 import { fetchExperienceById } from '../redux/experiencesSlice'
-import { fetchOrderById, selectOrderById } from '../redux/ordersSlice'
+import { fetchOrderById } from '../redux/ordersSlice'
 import { fetchMyReviews } from '../redux/reviewsSlice'
 import { getBookingStatus } from '../utils/bookings'
 import { getCancellationPolicy } from '../utils/cancellation'
@@ -29,50 +28,54 @@ import './BookingDetailPage.css'
 function BookingDetailPage() {
   const { id } = useParams()
   const dispatch = useDispatch()
-  const user = useSelector(selectUser)
+  const user = useSelector((state) => state.auth.user)
   useDocumentTitle(`Reserva #${id}`)
   const [modal, setModal] = useState(null) // 'refund' | 'review' | null
 
   // La reserva: de "Mis reservas" si ya estaba en el store, o pedida aparte (si se entró por link)
-  const booking = useSelector((state) => selectBookingById(state, id))
+  const booking = useSelector((state) => state.bookings.items.find((entry) => entry.id === Number(id)) ?? state.bookings.details[id]?.item)
   const bookingDetail = useSelector((state) => state.bookings.details[id])
   const orderId = booking?.orderId
-  const order = useSelector((state) => (orderId ? selectOrderById(state, orderId) : null))
+  const order = useSelector((state) => state.orders.items.find((entry) => entry.id === orderId) ?? state.orders.details[orderId]?.item)
   const orderDetail = useSelector((state) => state.orders.details[orderId])
   // La experiencia (foto y lugar): del catálogo, o pedida aparte si ya no está publicada
   const experienceId = booking?.experienceId
   const fromCatalog = useSelector((state) => state.experiences.items.find((entry) => entry.id === experienceId))
-  const fromDetail = useSelector((state) => state.experiences.details[experienceId]?.item)
+  const experienceDetail = useSelector((state) => state.experiences.details[experienceId])
+  const fromDetail = experienceDetail?.item
   const catalogLoaded = useSelector((state) => state.experiences.loaded)
   const experience = fromCatalog ?? fromDetail ?? null
   const myReview = useSelector((state) =>
     state.reviews.items.find((review) => review.experienceId === experienceId && review.userId === user.id),
   )
+  const myReviewsRequested = useSelector((state) => state.reviews.requested.includes('mine'))
 
-  // 1) La reserva y mis reseñas (cada thunk se saltea el GET si ya está en el store)
+  // 1) La reserva, si no estaba en "Mis reservas", y mis reseñas, si todavía no se pidieron
   useEffect(() => {
-    dispatch(fetchBookingById(id))
-    dispatch(fetchMyReviews())
-  }, [id, dispatch])
+    if (!booking && !bookingDetail) dispatch(fetchBookingById(id))
+  }, [booking, bookingDetail, id, dispatch])
+  useEffect(() => {
+    if (!myReviewsRequested) dispatch(fetchMyReviews())
+  }, [myReviewsRequested, dispatch])
 
-  // 2) Cuando ya tenemos la reserva: su orden (para el resumen)
+  // 2) Cuando ya tenemos la reserva: su orden (para el resumen), si no está en el store
   useEffect(() => {
-    if (orderId) dispatch(fetchOrderById(orderId))
-  }, [orderId, dispatch])
+    if (orderId && !order && !orderDetail) dispatch(fetchOrderById(orderId))
+  }, [orderId, order, orderDetail, dispatch])
 
   // 3) Si la experiencia no está en el catálogo (el anfitrión la pausó), la pedimos por id
   const inCatalog = Boolean(fromCatalog)
   useEffect(() => {
-    if (experienceId && catalogLoaded && !inCatalog) dispatch(fetchExperienceById(experienceId))
-  }, [experienceId, catalogLoaded, inCatalog, dispatch])
+    if (experienceId && catalogLoaded && !inCatalog && !experienceDetail) dispatch(fetchExperienceById(experienceId))
+  }, [experienceId, catalogLoaded, inCatalog, experienceDetail, dispatch])
 
   // 404/403 = no existe o no es tuya; otro error = el back falló
   if (bookingDetail?.notFound) return <NotFoundPage title="No encontramos esta reserva" />
   const error = bookingDetail?.error || orderDetail?.error
   if (error) {
     const retry = () => {
-      dispatch(fetchBookingById(id))
-      if (orderId) dispatch(fetchOrderById(orderId))
+      if (bookingDetail?.error) dispatch(fetchBookingById(id))
+      if (orderDetail?.error) dispatch(fetchOrderById(orderId))
     }
     return (
       <div className="container page page--narrow">

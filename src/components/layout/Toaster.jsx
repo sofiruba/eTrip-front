@@ -31,7 +31,7 @@ function Toast({ id, message, tone, link }) {
   )
 }
 
-/** Los avisos de toda la app: están en el estado global (slice toasts). Cualquier componente los muestra con dispatch(showToast(...)). */
+/** Los avisos de toda la app: están en el estado global (slice toasts). Cualquier componente los muestra con dispatch(showToast({ message: ... })). */
 function Toaster() {
   const toasts = useSelector((state) => state.toasts.items)
 

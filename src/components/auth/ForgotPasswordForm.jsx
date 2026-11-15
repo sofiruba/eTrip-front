@@ -56,27 +56,32 @@ function ForgotPasswordForm({ step, onStepChange, identifier, onIdentifierChange
     setFormError('')
     setResent(false)
     return dispatch(requestPasswordReset(identifier.trim()))
-      .unwrap()
-      .then((data) => {
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return fail(action.error)
+        }
         // Todavía no hay mail: en desarrollo el back devuelve el código y lo mostramos en la consola
-        if (data?.devCode) console.info(`%c[eTrip] Código para recuperar la contraseña: ${data.devCode}`, 'font-weight:bold;font-size:14px')
+        if (action.payload?.devCode) console.info(`%c[eTrip] Código para recuperar la contraseña: ${action.payload.devCode}`, 'font-weight:bold;font-size:14px')
         setCode('')
         setResendIn(RESEND_SECONDS)
         setResent(step === 'code')
         goTo('code')
       })
-      .catch(fail)
   }
 
   const checkCode = (value) => {
     setSending(true)
     setFormError('')
     return dispatch(verifyResetCode({ usernameOrEmail: identifier.trim(), code: value }))
-      .unwrap()
-      .then(() => goTo('password'))
-      .catch((err) => {
-        setCode('')
-        fail(err)
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          setCode('')
+          fail(action.error)
+          return
+        }
+        return goTo('password')
       })
   }
 
@@ -96,9 +101,14 @@ function ForgotPasswordForm({ step, onStepChange, identifier, onIdentifierChange
     setSending(true)
     setFormError('')
     return dispatch(resetPassword({ usernameOrEmail: identifier.trim(), code, newPassword: password }))
-      .unwrap()
-      .then(({ user }) => onDone(user, 'Listo, cambiamos tu contraseña.'))
-      .catch(fail)
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return fail(action.error)
+        }
+        const { user } = action.payload
+        return onDone(user, 'Listo, cambiamos tu contraseña.')
+      })
   }
 
   const handleSubmit = (event) => {

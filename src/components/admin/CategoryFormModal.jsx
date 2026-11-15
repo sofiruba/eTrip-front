@@ -29,14 +29,15 @@ function CategoryFormModal({ category, categories, onClose }) {
     setSending(true)
     const request = category ? dispatch(updateCategory({ id: category.id, ...data })) : dispatch(createCategory(data))
     return request
-      .unwrap()
-      .then(() => {
-        dispatch(showToast(category ? 'Categoría actualizada' : 'Categoría creada'))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          setError(action.error.message)
+          setSending(false)
+          return
+        }
+        dispatch(showToast({ message: category ? 'Categoría actualizada' : 'Categoría creada' }))
         onClose()
-      })
-      .catch((saveError) => {
-        setError(saveError.message)
-        setSending(false)
       })
   }
 

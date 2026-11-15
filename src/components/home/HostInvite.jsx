@@ -19,7 +19,7 @@ function HostInvite() {
           de su ciudad o de visita.
         </p>
       </div>
-      <Button iconRight={ArrowRight} {...(user ? { to: '/anfitrion' } : { onClick: () => dispatch(openAuth('register', '/anfitrion')) })}>
+      <Button iconRight={ArrowRight} {...(user ? { to: '/anfitrion' } : { onClick: () => dispatch(openAuth({ mode: 'register', redirect: '/anfitrion' })) })}>
         Publicá tu experiencia
       </Button>
     </section>

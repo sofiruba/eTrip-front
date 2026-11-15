@@ -2,7 +2,12 @@ import { useState } from 'react'
 import { CircleAlert, CircleCheck, CircleMinus, Download, FileUp, Upload } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import sampleData from '../../data/sampleData.json'
+import { fetchCategories } from '../../redux/categoriesSlice'
+import { fetchCoupons } from '../../redux/couponsSlice'
+import { fetchAllExperiences, fetchExperiences } from '../../redux/experiencesSlice'
 import { importData } from '../../redux/importSlice'
+import { fetchManagedSessions, fetchSessions } from '../../redux/sessionsSlice'
+import { fetchUsers } from '../../redux/usersSlice'
 import { showToast } from '../../redux/toastsSlice'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
@@ -53,11 +58,19 @@ function DataImportAdmin() {
       return setError('El texto no es un JSON válido. Revisá comas, comillas y llaves.')
     }
     setError('')
-    // Al terminar, el thunk vuelve a pedir lo que cambió (catálogo, categorías…). Si algo falla, queda en el log
-    return dispatch(importData(data))
-      .unwrap()
-      .then(() => dispatch(showToast('Carga terminada')))
-      .catch(() => dispatch(showToast('La carga no terminó: revisá el detalle', 'error')))
+    // Si algo falla, queda anotado en el log (estado global)
+    return dispatch(importData(data)).then((action) => {
+      if (action.error) return dispatch(showToast({ message: 'La carga no terminó: revisá el detalle', tone: 'error' }))
+      // Se crearon muchas cosas de una en el back: es el único caso en el que volvemos a pedir el catálogo y las listas del panel
+      dispatch(fetchCategories())
+      dispatch(fetchExperiences())
+      dispatch(fetchSessions())
+      dispatch(fetchAllExperiences())
+      dispatch(fetchManagedSessions())
+      dispatch(fetchCoupons())
+      dispatch(fetchUsers())
+      return dispatch(showToast({ message: 'Carga terminada' }))
+    })
   }
 
   return (

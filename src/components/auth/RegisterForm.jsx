@@ -102,10 +102,10 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
     (username) => {
       if (username in checked.current) return Promise.resolve(checked.current[username])
       return dispatch(checkAvailability({ username }))
-        .unwrap()
-        .then((data) => {
-          checked.current[username] = data.usernameAvailable
-          return data.usernameAvailable
+        .then((action) => {
+          if (action.error) throw action.error
+          checked.current[username] = action.payload.usernameAvailable
+          return action.payload.usernameAvailable
         })
     },
     [dispatch],
@@ -156,16 +156,18 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
     if (Object.keys(nextErrors).length) return undefined
     setSending(true)
     return dispatch(checkAvailability({ email: form.email.trim() }))
-      .unwrap()
-      .then((data) => {
-        if (data.emailAvailable === false) {
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return setFormError(action.error.message)
+        }
+        if (action.payload.emailAvailable === false) {
           setEmailTaken(true)
           setErrors({ email: 'Ya hay una cuenta con este email.' })
         } else {
           goTo('profile')
         }
       })
-      .catch((err) => setFormError(err.message))
       .finally(() => setSending(false))
   }
 
@@ -188,24 +190,28 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
     setSending(true)
     setFormError('')
     const data = { ...form, email: form.email.trim(), firstname: form.firstname.trim(), lastname: form.lastname.trim() }
-    // unwrap(): la promesa de dispatch devuelve lo que devolvió el back, o el error para mostrarlo en el formulario
+    // dispatch devuelve la acción final: si es rejected (action.error), mostramos el error en el formulario
     return dispatch(register({ account: data, interests: chosen }))
-      .unwrap()
-      .then(({ user }) => onDone(user, `¡Bienvenido/a, ${user.firstName}! Tu cuenta está lista.`))
-      .catch((err) => {
-        setSending(false)
-        // Por si alguien tomó el usuario o el email mientras tanto: volvemos al paso que corresponde
-        if (/usuario/i.test(err.message)) {
-          checked.current[form.username] = false
-          setUsernameCheck({ value: form.username, status: 'taken' })
-          goTo('profile')
-        } else if (/email/i.test(err.message)) {
-          setEmailTaken(true)
-          onStepChange('account')
-          setErrors({ email: 'Ya hay una cuenta con este email.' })
-        } else {
-          setFormError(err.message)
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          setSending(false)
+          // Por si alguien tomó el usuario o el email mientras tanto: volvemos al paso que corresponde
+          if (/usuario/i.test(action.error.message)) {
+            checked.current[form.username] = false
+            setUsernameCheck({ value: form.username, status: 'taken' })
+            goTo('profile')
+          } else if (/email/i.test(action.error.message)) {
+            setEmailTaken(true)
+            onStepChange('account')
+            setErrors({ email: 'Ya hay una cuenta con este email.' })
+          } else {
+            setFormError(action.error.message)
+          }
+          return
         }
+        const { user } = action.payload
+        return onDone(user, `¡Bienvenido/a, ${user.firstName}! Tu cuenta está lista.`)
       })
   }
 

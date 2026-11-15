@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Ban, Eye, Receipt } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
+import { isMissing } from '../../redux/helpers'
 import { cancelOrder, fetchOrders } from '../../redux/ordersSlice'
 import { showToast } from '../../redux/toastsSlice'
 import { fetchUsers } from '../../redux/usersSlice'
@@ -28,17 +29,19 @@ const statusOf = (order) => ORDER_STATUS[order.status] ?? ORDER_STATUS.PAID
 function OrdersAdmin() {
   const dispatch = useDispatch()
   // Cada orden ya trae sus reservas adentro
-  const { items: orders, loaded, error } = useSelector((state) => state.orders)
-  const users = useSelector((state) => state.users.items) // para mostrar el nombre de quien compró
+  const ordersState = useSelector((state) => state.orders)
+  const { items: orders, loaded, error } = ordersState
+  const usersState = useSelector((state) => state.users) // para mostrar el nombre de quien compró
+  const users = usersState.items
   const [selected, setSelected] = useState(null)
   const [cancelling, setCancelling] = useState(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('')
 
   useEffect(() => {
-    dispatch(fetchOrders())
-    dispatch(fetchUsers())
-  }, [dispatch])
+    if (isMissing(ordersState)) dispatch(fetchOrders())
+    if (isMissing(usersState)) dispatch(fetchUsers())
+  }, [ordersState, usersState, dispatch])
 
   const buyerOf = (order) => {
     const buyer = users.find((user) => user.id === order.userId)
@@ -173,13 +176,16 @@ function OrdersAdmin() {
           confirmLabel="Cancelar orden"
           // Los reducers reemplazan la orden, sus reservas y le devuelven los lugares a cada fecha
           onConfirm={() =>
-            dispatch(cancelOrder(cancelling.id))
-              .unwrap()
-              .then(() => {
+            // Le pasamos la orden como está ahora: así el thunk sabe qué reservas se reembolsan recién
+            dispatch(cancelOrder(cancelling))
+              .then((action) => {
+                // rejected: el back respondió con un error (action.error.message, como en el reducer)
+                if (action.error) {
+                  return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+                }
                 setSelected(null)
-                dispatch(showToast('Orden cancelada y reservas reembolsadas'))
+                dispatch(showToast({ message: 'Orden cancelada y reservas reembolsadas' }))
               })
-              .catch((cancelError) => dispatch(showToast(cancelError.message, 'error')))
           }
           onClose={() => setCancelling(null)}
         />

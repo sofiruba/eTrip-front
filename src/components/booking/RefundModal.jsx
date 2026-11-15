@@ -22,14 +22,15 @@ function RefundModal({ booking, order, onClose }) {
     event.preventDefault()
     setSending(true)
     return dispatch(refundBooking(booking.id))
-      .unwrap()
-      .then(() => {
-        dispatch(showToast('Reembolso confirmado. Te devolvemos el dinero en 5 a 10 días hábiles.'))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          setError(action.error.message)
+          setSending(false)
+          return
+        }
+        dispatch(showToast({ message: 'Reembolso confirmado. Te devolvemos el dinero en 5 a 10 días hábiles.' }))
         onClose()
-      })
-      .catch((refundError) => {
-        setError(refundError.message)
-        setSending(false)
       })
   }
 

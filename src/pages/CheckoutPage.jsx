@@ -13,12 +13,10 @@ import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import { useCurrency } from '../hooks/useCurrency'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { selectUser } from '../redux/authSlice'
 import { fetchCart, updateCartItem } from '../redux/cartSlice'
 import { validateCoupon } from '../redux/couponsSlice'
-import { selectCatalogStatus } from '../redux/experiencesSlice'
 import { createOrder } from '../redux/ordersSlice'
-import { saveCard, selectSavedCards } from '../redux/savedCardsSlice'
+import { saveCard } from '../redux/savedCardsSlice'
 import { fetchSessions } from '../redux/sessionsSlice'
 import { showToast } from '../redux/toastsSlice'
 import { buildCartLines, getCartProblem } from '../utils/cart'
@@ -37,12 +35,13 @@ import './CheckoutPage.css'
 function CheckoutPage() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const user = useSelector(selectUser)
+  const user = useSelector((state) => state.auth.user)
   const cart = useSelector((state) => state.cart)
   const experiences = useSelector((state) => state.experiences.items)
   const sessions = useSelector((state) => state.sessions.items)
-  const { loading: catalogLoading } = useSelector(selectCatalogStatus)
-  const savedCards = useSelector(selectSavedCards)
+  // Mientras no llegaron las experiencias y las fechas del catálogo
+  const catalogLoading = useSelector((state) => !state.experiences.loaded || !state.sessions.loaded)
+  const savedCards = useSelector((state) => state.savedCards.byUser[state.auth.user?.id]) ?? []
   const { approx } = useCurrency()
   useDocumentTitle('Pago')
 
@@ -143,12 +142,14 @@ function CheckoutPage() {
       expectedTotal: Math.round(total * 100) / 100,
     }
     return dispatch(createOrder(newOrder))
-      .unwrap()
-      .then((order) => {
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return { ok: false, message: action.error.message }
+        }
         if (method === 'card' && card.save) dispatch(saveCard({ userId: user.id, card: toSavedCard(card) }))
-        return { ok: true, order }
+        return { ok: true, order: action.payload }
       })
-      .catch((orderError) => ({ ok: false, message: orderError.message }))
       .then((result) => {
         completingOrder.current = false
         return result
@@ -161,12 +162,12 @@ function CheckoutPage() {
   }
 
   // El back rechazó la compra (por ejemplo, alguien se llevó los últimos lugares): mostramos su motivo y, como lo que
-  // tenemos en el store quedó viejo, volvemos a pedir carrito y fechas ({ force: true }) para que se vea qué cambió
+  // tenemos en el store quedó viejo, volvemos a pedir carrito y fechas para que se vea qué cambió
   const handleOrderFailed = (message) => {
     setPayment(null)
     setError(message)
-    dispatch(fetchCart({ force: true }))
-    dispatch(fetchSessions({ force: true }))
+    dispatch(fetchCart(user.id))
+    dispatch(fetchSessions())
     // Si cambió algún precio, el descuento del cupón también: lo recalcula el back con el carrito nuevo
     if (coupon?.valid) applyCoupon(coupon.code)
   }
@@ -174,17 +175,25 @@ function CheckoutPage() {
   // El cupón aplicado es estado local de esta página; la validación (GET) la hace el back con el carrito actual
   const applyCoupon = (code) => {
     dispatch(validateCoupon(code))
-      .unwrap()
-      .then((data) => setCoupon(data))
-      .catch((couponError) => dispatch(showToast(couponError.message, 'error')))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
+        return setCoupon(action.payload)
+      })
   }
 
   // Si cambia el carrito, el back vuelve a calcular el descuento del cupón
   const changeQuantity = (line, quantity) =>
-    dispatch(updateCartItem({ itemId: line.id, quantity }))
-      .unwrap()
-      .then(() => coupon?.valid && applyCoupon(coupon.code))
-      .catch((quantityError) => dispatch(showToast(quantityError.message, 'error')))
+    dispatch(updateCartItem({ userId: user.id, itemId: line.id, quantity }))
+      .then((action) => {
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
+        return coupon?.valid && applyCoupon(coupon.code)
+      })
 
   return (
     <div className="container page">

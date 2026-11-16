@@ -33,6 +33,30 @@ export const fetchBookingById = createAsyncThunk('bookings/fetchBookingById', as
 // ---------- POST ----------
 
 // POST /bookings/{id}/refund → la reserva actualizada (refunded: true). El back controla la política de 48 h
+// GET /bookings/{id}/voucher → el voucher como imagen (PNG). Lo arma el back y solo se lo da a quien lo tiene.
+// En el celu se abre el menú de compartir del sistema (WhatsApp, mail…) con el archivo; si el navegador no puede
+// compartir archivos (en la compu, por ejemplo), se descarga. No se guarda nada en el estado: es solo el archivo
+export const shareVoucher = createAsyncThunk('bookings/shareVoucher', async (booking) => {
+  const { data } = await api.get(`/bookings/${booking.id}/voucher`, { responseType: 'blob' })
+  const file = new File([data], `voucher-${booking.voucherCode}.png`, { type: 'image/png' })
+  if (navigator.canShare?.({ files: [file] })) {
+    // Si la persona cierra el menú sin compartir, no es un error
+    return navigator
+      .share({ files: [file], title: `Voucher · ${booking.experienceTitle}` })
+      .then(() => 'shared')
+      .catch(() => 'cancelled')
+  }
+  const url = URL.createObjectURL(file)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = file.name
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+  return 'downloaded'
+})
+
 export const refundBooking = createAsyncThunk('bookings/refundBooking', async (id) => {
   const { data } = await api.post(`${URL}/${id}/refund`)
   return data

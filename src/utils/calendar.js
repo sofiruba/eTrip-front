@@ -53,8 +53,3 @@ export function googleCalendarUrl(event) {
   })
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
-
-/** Link de WhatsApp con un texto ya escrito (abre la app o WhatsApp Web). */
-export function whatsappUrl(text) {
-  return `https://wa.me/?text=${encodeURIComponent(text)}`
-}

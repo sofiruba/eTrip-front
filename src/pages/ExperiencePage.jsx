@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { MessageCircle, Share2 } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams } from 'react-router-dom'
 import BookingPanel from '../components/experience/BookingPanel'
@@ -13,7 +12,6 @@ import ReviewsSection from '../components/experience/ReviewsSection'
 import StickyBookingBar from '../components/experience/StickyBookingBar'
 import TagList from '../components/experience/TagList'
 import ErrorState from '../components/ui/ErrorState'
-import IconButton from '../components/ui/IconButton'
 import Loading from '../components/ui/Loading'
 import Notice from '../components/ui/Notice'
 import PageHeader from '../components/ui/PageHeader'
@@ -24,10 +22,9 @@ import { addRecentlyViewed } from '../redux/recentlyViewedSlice'
 import { experienceKey, fetchReviewsByExperience, replyToReview } from '../redux/reviewsSlice'
 import { showToast } from '../redux/toastsSlice'
 import { fetchUserById } from '../redux/usersSlice'
-import { whatsappUrl } from '../utils/calendar'
 import { hoursBetween } from '../utils/dates'
 import { addSessionInfo, byNewest, getHostStats, getUpcomingSessions } from '../utils/experiences'
-import { formatMoney, pluralize } from '../utils/format'
+import { pluralize } from '../utils/format'
 import { getCity } from '../utils/location'
 import NotFoundPage from './NotFoundPage'
 import './ExperiencePage.css'
@@ -121,15 +118,6 @@ function ExperiencePage({ id }) {
         return dispatch(showToast({ message: action.payload.hostReply ? 'Respuesta publicada' : 'Respuesta borrada' }))
       })
 
-  const share = () => {
-    navigator.clipboard
-      .writeText(window.location.href)
-      .then(() => dispatch(showToast({ message: 'Link copiado. ¡Compartilo con quien quieras!', tone: 'info' })))
-      .catch(() => dispatch(showToast({ message: 'No pudimos copiar el link', tone: 'error' })))
-  }
-  // Los planes se deciden en grupo: el link listo para mandar por WhatsApp
-  const whatsappText = `Mirá este plan: ${experience.title} en ${city}, desde ${formatMoney(experience.finalPrice)} por persona. ${window.location.href}`
-
   return (
     <div className="container page experience-page">
       <PageHeader
@@ -141,15 +129,7 @@ function ExperiencePage({ id }) {
         ]}
         eyebrow={experience.categoryName}
         title={experience.title}
-        actions={
-          <>
-            {!isDeleted && <FavoriteButton experience={experience} withLabel />}
-            <a className="icon-btn icon-btn--default" href={whatsappUrl(whatsappText)} target="_blank" rel="noreferrer" aria-label="Compartir por WhatsApp" title="Compartir por WhatsApp">
-              <MessageCircle size={18} aria-hidden />
-            </a>
-            <IconButton icon={Share2} label="Copiar link" onClick={share} />
-          </>
-        }
+        actions={!isDeleted && <FavoriteButton experience={experience} withLabel />}
       />
 
       {isDeleted ? (

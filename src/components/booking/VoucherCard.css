@@ -42,3 +42,10 @@
   color: var(--color-muted);
   text-decoration: line-through;
 }
+
+/* Regalo entregado: en lugar del código, a quién se le entregó */
+.voucher__code--hidden {
+  font-family: inherit;
+  font-size: var(--text-lg);
+  letter-spacing: 0;
+}

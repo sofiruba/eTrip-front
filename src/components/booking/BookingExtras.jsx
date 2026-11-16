@@ -1,38 +1,54 @@
-import { CalendarPlus, MessageCircle } from 'lucide-react'
-import { downloadIcs, googleCalendarUrl, whatsappUrl } from '../../utils/calendar'
-import { formatSessionDate } from '../../utils/format'
+import { useState } from 'react'
+import { CalendarPlus, Share2 } from 'lucide-react'
+import { useDispatch } from 'react-redux'
+import { shareVoucher } from '../../redux/bookingsSlice'
+import { showToast } from '../../redux/toastsSlice'
+import { downloadIcs, googleCalendarUrl } from '../../utils/calendar'
 import Button from '../ui/Button'
 
 /**
- * "Agregar a mi calendario" y "Compartir por WhatsApp" de una reserva confirmada.
- * Todo se arma en el front con los datos de la reserva: no se le pide nada al back.
+ * "Compartir voucher" y "Agregar a mi calendario" de una reserva confirmada.
+ * El voucher es un archivo (imagen) que arma el back y solo le da a quien lo tiene: se comparte el archivo,
+ * no un link, porque la reserva de otra cuenta no se puede ver. El calendario se arma en el front.
  */
 function BookingExtras({ booking, experience }) {
+  const dispatch = useDispatch()
+  const [sharing, setSharing] = useState(false)
   if (booking.refunded) return null
 
-  const url = `${window.location.origin}/experiencias/${booking.experienceId}`
   const event = {
     uid: `reserva-${booking.id}`,
     title: `${booking.experienceTitle} (PLAN)`,
     startsAt: booking.startsAt,
     endsAt: booking.endsAt,
     location: experience?.location ?? '',
-    description: `Voucher ${booking.voucherCode} · ${booking.quantity} ${booking.quantity === 1 ? 'persona' : 'personas'}. ${url}`,
-    url,
+    description: `${booking.quantity} ${booking.quantity === 1 ? 'persona' : 'personas'}. El voucher está en Mis reservas de PLAN.`,
   }
-  const message = `¡Tengo plan! ${booking.experienceTitle}, ${formatSessionDate(booking.startsAt)}. ¿Te sumás? ${url}`
+
+  const share = () => {
+    setSharing(true)
+    dispatch(shareVoucher(booking)).then((action) => {
+      setSharing(false)
+      // rejected: el back respondió con un error (action.error.message, como en el reducer)
+      if (action.error) return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+      if (action.payload === 'downloaded') return dispatch(showToast({ message: 'Descargamos el voucher: ya lo podés mandar' }))
+      return null
+    })
+  }
 
   return (
     <div className="row">
-      <Button variant="secondary" size="sm" icon={CalendarPlus} onClick={() => downloadIcs(event, `plan-${booking.id}.ics`)}>
+      {/* Un regalo que ya entregaste: el voucher es de quien lo recibió (el back no te manda el código) */}
+      {booking.voucherCode && (
+        <Button variant="secondary" size="sm" icon={Share2} onClick={share} disabled={sharing}>
+          {sharing ? 'Preparando…' : 'Compartir voucher'}
+        </Button>
+      )}
+      <Button variant="ghost" size="sm" icon={CalendarPlus} onClick={() => downloadIcs(event, `plan-${booking.id}.ics`)}>
         Agregar a mi calendario
       </Button>
       <a className="btn btn--ghost btn--sm" href={googleCalendarUrl(event)} target="_blank" rel="noreferrer">
         Google Calendar
-      </a>
-      <a className="btn btn--ghost btn--sm" href={whatsappUrl(message)} target="_blank" rel="noreferrer">
-        <MessageCircle size={16} aria-hidden />
-        Compartir por WhatsApp
       </a>
     </div>
   )

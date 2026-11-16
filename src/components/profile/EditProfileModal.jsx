@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { updateMe, updateProfileExtras } from '../../redux/authSlice'
+import { updateMe } from '../../redux/authSlice'
 import { showToast } from '../../redux/toastsSlice'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
@@ -8,7 +8,7 @@ import Modal from '../ui/Modal'
 
 const MAX_BIO = 500
 
-/** Editar perfil. El email no se puede cambiar. */
+/** Editar perfil: nombre, apellido, ciudad y bio (PUT /users/me). El email no se puede cambiar. */
 function EditProfileModal({ onClose }) {
   const dispatch = useDispatch()
   const user = useSelector((state) => state.auth.user)
@@ -21,13 +21,11 @@ function EditProfileModal({ onClose }) {
   const [sending, setSending] = useState(false)
   const setField = (field) => (event) => setForm({ ...form, [field]: event.target.value })
 
-  // Ciudad y bio no existen en el back: quedan en el estado global (persistido en el navegador).
-  // Nombre y apellido se guardan en el back (PUT /users/me) y el reducer guarda el usuario que devuelve
+  // Todo se guarda en el back; el reducer guarda el usuario que devuelve (bio y ciudad se ven en el perfil público)
   const handleSubmit = (event) => {
     event.preventDefault()
     setSending(true)
-    dispatch(updateProfileExtras({ city: form.city.trim(), bio: form.bio.trim() }))
-    dispatch(updateMe({ firstName: form.firstName.trim(), lastName: form.lastName.trim() }))
+    dispatch(updateMe({ firstName: form.firstName.trim(), lastName: form.lastName.trim(), city: form.city.trim(), bio: form.bio.trim() }))
       .then((action) => {
         // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
@@ -61,7 +59,7 @@ function EditProfileModal({ onClose }) {
           <FormField label="Apellido" value={form.lastName} onChange={setField('lastName')} required />
         </div>
         <FormField label="Email" type="email" value={user.email} readOnly disabled hint="El email no se puede cambiar." />
-        <FormField label="Ciudad" value={form.city} onChange={setField('city')} />
+        <FormField label="Ciudad" value={form.city} onChange={setField('city')} maxLength={100} />
         <FormField
           as="textarea"
           label="Sobre vos"
@@ -70,7 +68,7 @@ function EditProfileModal({ onClose }) {
           onChange={setField('bio')}
           maxLength={MAX_BIO}
           placeholder="Contale algo a la comunidad..."
-          hint={`Se muestra en tu perfil público si publicás experiencias. ${form.bio.length}/${MAX_BIO}`}
+          hint={`Se muestra en tu perfil público y en tus experiencias. ${form.bio.length}/${MAX_BIO}`}
         />
       </form>
     </Modal>

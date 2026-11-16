@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarPlus, CalendarX, Pencil, Trash2 } from 'lucide-react'
+import { BellRing, CalendarPlus, CalendarX, Pencil, Trash2 } from 'lucide-react'
 import { useDispatch } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
 import { cancelSession, removeSession } from '../../redux/sessionsSlice'
@@ -92,6 +92,13 @@ function HostCalendar({ experiences, sessions }) {
                   <div className="row">
                     <h3>{titleOf(session.experienceId)}</h3>
                     <Badge tone={status.tone}>{status.label}</Badge>
+                    {/* Lista de espera (la cuenta el back): si amplía el cupo, el back les avisa solo */}
+                    {session.waitlistCount > 0 && (
+                      <Badge tone="warning">
+                        <BellRing size={12} aria-hidden />
+                        {session.waitlistCount} en lista de espera
+                      </Badge>
+                    )}
                   </div>
                   <p className="muted small">
                     {date.toLocaleDateString('es-AR', { weekday: 'long' })} · {formatTime(session.startsAt)}

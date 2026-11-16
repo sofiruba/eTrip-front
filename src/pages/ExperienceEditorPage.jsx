@@ -6,6 +6,7 @@ import EditorPreview from '../components/editor/EditorPreview'
 import EditorSection from '../components/editor/EditorSection'
 import LocationFields from '../components/editor/LocationFields'
 import PhotoPicker, { MAX_PHOTOS } from '../components/editor/PhotoPicker'
+import InterestPicker from '../components/profile/InterestPicker'
 import Button from '../components/ui/Button'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import FormField, { FormActions } from '../components/ui/FormField'
@@ -15,7 +16,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { createExperience, fetchExperienceById, updateDiscount, updateExperience } from '../redux/experiencesSlice'
 import { showToast } from '../redux/toastsSlice'
-import { toFile, toForm, validate } from '../utils/experienceForm'
+import { MAX_TAGS, toFile, toForm, validate } from '../utils/experienceForm'
 import { getDestinations } from '../utils/experiences'
 import { buildLocation, canonicalCity } from '../utils/location'
 import NotFoundPage from './NotFoundPage'
@@ -88,6 +89,7 @@ function ExperienceForm({ experience }) {
       categoryId: Number(form.categoryId),
       price: Number(form.price),
       adultsOnly: form.adultsOnly,
+      tags: form.tags,
     }
     const discount = Number(form.discountPercentage)
     // El back reemplaza TODAS las fotos cuando recibe alguna: si cambiaron, mandamos todas las que quedaron.
@@ -191,7 +193,15 @@ function ExperienceForm({ experience }) {
             </label>
           </EditorSection>
 
-          <EditorSection step="03" title="Precio" description="Podés cambiarlo cuando quieras. La duración se define en cada fecha.">
+          <EditorSection
+            step="03"
+            title="¿Para quién es?"
+            description={`Elegí hasta ${MAX_TAGS} intereses. Se los mostramos a las personas que eligieron esos intereses ("Para vos") y sirven para buscar.`}
+          >
+            <InterestPicker value={form.tags} onChange={(tags) => changeField('tags', tags)} max={MAX_TAGS} />
+          </EditorSection>
+
+          <EditorSection step="04" title="Precio" description="Podés cambiarlo cuando quieras. La duración se define en cada fecha.">
             <div className="form-grid">
               <FormField label="Precio por persona ($)" type="number" min="0" value={form.price} onChange={setField('price')} error={errors.price} />
               <FormField

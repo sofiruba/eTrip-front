@@ -11,8 +11,12 @@ export const toForm = (experience) => ({
   price: experience?.price ?? '',
   discountPercentage: experience?.discountPercentage ?? 0,
   adultsOnly: experience?.adultsOnly ?? false,
+  tags: experience?.tags ?? [],
   images: experience?.images ?? [],
 })
+
+/** Intereses (tags) por experiencia, igual que el back. */
+export const MAX_TAGS = 8
 
 /** Errores del formulario: { campo: mensaje }. Vacío si está todo bien. */
 export function validate(form) {

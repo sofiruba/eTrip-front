@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
-import { MapPin } from 'lucide-react'
+import { Award, MapPin } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams } from 'react-router-dom'
 import ExperienceCard from '../components/experience/ExperienceCard'
 import InterestList from '../components/profile/InterestList'
 import Avatar from '../components/ui/Avatar'
+import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import ErrorState from '../components/ui/ErrorState'
 import Loading from '../components/ui/Loading'
@@ -13,7 +14,7 @@ import SectionHeader from '../components/ui/SectionHeader'
 import StatCard from '../components/ui/StatCard'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { fetchUserById } from '../redux/usersSlice'
-import { addSessionInfo } from '../utils/experiences'
+import { addSessionInfo, getHostStats } from '../utils/experiences'
 import { fullName } from '../utils/format'
 import NotFoundPage from './NotFoundPage'
 import './HostProfilePage.css'
@@ -53,10 +54,7 @@ function HostProfilePage() {
   if (!host || catalogStatus.loading) return <Loading />
 
   const experiences = catalog.filter((experience) => experience.publisherId === host.id)
-  const reviewCount = experiences.reduce((sum, experience) => sum + experience.reviewCount, 0)
-  const averageRating = reviewCount
-    ? experiences.reduce((sum, experience) => sum + experience.averageRating * experience.reviewCount, 0) / reviewCount
-    : 0
+  const { reviewCount, averageRating, top } = getHostStats(catalog, host.id)
 
   return (
     <div className="container page">
@@ -65,6 +63,12 @@ function HostProfilePage() {
       <section className="host-profile card">
         <Avatar name={name} src={host.avatarUrl} size="xl" />
         <div className="stack">
+          {top && (
+            <Badge tone="brand">
+              <Award size={12} aria-hidden />
+              Anfitrión destacado · {averageRating.toFixed(1)} ★ en {reviewCount} reseñas
+            </Badge>
+          )}
           <p>{host.bio || `${name} comparte sus planes favoritos en PLAN.`}</p>
           {host.interests?.length > 0 && (
             <div className="host-profile__interests">

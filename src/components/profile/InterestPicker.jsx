@@ -4,10 +4,13 @@ import Chip from '../ui/Chip'
 import { getInterestIcon } from './interestIcons'
 import './InterestPicker.css'
 
-/** Selector de intereses (registro y perfil): primero los más elegidos y "Mostrar todo" para el resto. */
-function InterestPicker({ value, onChange }) {
+/**
+ * Selector de intereses: primero los más elegidos y "Mostrar todo" para el resto.
+ * Lo usan el registro y el perfil (intereses de la persona) y el editor de experiencias (tags, con `max` = 8).
+ */
+function InterestPicker({ value, onChange, max = MAX_INTERESTS }) {
   const [showAll, setShowAll] = useState(false)
-  const full = value.length >= MAX_INTERESTS
+  const full = value.length >= max
 
   const toggle = (interest) =>
     onChange(value.includes(interest) ? value.filter((item) => item !== interest) : [...value, interest])
@@ -42,7 +45,7 @@ function InterestPicker({ value, onChange }) {
           {showAll ? 'Mostrar menos' : `Mostrar todo (${interestOptions.length})`}
         </button>
         <span className={`interest-picker__count ${full ? 'is-full' : ''}`} aria-live="polite">
-          {value.length}/{MAX_INTERESTS} seleccionados
+          {value.length}/{max} seleccionados
         </span>
       </div>
     </div>

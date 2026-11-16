@@ -7,7 +7,7 @@ import { addRecentSearch } from '../../redux/preferencesSlice'
 import { getDatePresets } from '../../utils/catalogFilters'
 import { formatShortDate, normalizeText, pluralize } from '../../utils/format'
 import { describeGuests, GUEST_TYPES, MAX_GUESTS } from '../../utils/guests'
-import { findNearestCity } from '../../utils/location'
+import { findNearestCity, matchesLocation } from '../../utils/location'
 import Chip from '../ui/Chip'
 import DateRangeCalendar from '../ui/DateRangeCalendar'
 import ImageWithFallback from '../ui/ImageWithFallback'
@@ -36,7 +36,8 @@ function datesHint({ dateFrom, dateTo }) {
 }
 
 const toDraft = (value) => ({
-  location: value.location ?? '',
+  // Si se buscó un texto que no es una ciudad (va como `title`), el campo lo muestra igual
+  location: value.location || value.title || '',
   dateFrom: value.dateFrom ?? '',
   dateTo: value.dateTo ?? '',
   adults: value.adults ?? 0,
@@ -108,8 +109,15 @@ function HeroSearch({ id, value, destinations, availableDates, experiences = [],
 
   const submit = (next = draft) => {
     setOpen(null)
-    const search = { ...next, location: next.location.trim() }
-    dispatch(addRecentSearch(search))
+    const text = next.location.trim()
+    // Lo escrito es un lugar si coincide con una ciudad conocida o con la ubicación de alguna experiencia.
+    // Si no ("kayak", "vino"), se busca en los títulos: el back filtra por `title`, no por `location`
+    const isPlace =
+      !text ||
+      cities.some((city) => matchesLocation(city.name, text)) ||
+      experiences.some((experience) => matchesLocation(experience.location, text))
+    const search = { ...next, location: isPlace ? text : '', title: isPlace ? '' : text }
+    if (isPlace) dispatch(addRecentSearch(search))
     // Los ceros se mandan como null para que no queden en la URL
     onSearch({ ...search, adults: search.adults || null, children: search.children || null, infants: search.infants || null })
   }

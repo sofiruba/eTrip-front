@@ -1,0 +1,42 @@
+.favorite-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: var(--color-glass);
+  color: var(--color-ink);
+  transition: transform var(--transition), color var(--transition), background var(--transition);
+}
+
+.favorite-btn:hover {
+  transform: scale(1.08);
+}
+
+.favorite-btn.is-saved {
+  color: var(--color-brand);
+}
+
+.favorite-btn.is-saved svg {
+  fill: currentColor;
+}
+
+/* Con texto: mismo alto que los botones de la página */
+.favorite-btn--label {
+  width: auto;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* En las tarjetas va arriba a la derecha, sobre la foto */
+.experience-card .favorite-btn {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 1;
+}

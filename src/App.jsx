@@ -13,13 +13,16 @@ import LegalPage from './pages/LegalPage'
 import MyBookingsPage from './pages/MyBookingsPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
+import SavedPage from './pages/SavedPage'
 import { isTokenExpired } from './redux/api'
 import { fetchMe, logout } from './redux/authSlice'
 import { fetchCart } from './redux/cartSlice'
 import { fetchCategories } from './redux/categoriesSlice'
 import { fetchExperiences } from './redux/experiencesSlice'
+import { fetchFavorites } from './redux/favoritesSlice'
 import { fetchNotifications } from './redux/notificationsSlice'
 import { fetchSessions } from './redux/sessionsSlice'
+import { fetchWaitlist } from './redux/waitlistSlice'
 import CustomerOnly from './routes/CustomerOnly'
 import RemountOnParam from './routes/RemountOnParam'
 import RequireAuth from './routes/RequireAuth'
@@ -58,11 +61,15 @@ function App() {
     else dispatch(fetchMe())
   }, [savedToken, dispatch])
 
-  // Carrito y avisos: se piden cuando hay un usuario (por eso userId va en las dependencias: login / logout).
-  // El admin no compra: no tiene carrito
+  // Carrito, guardados, lista de espera y avisos: se piden cuando hay un usuario (por eso userId va en las
+  // dependencias: login / logout). El admin no compra: no tiene carrito ni guardados
   useEffect(() => {
     if (!userId) return
-    if (!isAdmin) dispatch(fetchCart(userId))
+    if (!isAdmin) {
+      dispatch(fetchCart(userId))
+      dispatch(fetchFavorites())
+      dispatch(fetchWaitlist())
+    }
     dispatch(fetchNotifications())
   }, [userId, isAdmin, dispatch])
 
@@ -88,6 +95,7 @@ function App() {
             <Route path="checkout/confirmacion/:orderId" element={lazyPage(CheckoutSuccessPage)} />
             <Route path="mis-reservas" element={<MyBookingsPage />} />
             <Route path="mis-reservas/:id" element={<RemountOnParam page={BookingDetailPage} />} />
+            <Route path="guardados" element={<SavedPage />} />
             <Route path="perfil" element={<ProfilePage />} />
             <Route path="anfitrion/:tab?" element={lazyPage(HostPage)} />
             {/* Misma página para crear y editar: RemountOnParam la monta de nuevo al pasar de una a otra */}

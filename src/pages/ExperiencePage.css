@@ -13,6 +13,18 @@
   line-height: 1.7;
 }
 
+.experience__tags-title {
+  margin-top: var(--space-5);
+}
+
+.experience__tags-title + .tag-list {
+  margin-top: var(--space-2);
+}
+
+.experience__saved {
+  margin-top: var(--space-4);
+}
+
 @media (max-width: 900px) {
   /* En mobile, reservar queda a mano apenas después de la galería */
   .experience__body .booking-panel {

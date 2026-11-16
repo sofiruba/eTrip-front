@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="PLAN · Hacé un plan distinto">
+  <rect width="1200" height="630" fill="#fcf9f4"/>
+  <circle cx="1040" cy="120" r="220" fill="#fff1ee"/>
+  <circle cx="160" cy="560" r="160" fill="#f6f1e9"/>
+  <text x="90" y="250" font-family="Plus Jakarta Sans, Segoe UI, Arial, sans-serif" font-size="56" font-weight="800" fill="#b7230f" letter-spacing="6">PLAN</text>
+  <text x="90" y="350" font-family="Plus Jakarta Sans, Segoe UI, Arial, sans-serif" font-size="72" font-weight="800" fill="#1c1c19">Hacé un plan distinto.</text>
+  <text x="90" y="420" font-family="Plus Jakarta Sans, Segoe UI, Arial, sans-serif" font-size="30" fill="#5f5d59">Experiencias armadas por gente local, con fecha y cupo.</text>
+  <text x="90" y="465" font-family="Plus Jakarta Sans, Segoe UI, Arial, sans-serif" font-size="30" fill="#5f5d59">Reservá tu lugar en tu ciudad o en la que visites.</text>
+</svg>

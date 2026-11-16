@@ -1,0 +1,28 @@
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-list__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color var(--transition), color var(--transition);
+}
+
+.tag-list__tag:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand-text);
+}

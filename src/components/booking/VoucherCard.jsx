@@ -1,4 +1,4 @@
-import { Ticket } from 'lucide-react'
+import { Gift, Ticket } from 'lucide-react'
 import { pluralize } from '../../utils/format'
 import './VoucherCard.css'
 
@@ -14,6 +14,16 @@ function VoucherCard({ booking, compact = false }) {
             {booking.refunded
               ? 'Este voucher fue anulado por el reembolso.'
               : `Válido para ${pluralize(booking.quantity, 'persona')}. Mostralo al anfitrión al llegar.`}
+          </p>
+        )}
+        {/* Regalo: quién lo regala y para quién (viene en la reserva, lo arma el back con la orden) */}
+        {booking.giftRecipientName && (
+          <p className="voucher__gift">
+            <Gift size={16} aria-hidden />
+            <span>
+              Regalo de <strong>{booking.giftFromName}</strong> para <strong>{booking.giftRecipientName}</strong>
+              {booking.giftMessage && <q>{booking.giftMessage}</q>}
+            </span>
           </p>
         )}
       </div>

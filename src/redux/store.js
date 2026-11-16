@@ -9,22 +9,26 @@ import cartReducer from './cartSlice'
 import categoriesReducer from './categoriesSlice'
 import couponsReducer from './couponsSlice'
 import experiencesReducer from './experiencesSlice'
+import favoritesReducer from './favoritesSlice'
 import importReducer from './importSlice'
 import notificationsReducer from './notificationsSlice'
 import ordersReducer from './ordersSlice'
 import preferencesReducer from './preferencesSlice'
+import recentlyViewedReducer from './recentlyViewedSlice'
 import reviewsReducer from './reviewsSlice'
 import savedCardsReducer from './savedCardsSlice'
 import sessionsReducer from './sessionsSlice'
 import toastsReducer, { showToast } from './toastsSlice'
 import usersReducer from './usersSlice'
+import waitlistReducer from './waitlistSlice'
 
 /**
  * Persistencia con redux-persist (la librería de persistencia de Redux que vimos en clase).
  * Estos slices se guardan en el localStorage y se recuperan al recargar la página:
- *  - auth: el token, el usuario y lo que el back no guarda del perfil (no el modal de login, que se abre y se cierra)
+ *  - auth: el token y el usuario (no el modal de login, que se abre y se cierra)
  *  - preferences: moneda, tema y búsquedas recientes
  *  - savedCards: las tarjetas guardadas
+ *  - recentlyViewed: las últimas experiencias que se abrieron
  * El resto viene del back: se pide una sola vez al abrir la app (o la sección) y queda en el store.
  */
 const persist = (key, reducer, whitelist) => persistReducer({ key, storage, whitelist }, reducer)
@@ -43,11 +47,14 @@ export const store = configureStore({
     coupons: couponsReducer,
     users: usersReducer,
     notifications: notificationsReducer,
+    favorites: favoritesReducer,
+    waitlist: waitlistReducer,
     // Sesión (persistida)
-    auth: persist('auth', authReducer, ['token', 'user', 'profileExtras']),
+    auth: persist('auth', authReducer, ['token', 'user']),
     // Solo de front
     preferences: persist('preferences', preferencesReducer),
     savedCards: persist('savedCards', savedCardsReducer),
+    recentlyViewed: persist('recentlyViewed', recentlyViewedReducer),
     toasts: toastsReducer,
     dataImport: importReducer,
   },

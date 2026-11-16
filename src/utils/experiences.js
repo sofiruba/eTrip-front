@@ -39,6 +39,20 @@ export function addSessionInfo(experiences, sessions) {
 /** Tiene fechas futuras pero ninguna con lugares. */
 export const isSoldOut = (experience) => experience.upcomingCount > 0 && experience.availableSeats === 0
 
+// "Anfitrión destacado": promedio de al menos 4,7 con al menos 5 reseñas entre todas sus experiencias
+export const TOP_HOST_RATING = 4.7
+export const TOP_HOST_REVIEWS = 5
+
+/** Reseñas y promedio de un anfitrión sumando sus experiencias del catálogo, y si es "destacado". */
+export function getHostStats(experiences, publisherId) {
+  const own = experiences.filter((experience) => experience.publisherId === publisherId)
+  const reviewCount = own.reduce((sum, experience) => sum + experience.reviewCount, 0)
+  const averageRating = reviewCount
+    ? own.reduce((sum, experience) => sum + experience.averageRating * experience.reviewCount, 0) / reviewCount
+    : 0
+  return { reviewCount, averageRating, top: reviewCount >= TOP_HOST_REVIEWS && averageRating >= TOP_HOST_RATING }
+}
+
 const SORTERS = {
   'precio-asc': (a, b) => a.finalPrice - b.finalPrice,
   'precio-desc': (a, b) => b.finalPrice - a.finalPrice,

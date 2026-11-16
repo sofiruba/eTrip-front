@@ -10,7 +10,12 @@ Para la tercera entrega se migró todo a **Redux Toolkit**, siguiendo lo que se 
 | Estados de la promesa | `useState` de `loading` y `error` en cada página | `extraReducers`: `pending` / `fulfilled` / `rejected` |
 | Componentes | `useContext` (hooks `useAuth`, `useCart`, `useCatalog`…) | **`useSelector`** (suscribirse) + **`useDispatch`** (despachar acciones) |
 | Después de un POST / PUT / PATCH / DELETE | Muchas pantallas volvían a pedir todo (`reload()`, `refreshSessions()`) | El reducer actualiza el store con la respuesta del back: **no se repite el GET** |
-| Persistencia | `localStorage` a mano (`usePersistentState`) | **redux-persist** (token, usuario, preferencias, tarjetas) |
+| Persistencia | `localStorage` a mano (`usePersistentState`) | **redux-persist** (token, usuario, preferencias, tarjetas, vistos recientemente) |
+
+> **16/11:** además de la migración, se hicieron las mejoras de producto del análisis (`ANALISIS-ENTREGA-FINAL.md`):
+> perfil del anfitrión en el back, intereses como **tags** de las experiencias y "Para vos", guardados, lista de espera,
+> regalar una experiencia, dar de baja con reembolso y aviso a todos, pausar / activar, vistos recientemente, números de
+> PLAN, calendario y WhatsApp desde el voucher. Ver la sección **14**.
 
 ---
 
@@ -58,10 +63,13 @@ src/redux/
   usersSlice.js         usuarios (panel de admin y perfiles públicos)
   couponsSlice.js       cupones
   notificationsSlice.js avisos
-  authSlice.js          sesión: token, usuario, modal de login
+  favoritesSlice.js     guardados (corazón): ids de experiencia, se guardan en el back
+  waitlistSlice.js      lista de espera: ids de las fechas agotadas en las que estoy anotado
+  authSlice.js          sesión: token, usuario (con bio, ciudad, foto e intereses, que ahora guarda el back), modal de login
 
   // Solo de front (no van a la base), pero los usan varias pantallas
   preferencesSlice.js   moneda, tema claro/oscuro, búsquedas recientes
+  recentlyViewedSlice.js vistos recientemente (ids), persistido
   savedCardsSlice.js    tarjetas guardadas
   toastsSlice.js        avisos de abajo a la derecha
   importSlice.js        herramienta "Datos de prueba" del panel de admin
@@ -231,8 +239,11 @@ se actualizan solos, sin GET.
 | **users** | `items` (admin), `profiles[id]` (públicos) | `fetchUsers` GET · `fetchUserById` GET · `updateUserRole` PATCH · `updateUserStatus` PATCH |
 | **coupons** | `items` | `fetchCoupons` GET · `validateCoupon` GET `/validate` · `createCoupon` POST · `updateCoupon` PUT · `deleteCoupon` DELETE |
 | **notifications** | `items` | `fetchNotifications` GET · `markNotificationRead` PATCH |
-| **auth** | `token`, `user`, `profileExtras`, `authModal` | `login`, `register`, `resetPassword` (POST + GET `/users/me`) · `fetchMe` GET · `updateMe` PUT · `checkAvailability`, `requestPasswordReset`, `verifyResetCode`. Reducers comunes: `logout`, `sessionExpired`, `openAuth`, `closeAuth`, `updateProfileExtras` |
+| **favorites** | `ids` (experiencias guardadas, la última primero) | `fetchFavorites` GET `/favorites` · `addFavorite` POST `/favorites/{id}` · `removeFavorite` DELETE |
+| **waitlist** | `sessionIds` (fechas agotadas en las que estoy anotado) | `fetchWaitlist` GET `/experience-sessions/waitlist/mine` · `joinWaitlist` POST `/{id}/waitlist` · `leaveWaitlist` DELETE |
+| **auth** | `token`, `user`, `authModal` | `login`, `register` (manda `interests`), `resetPassword` (POST + GET `/users/me`) · `fetchMe` GET · `updateMe` PUT `/users/me` (nombre, bio, ciudad, `avatarBase64`, `interests`: se manda solo lo que cambia) · `checkAvailability`, `requestPasswordReset`, `verifyResetCode`. Reducers comunes: `logout`, `sessionExpired`, `openAuth`, `closeAuth` |
 | **preferences** | `currency`, `theme`, `recentSearches` | (solo reducers) `setCurrency`, `setTheme`, `addRecentSearch` |
+| **recentlyViewed** | `ids` | (solo reducers) `addRecentlyViewed`; escucha `deleteExperience` |
 | **savedCards** | `byUser` | (solo reducers) `saveCard`, `removeCard` |
 | **toasts** | `items` | (solo reducers) `showToast`, `hideToast` |
 | **dataImport** | `log`, `running` | `importData` (usa los endpoints de siempre, uno por uno) |
@@ -312,8 +323,9 @@ Varios slices escuchan acciones de otros slices en sus `extraReducers`:
 
 | Se guarda | Por qué |
 |---|---|
-| `auth`: `token`, `user`, `profileExtras` | La sesión sigue abierta al recargar. `profileExtras` = bio, ciudad, intereses y foto (el back no los guarda) |
+| `auth`: `token`, `user` | La sesión sigue abierta al recargar. Bio, ciudad, intereses y foto ya vienen en `user` desde el back (hasta el 16/11 vivían solo en este navegador, en `profileExtras`) |
 | `preferences` | Moneda, tema y búsquedas recientes son solo de front |
+| `recentlyViewed` | Los ids de las últimas 8 experiencias abiertas (la sección "Vistos recientemente" del Home) |
 | `savedCards` | Tarjetas guardadas (marca, últimos 4, vencimiento y titular; nunca el número ni el CVV) |
 
 No se guarda nada que venga del back (catálogo, carrito, reservas): eso se pide una vez al abrir la app.
@@ -464,3 +476,63 @@ Lo que es de un solo componente: formularios mientras se escriben, modales abier
 - **Rendimiento (15/11):** el panel de admin, el modo anfitrión y el editor se descargan recién cuando alguien entra (como el checkout). La primera carga bajó de 685 kB a 393 kB y el build ya no avisa nada.
 - `npm audit` marca 2 vulnerabilidades en dependencias **de desarrollo** (`vite` 8.3.0 y `source-map-js`) que ya estaban
   antes de este cambio; se arreglan con `npm audit fix`. Las dependencias de producción no tienen ninguna.
+
+---
+
+## 14. Mejoras de producto (16/11)
+
+Todo lo que sigue usa **las mismas herramientas de Redux de las secciones anteriores** (un thunk por endpoint,
+`pending / fulfilled / rejected`, `if (!loaded) dispatch(...)`, reducers que actualizan el store con la respuesta del back
+sin repetir GETs, slices que escuchan acciones de otros slices). Los endpoints nuevos del back están documentados en
+`eTrip-back/insomnia/ENDPOINTS.md`.
+
+### Reglas de negocio de PLAN que ahora se ven en el código
+
+| Regla | Dónde está |
+|---|---|
+| **Toda cuenta compra y vende** (no hay "registro como vendedor") | El registro no cambia; el modo anfitrión está para todos |
+| **Si el anfitrión da de baja una experiencia, todos los que tenían reservas reciben el reembolso completo y un aviso** (también quien recibió un regalo y la lista de espera) | Back: `ExperienceServiceImpl.deleteExperience` (una sola transacción). Front: diálogo que cuenta fechas y reservas (`utils/deletion.js`), `deleteExperience` devuelve el resumen y los reducers de `bookings` y `orders` marcan esas reservas como reembolsadas |
+| Si la experiencia **alguna vez se vendió**, no se borra: queda `DELETED` (solo la ve el admin, con `status: "DELETED"`), así las reservas viejas, reseñas y estadísticas no se pierden | Back: `deletedAt`. Front: filtro "Dadas de baja" en el panel |
+| El comprador cancela hasta 48 h antes; anfitrión y admin hasta el inicio | Sin cambios |
+| Comisión del 10 % | Sin cambios |
+
+### Lo que se agregó
+
+| Qué | Back | Front (Redux) |
+|---|---|---|
+| **Perfil en el back**: bio, ciudad, foto e intereses | `User` + `PUT /users/me` (campos opcionales, `""` borra) · `GET /users/{id}` los muestra a todos | Se fue `profileExtras`: `updateMe` manda solo lo que cambia y el reducer guarda el usuario que devuelve. `helpers.toUser` pasa `avatarBase64` a data URL |
+| **Intereses = tags** de las experiencias | `Experience.tags` (hasta 8) · `GET /experiences?tags=A,B` (alguno) | El editor tiene un paso "¿Para quién es?" con el mismo `InterestPicker` del perfil (`max={8}`); el detalle muestra los tags como links al catálogo filtrado (`?tags=`) |
+| **"Para vos"** en el Home | — | Cruza `state.auth.user.interests` con los `tags` del catálogo que ya está en el store: ningún GET nuevo |
+| **Guardados** (corazón) | `favorites` + `favoriteCount` en cada experiencia | `favoritesSlice` (ids). `FavoriteButton` en tarjetas y detalle; página `/guardados` arma las tarjetas con el catálogo. `experiencesSlice` escucha `addFavorite` / `removeFavorite` para el contador |
+| **Lista de espera** en fechas agotadas | `waitlist_entries`; al liberarse un lugar (reembolso o más cupo) el back **avisa a todos** y vacía la lista; `waitlistCount` en cada fecha | `waitlistSlice` (ids de fechas). `WaitlistButton` en el panel de reserva; el calendario del anfitrión muestra "N en lista de espera"; `sessionsSlice` escucha `joinWaitlist` / `leaveWaitlist` y pone el contador en 0 cuando un reembolso libera lugares |
+| **Regalar una experiencia** | `gift` en `POST /orders`; si el email es de una cuenta, la reserva queda a su nombre (`recipient`), la ve en **sus** reservas, recibe el aviso y puede reseñar | Casilla "Es un regalo" en el checkout (`GiftFields`); el voucher muestra "Regalo de X para Y" con el mensaje; badge en Mis reservas |
+| **Pausar / publicar de nuevo** en Mis experiencias | Ya existía (`PATCH /status`) | Botón en cada tarjeta con el `updateExperienceStatus` que ya usaba el admin |
+| **Búsqueda por texto** | Ya existía (`title=`) | Si lo escrito no es una ciudad conocida ni la ubicación de una experiencia, se manda como `title` |
+| **Vistos recientemente** | — | `recentlyViewedSlice` persistido con redux-persist (estado solo de front en Redux, como se vio en clase) |
+| **Anfitrión destacado** (≥ 4,7 con ≥ 5 reseñas) | — | `getHostStats` sobre el catálogo del store; insignia en la tarjeta del anfitrión y en su perfil |
+| **Números de PLAN** en el Home | — | `HomeStats`: experiencias, ciudades, anfitriones y promedio, calculados con el store |
+| **Agregar a mi calendario** y **Compartir por WhatsApp** | — | `utils/calendar.js`: archivo `.ics`, link a Google Calendar y link de WhatsApp (en el voucher y en el detalle) |
+| **Meta tags** para compartir | — | `index.html` (`og:title`, `og:description`, `og:image`) |
+| "Datos de prueba" solo en desarrollo | — | `import.meta.env.DEV` en `AdminPage` |
+
+### Datos de ejemplo (seed)
+
+El seed del back (`seed-data.json` + `DataSeeder`) ahora trae: tags en las 43 experiencias, ciudad, bio e intereses de los
+15 anfitriones y de `sofia@plan.com`, 6 guardados de Sofía, 3 personas en la lista de espera de la fecha agotada
+(Sofía incluida) y un regalo de Tomás para Sofía (se ve en Mis reservas de Sofía con su voucher).
+
+### Cómo se probó (16/11)
+
+- `npm run lint` y `npm run build` sin errores ni advertencias.
+- **API** (script contra el back con el seed en `etrip_redux_test`): perfil (`PUT /users/me` con bio, foto e intereses;
+  `""` borra; el perfil público los muestra sin el email; registro con intereses), tags (`?tags=Vinos` y `?tags=Vinos,Surf`),
+  guardados (alta, repetido, baja, propia → 400, sin sesión → 403, `favoriteCount`), lista de espera (anotarse, con lugar → 400,
+  un reembolso avisa a todos y vacía la lista), regalo (orden con `gift`, la destinataria la ve y recibe el aviso),
+  dar de baja con reservas (resumen con fechas canceladas y reservas reembolsadas, 404 al público, `DELETED` para el admin,
+  avisos a los compradores, `publishedExperiences` baja) y borrado físico de una nunca vendida.
+- **Navegador** (Edge, contando pedidos): visitante (números, tags, tag → filtro por `tags=`, vistos recientemente,
+  corazón sin sesión abre el login, "kayak" busca por título), compradora (al iniciar sesión 1 GET de guardados y 1 de lista
+  de espera; "Para vos"; Guardados sin otro GET y quitar uno = 1 DELETE; bajarse y anotarse en la lista = 1 DELETE / 1 POST;
+  regalo del seed en Mis reservas y en el voucher; intereses y ciudad = 1 PUT cada uno; compra con regalo = 1 POST y ningún GET),
+  anfitrión (pausar y publicar = 1 PATCH cada uno; dar de baja = 1 DELETE con el resumen en el aviso) y admin (filtro
+  "Dadas de baja", "en lista de espera" en el calendario). La base temporal se borró al terminar.

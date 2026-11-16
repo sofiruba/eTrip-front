@@ -60,18 +60,23 @@ const GROUPS = [
       { id: 'resenas', label: 'Reseñas', icon: MessageSquare, component: ReviewsAdmin, description: 'Lo que opina la gente. Las de puntuación baja se marcan para revisar.' },
     ],
   },
-  {
-    label: 'Herramientas',
-    sections: [
-      {
-        id: 'datos',
-        label: 'Datos de prueba',
-        icon: DatabaseZap,
-        component: DataImportAdmin,
-        description: 'Cargá un set de datos desde un JSON para probar la app sin crear todo a mano.',
-      },
-    ],
-  },
+  // Solo en desarrollo: en el build de producción (la demo del producto) no se muestra
+  ...(import.meta.env.DEV
+    ? [
+        {
+          label: 'Herramientas',
+          sections: [
+            {
+              id: 'datos',
+              label: 'Datos de prueba',
+              icon: DatabaseZap,
+              component: DataImportAdmin,
+              description: 'Cargá un set de datos desde un JSON para probar la app sin crear todo a mano.',
+            },
+          ],
+        },
+      ]
+    : []),
 ]
 
 const SECTIONS = GROUPS.flatMap((group) => group.sections)

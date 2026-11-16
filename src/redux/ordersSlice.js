@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
 import { logout, sessionExpired } from './authSlice'
 import { refundBooking } from './bookingsSlice'
+import { deleteExperience } from './experiencesSlice'
 import { replaceById } from './helpers'
 import { cancelSession } from './sessionsSlice'
 
@@ -34,7 +35,8 @@ export const fetchOrderById = createAsyncThunk('orders/fetchOrderById', async (i
 
 // ---------- POST ----------
 
-// POST /orders: paga (simulado) y compra todo el carrito. payment = { couponCode, paymentMethod, cardNumber, expectedTotal }
+// POST /orders: paga (simulado) y compra todo el carrito.
+// payment = { couponCode, paymentMethod, cardNumber, expectedTotal, gift: { recipientName, recipientEmail, message } | null }
 // El back valida el stock de cada fecha, lo descuenta, crea las reservas y vacía el carrito
 export const createOrder = createAsyncThunk('orders/createOrder', async (payment) => {
   const { data } = await api.post(URL, payment)
@@ -151,6 +153,15 @@ const ordersSlice = createSlice({
         allOrders(state).forEach((order) =>
           order.bookings
             .filter((booking) => booking.experienceSessionId === action.payload.id && !booking.refunded)
+            .forEach((booking) => refundInOrder(order, { ...booking, refunded: true, status: 'REFUNDED', paidAmount: 0 })),
+        )
+        state.stats.loaded = false
+      })
+      // Experiencia dada de baja: el back reembolsa las reservas de sus fechas futuras
+      .addCase(deleteExperience.fulfilled, (state, action) => {
+        allOrders(state).forEach((order) =>
+          order.bookings
+            .filter((booking) => booking.experienceId === action.payload.id && !booking.refunded && new Date(booking.startsAt) > new Date())
             .forEach((booking) => refundInOrder(order, { ...booking, refunded: true, status: 'REFUNDED', paidAmount: 0 })),
         )
         state.stats.loaded = false

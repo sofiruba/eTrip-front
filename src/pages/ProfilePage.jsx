@@ -10,7 +10,7 @@ import SavedCardsSection from '../components/profile/SavedCardsSection'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import StatCard from '../components/ui/StatCard'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { updateProfileExtras } from '../redux/authSlice'
+import { updateMe } from '../redux/authSlice'
 import { deleteReview, fetchMyReviews } from '../redux/reviewsSlice'
 import { removeCard } from '../redux/savedCardsSlice'
 import { showToast } from '../redux/toastsSlice'
@@ -28,6 +28,7 @@ function ProfilePage() {
   const myReviewsRequested = requested.includes('mine')
   const [editingProfile, setEditingProfile] = useState(false)
   const [interestsDraft, setInterestsDraft] = useState(null) // null = no se está editando
+  const [savingInterests, setSavingInterests] = useState(false)
   const [deletingReview, setDeletingReview] = useState(null)
   const [deletingCard, setDeletingCard] = useState(null)
   const avatarButtonRef = useRef(null) // botón "Cambiar foto" del encabezado
@@ -59,11 +60,19 @@ function ProfilePage() {
     else setEditingProfile(true)
   }
 
-  // Los intereses no existen en el back: quedan en el estado global (persistido en el navegador)
+  // PUT /users/me solo con los intereses: el reducer guarda el usuario que devuelve el back (el Home los usa en "Para vos")
   const saveInterests = () => {
-    dispatch(updateProfileExtras({ interests: interestsDraft }))
-    setInterestsDraft(null)
-    dispatch(showToast({ message: 'Intereses actualizados' }))
+    setSavingInterests(true)
+    dispatch(updateMe({ interests: interestsDraft }))
+      .then((action) => {
+        setSavingInterests(false)
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
+        setInterestsDraft(null)
+        return dispatch(showToast({ message: 'Intereses actualizados', link: { label: 'Ver planes para vos', to: '/' } }))
+      })
   }
 
   return (
@@ -77,7 +86,13 @@ function ProfilePage() {
         <StatCard icon={Store} label="Experiencias publicadas" value={published} />
       </div>
 
-      <InterestsSection interests={interests} draft={interestsDraft} onDraftChange={setInterestsDraft} onSave={saveInterests} />
+      <InterestsSection
+        interests={interests}
+        draft={interestsDraft}
+        saving={savingInterests}
+        onDraftChange={setInterestsDraft}
+        onSave={saveInterests}
+      />
       <SavedCardsSection cards={savedCards} onDelete={setDeletingCard} />
       <MyReviewsSection reviews={myReviews} onDelete={setDeletingReview} />
 

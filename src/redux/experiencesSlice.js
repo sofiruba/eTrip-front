@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
 import { logout, sessionExpired } from './authSlice'
 import { updateCategory } from './categoriesSlice'
+import { addFavorite, removeFavorite } from './favoritesSlice'
 import { removeById, replaceById, upsertById } from './helpers'
 import { createReview, deleteReview } from './reviewsSlice'
 
@@ -25,14 +26,16 @@ export function toExperience({ imagesBase64, ...data }) {
     discountPercentage: Number(data.discountPercentage ?? 0),
     averageRating: data.averageRating ?? 0,
     reviewCount: data.reviewCount ?? 0,
+    tags: data.tags ?? [],
+    favoriteCount: Number(data.favoriteCount ?? 0),
   }
 }
 
 /** Arma el FormData que espera el back: la parte "experience" (JSON) y las fotos nuevas. */
 export function toFormData(experience, photos) {
   const form = new FormData()
-  const { title, description, price, location, categoryId, adultsOnly = false } = experience
-  form.append('experience', JSON.stringify({ title, description, price, location, categoryId, adultsOnly }))
+  const { title, description, price, location, categoryId, adultsOnly = false, tags = [] } = experience
+  form.append('experience', JSON.stringify({ title, description, price, location, categoryId, adultsOnly, tags }))
   photos.forEach((photo) => form.append('images', photo))
   return form
 }
@@ -51,7 +54,7 @@ export const fetchMyExperiences = createAsyncThunk('experiences/fetchMyExperienc
   return listOf(data).map(toExperience)
 })
 
-// Panel de admin: todas, también las pausadas (se guardan en `managed`)
+// Panel de admin: todas, también las pausadas y las dadas de baja (se guardan en `managed`)
 export const fetchAllExperiences = createAsyncThunk('experiences/fetchAllExperiences', async () => {
   const { data } = await api.get(URL, { params: { includeInactive: true } })
   return listOf(data).map(toExperience)
@@ -96,10 +99,12 @@ export const updateExperienceStatus = createAsyncThunk('experiences/updateExperi
   return toExperience(data)
 })
 
-// DELETE: el back no devuelve nada, así que devolvemos la experiencia borrada para que cada slice sepa qué sacar
+// DELETE (dar de baja): el back reembolsa y avisa a todos los que tenían reservas, cancela sus fechas y la saca
+// del catálogo. Devuelve un resumen { removed, cancelledSessions, refundedBookings } que sumamos a la experiencia
+// para que cada slice sepa qué sacar y la pantalla pueda contar qué pasó
 export const deleteExperience = createAsyncThunk('experiences/deleteExperience', async (experience) => {
-  await api.delete(`${URL}/${experience.id}`)
-  return experience
+  const { data } = await api.delete(`${URL}/${experience.id}`)
+  return { ...experience, result: data }
 })
 
 // ---------- Slice ----------
@@ -256,6 +261,17 @@ const experiencesSlice = createSlice({
       })
       .addCase(createReview.fulfilled, (state, action) => applyReview(state, action.payload, 1))
       .addCase(deleteReview.fulfilled, (state, action) => applyReview(state, action.payload, -1))
+      // Guardados: el contador de "guardada por N personas" sube o baja sin volver a pedir la experiencia
+      .addCase(addFavorite.fulfilled, (state, action) => {
+        copiesOf(state, action.payload).forEach((experience) => {
+          experience.favoriteCount += 1
+        })
+      })
+      .addCase(removeFavorite.fulfilled, (state, action) => {
+        copiesOf(state, action.payload).forEach((experience) => {
+          experience.favoriteCount = Math.max(experience.favoriteCount - 1, 0)
+        })
+      })
 
       .addCase(logout, forgetAccount)
       .addCase(sessionExpired, forgetAccount)

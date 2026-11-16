@@ -5,15 +5,15 @@ import InterestPicker from './InterestPicker'
 
 /**
  * Intereses del perfil. `draft` es la lista mientras se edita (null = no se está editando);
- * el padre la maneja para poder abrir la edición desde "Completá tu perfil".
+ * el padre la maneja para poder abrir la edición desde "Completá tu perfil" y la guarda en el back.
  */
-function InterestsSection({ interests, draft, onDraftChange, onSave }) {
+function InterestsSection({ interests, draft, saving = false, onDraftChange, onSave }) {
   return (
     <section className="section card">
       <SectionHeader
         eyebrow="Para conocerte mejor"
         title="Mis intereses"
-        description="Los usamos para recomendarte planes. También se ven en tu perfil público."
+        description="Con ellos armamos la sección “Para vos” del inicio. También se ven en tu perfil público."
       >
         {!draft && (
           <Button size="sm" variant="secondary" onClick={() => onDraftChange(interests)}>
@@ -26,10 +26,10 @@ function InterestsSection({ interests, draft, onDraftChange, onSave }) {
         <div className="stack">
           <InterestPicker value={draft} onChange={onDraftChange} />
           <div className="row">
-            <Button size="sm" onClick={onSave} disabled={!draft.length}>
-              Guardar
+            <Button size="sm" onClick={onSave} disabled={saving}>
+              {saving ? 'Guardando…' : 'Guardar'}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => onDraftChange(null)}>
+            <Button size="sm" variant="ghost" onClick={() => onDraftChange(null)} disabled={saving}>
               Cancelar
             </Button>
           </div>

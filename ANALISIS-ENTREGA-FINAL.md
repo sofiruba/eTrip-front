@@ -10,6 +10,10 @@ Revisión de todo el código contra:
 Cada idea dice cuánto lleva (**S** = un par de horas · **M** = medio día · **L** = un día o más) y si necesita el **back**.
 Lo que ya se aplicó está marcado con ✅.
 
+> **Estado al 16/11:** se hizo casi todo lo de este análisis (ver la sección 14 de `REDUX-TERCERA-ENTREGA.md`).
+> Decisiones tomadas: **no** hay registro como vendedor (en PLAN toda cuenta compra y vende), **no** se hace deploy,
+> **no** hay tests de front y la paginación queda como está. Lo que sigue abierto está en la sección 6.
+
 ---
 
 ## 0. Resumen
@@ -19,12 +23,12 @@ Lo que ya se aplicó está marcado con ✅.
 
 | # | Qué | Por qué importa | Esfuerzo | ¿Back? |
 |---|---|---|---|---|
-| 1 | **Registro como vendedor explícito** | La consigna dice "registro como compradores **y vendedores**" y hoy no hay ninguna opción de vendedor | M | No |
-| 2 | **Búsqueda por texto** | "kayak" + Enter busca la ciudad "kayak" y no encuentra nada, aunque el back acepta `title=` | S | No |
-| 3 | **Los intereses no se usan** | El registro promete "te mostramos planes para vos" y ninguna pantalla los usa | M (o S cambiando el texto) | No |
-| 4 | **El anfitrión no puede pausar su experiencia** | El back lo permite y, cuando no deja borrar, sugiere "desactivala"; pero en Mis experiencias no hay botón | S | No |
-| 5 | **Textos que no son ciertos** | "para **guardar** y reservar" (los favoritos se sacaron) y "se elimina junto con sus reservas pasadas" (el back no deja borrar si tuvo reservas) | S | No |
-| 6 | **Perfil del anfitrión vacío** | Bio, ciudad y foto quedan en el navegador del dueño: el perfil público sale genérico para todos | L | Sí |
+| 1 | ~~Registro como vendedor explícito~~ | **Decidido: no.** En PLAN toda cuenta compra y vende; se defiende así | — | — |
+| 2 | **Búsqueda por texto** ✅ | "kayak" ahora se manda como `title` si no es una ciudad | S | No |
+| 3 | **Los intereses no se usan** ✅ | Ahora son **tags** de las experiencias (back) y arman "Para vos" en el Home | M | Sí |
+| 4 | **El anfitrión no puede pausar su experiencia** ✅ | Botón Pausar / Publicar de nuevo en Mis experiencias | S | No |
+| 5 | **Textos que no son ciertos** ✅ | Los favoritos volvieron (guardados en el back) y "dar de baja" dice exactamente qué pasa (reembolso y aviso a todos) | S | No |
+| 6 | **Perfil del anfitrión vacío** ✅ | Bio, ciudad, foto e intereses viven en el back y se ven en el perfil público y en el detalle | L | Sí |
 | 7 | **Ensayar la defensa con Redux DevTools** | Es lo que se evalúa en esta entrega | S | No |
 
 ---
@@ -35,11 +39,11 @@ Lo que ya se aplicó está marcado con ✅.
 
 | Requisito | Estado | Dónde se ve / qué falta |
 |---|---|---|
-| Registro de usuarios **como compradores y vendedores** (usuario, mail, contraseña, nombre y apellido) | ⚠️ | Pide todos los datos, pero no hay opción de "vendedor". En PLAN toda cuenta puede comprar y publicar (el back solo tiene `CLIENTE` y `ADMIN`). Defendible, pero no se ve. Ver 4.1 |
+| Registro de usuarios **como compradores y vendedores** (usuario, mail, contraseña, nombre y apellido) | ✅ | Pide todos los datos. **Regla de PLAN:** toda cuenta compra y vende (el back solo tiene `CLIENTE` y `ADMIN`); el modo anfitrión está para cualquiera |
 | Login con usuario y contraseña | ✅ | Con email o usuario |
 | Administración de cuentas y permisos | ✅ | Panel → Usuarios: hacer/quitar admin, activar/desactivar |
 | Productos con foto y precio | ✅ | Tarjetas del Home |
-| Búsqueda y filtrado por categoría, precio, etc. | ⚠️ | Filtros completos; la búsqueda por **texto** falla (punto 3.1) |
+| Búsqueda y filtrado por categoría, precio, etc. | ✅ | Filtros completos, búsqueda por texto y por intereses (`tags`) |
 | Detalle con imagen y descripción | ✅ | Galería con todas las fotos, descripción, mapa, anfitrión, reseñas |
 | Agregar al carrito | ✅ | Panel de reserva |
 | Sin stock: indicado y no se puede agregar | ✅ | "Agotada" en la tarjeta y en cada fecha; botón deshabilitado |
@@ -48,7 +52,7 @@ Lo que ya se aplicó está marcado con ✅.
 | Descontar y validar stock al comprar | ✅ | El back valida y descuenta; el store baja los cupos con la respuesta |
 | Vendedor publica con una o más fotos, descripción, categoría y precio | ✅ | Editor de experiencias |
 | El creador maneja el stock | ✅ | Calendario: cupo de cada fecha |
-| El creador elimina el producto | ⚠️ | Funciona, pero solo si nunca tuvo reservas (regla del back) y no hay forma de **pausarla** desde el modo anfitrión (punto 3.4) |
+| El creador elimina el producto | ✅ | "Dar de baja": se cancelan sus fechas, **todas las reservas vigentes se reembolsan y cada persona recibe un aviso**; si alguna vez se vendió queda como `DELETED` (solo para el admin). Además puede **pausarla** |
 | Descuentos sobre productos individuales | ✅ | Modal de descuento (PATCH) |
 | API REST, persistencia, interfaz dinámica | ✅ | |
 
@@ -126,24 +130,24 @@ minuto (en Windows con `git mv` en dos pasos).
 
 ## 3. Problemas encontrados en el código
 
-### 3.1 Búsqueda por texto (front, S)
+### 3.1 Búsqueda por texto (front, S) ✅
 
 `HeroSearch.jsx` sugiere experiencias por título mientras se escribe, pero al apretar Enter el texto se manda como
 `location`: "kayak" → "Todavía no hay planes en kayak". El back ya filtra por `title` y el front ya lee `title` de la URL.
 **Propuesta:** si el texto no es una ciudad conocida, mandarlo como `title`.
 
-### 3.2 Intereses que no se usan (front, M · o S cambiando el texto)
+### 3.2 Intereses que no se usan ✅ (hecho con tags en el back)
 
 Se eligen al registrarse ("te mostramos planes para vos") pero solo se muestran en el perfil. Opciones:
 - **Sección "Para vos" en el Home:** tabla interés → categoría (Cocina, Café, Gastronomía → Gastronomía; Caminata,
   Camping → Aventura…) y/o buscar el interés en el título. Todo con lo que ya está en el store.
 - **Mínimo:** cambiar el texto del registro.
 
-### 3.3 Registro de vendedores (front, M)
+### 3.3 Registro de vendedores — descartado
 
-Ver 4.1.
+En PLAN toda cuenta compra y vende: no se agrega ninguna opción al registro.
 
-### 3.4 El anfitrión no puede pausar su experiencia (front, S) — **nuevo**
+### 3.4 El anfitrión no puede pausar su experiencia (front, S) ✅
 
 - El back **no deja borrar** una experiencia que alguna vez tuvo reservas, y responde: "…Podés desactivarla para que no
   se vea más en el catálogo".
@@ -151,14 +155,14 @@ Ver 4.1.
   (`updateExperienceStatus`, la usa el admin). Pero **Mis experiencias no tiene el botón**: el anfitrión lee "desactivala"
   y no puede. Agregar "Pausar / Activar" en cada tarjeta es reutilizar lo que ya está.
 
-### 3.5 Textos que no son ciertos (front, S)
+### 3.5 Textos que no son ciertos (front, S) ✅
 
 - `AuthModal.jsx`: "Creá tu cuenta para **guardar** y reservar experiencias" (los favoritos se sacaron en `cb4d2af`).
 - `HostExperiences.jsx` y `ExperiencesAdmin.jsx`: "se elimina junto con sus fechas, **sus reservas pasadas** y sus reseñas".
   En realidad el back no deja borrar si tuvo reservas. Y `HostExperiences` solo avisa antes si hay reservas **próximas**:
   con reservas pasadas deja intentarlo y el back rechaza. Cambiar el texto y el chequeo.
 
-### 3.6 Perfil del anfitrión vacío (back, L)
+### 3.6 Perfil del anfitrión vacío (back, L) ✅
 
 Bio, ciudad, foto e intereses se guardan en el navegador del dueño (`profileExtras`), porque el back no tiene esos
 campos. El perfil público de cualquier anfitrión (y la tarjeta del anfitrión en el detalle) sale con el texto genérico
@@ -187,7 +191,7 @@ Decidido: no se hacen en el front.
 ### 3.10 Otros
 
 - **Recuperar contraseña:** el código sigue saliendo por consola (`devCode`). Mandar mails es un cambio del back. Preguntarle a la profe si alcanza.
-- **"Datos de prueba" en el panel de admin:** en una demo de "producto" conviene ocultarlo en el build de producción (S).
+- **"Datos de prueba" en el panel de admin:** ✅ solo se muestra en desarrollo (`import.meta.env.DEV`).
 - **Fotos en base64:** el listado ya manda solo la portada (bien). Guardar archivos con URL sería lo profesional, pero no hace falta.
 - **`npm audit`:** 2 avisos en dependencias de desarrollo (`vite`, `source-map-js`); se arreglan con `npm audit fix`.
 
@@ -208,36 +212,49 @@ Decidido: no se hacen en el front.
 - **Panel de administración con alertas** ("requiere atención").
 - **Modelo de negocio claro:** 10 % de comisión + cupones.
 
-### 4.1 Registro de vendedores + página "Ser anfitrión" (front, M) — **recomendada**
+### 4.1 Registro de vendedores — descartado · Página "Ser anfitrión" — idea abierta
 
-- **Página pública `/ser-anfitrion`:** qué es, cómo funciona en 3 pasos, **calculadora de ganancias** (precio × personas
-  × fechas − 10 %) y botón "Quiero ser anfitrión". El link "Ser anfitrión" del navbar (que hoy lleva a un muro de login) apunta acá.
-- **En el registro:** "¿Cómo vas a usar PLAN?" → *Quiero reservar planes* / *Quiero ofrecer experiencias*. Si elige
-  ofrecer, al terminar va a "Nueva experiencia". Sin rol nuevo en el back: en PLAN toda cuenta compra y vende.
+El registro no cambia (toda cuenta compra y vende). Sigue siendo buena idea una **página pública `/ser-anfitrion`**
+(qué es, cómo funciona en 3 pasos, calculadora de ganancias: precio × personas × fechas − 10 %) para que el link
+"Ser anfitrión" del navbar no lleve a un muro de login. Esfuerzo S-M, solo front.
 
 ### 4.2 Ideas solo de front
 
 | Idea | Qué aporta | Esfuerzo |
 |---|---|---|
-| **Pausar / activar** en Mis experiencias (3.4) | Completa la gestión del producto | S |
-| **"Para vos"** según intereses (3.2) | Cumple lo que promete el registro | M |
-| **Vistos recientemente** como slice de Redux persistido | Estaba pendiente en la lista vieja; es el ejemplo de clase de estado solo de front en Redux | S-M |
-| **Anfitrión destacado** (promedio ≥ 4,7 con al menos 5 reseñas) | Confianza; sale del store | S |
-| **Números de PLAN en el Home** (ej.: "43 experiencias en 9 ciudades") | Prueba social | S |
-| **"Agregar a mi calendario"** en el voucher | Detalle de producto muy visible | S |
-| **Compartir por WhatsApp** | Los planes se deciden en grupo | S |
-| **Meta tags para compartir** | El link se ve lindo en WhatsApp | S |
-| **Favoritos como slice persistido** | **Solo si** se sabe por qué se sacaron en `cb4d2af` | M |
+| **Pausar / activar** en Mis experiencias (3.4) ✅ | Completa la gestión del producto | S |
+| **"Para vos"** según intereses (3.2) ✅ | Cumple lo que promete el registro | M |
+| **Vistos recientemente** como slice de Redux persistido ✅ | Es el ejemplo de clase de estado solo de front en Redux | S-M |
+| **Anfitrión destacado** (promedio ≥ 4,7 con al menos 5 reseñas) ✅ | Confianza; sale del store | S |
+| **Números de PLAN en el Home** ✅ | Prueba social | S |
+| **"Agregar a mi calendario"** en el voucher ✅ (+ Google Calendar) | Detalle de producto muy visible | S |
+| **Compartir por WhatsApp** ✅ (detalle y voucher) | Los planes se deciden en grupo | S |
+| **Meta tags para compartir** ✅ | El link se ve lindo en WhatsApp | S |
+| **Favoritos** ✅ (en el back, no solo persistidos: se ven desde cualquier dispositivo) | "Guardados" en el menú | M |
 
 ### 4.3 Ideas que necesitan el back
 
 | Idea | Qué aporta | Esfuerzo |
 |---|---|---|
-| **Perfil del anfitrión en el back** (3.6) | El anfitrión es el producto | L |
-| **Lista de espera** en fechas agotadas (usa los avisos que ya existen) | Diferencial claro | L |
-| **Regalar una experiencia** | Caso de uso fuerte para vender | L |
+| **Perfil del anfitrión en el back** (3.6) ✅ | El anfitrión es el producto | L |
+| **Lista de espera** en fechas agotadas ✅ (avisa a todos cuando se libera un lugar) | Diferencial claro | L |
+| **Regalar una experiencia** ✅ (la destinataria la ve en sus reservas) | Caso de uso fuerte para vender | L |
+| **Dar de baja con reembolso y aviso a todos** ✅ | Regla de PLAN | L |
 | **Mails reales** (recuperar contraseña, confirmación de compra) | Producto "de verdad" | M-L |
-| **Deploy** (3.7) | URL pública | L |
+| ~~Deploy~~ (3.7) | Decidido: no hace falta | — |
+
+### 4.5 Más ideas para la entrega final (abiertas)
+
+| Idea | Qué aporta | Esfuerzo | ¿Back? |
+|---|---|---|---|
+| **Página "Ser anfitrión"** con calculadora de ganancias (4.1) | Vende el lado del vendedor | S-M | No |
+| **Reseñas con foto del autor** (`userAvatarBase64` en `ReviewResponseDTO`) | Ahora que la foto está en el back, las reseñas pueden mostrarla | S | Sí |
+| **"Planes de tus anfitriones favoritos"**: guardar anfitriones, no solo experiencias | Fideliza | M | Sí |
+| **Cupón de bienvenida automático** al registrarse (hoy BIENVENIDA15 existe pero hay que saberlo) | Conversión | S | Sí |
+| **Recordatorio 24 h antes** (notificación generada por el back con una tarea programada) | Usa los avisos que ya existen | M | Sí |
+| **Reseñas paginadas** en el detalle (`GET /reviews/experience/{id}?page=`), acumulando con spread como se vio en clase | Es *el* ejemplo de paginación de clase; hoy se traen todas | S-M | No |
+| **Compartir el regalo por WhatsApp** desde la confirmación de compra | Cierra el flujo del regalo | S | No |
+| **Mapa real** (Leaflet + coordenadas en el back) | Hoy el mapa es ilustrativo | M | Sí |
 
 ### 4.4 Para la presentación
 
@@ -276,7 +293,7 @@ Ese archivo es de la 2da entrega (19/10) y ya no está en el repo. Varias cosas 
 | `src/services/` con `fetch`, `src/context/` con providers, el `createContext` en los hooks | Todo eso se borró: `src/redux/` (slices + `api.js` con axios). Ver `REDUX-TERCERA-ENTREGA.md` |
 | "No romper: `services/` como única puerta al back" | La única puerta ahora es `src/redux/api.js` (y solo la usan los slices) |
 | "No romper: `CatalogProvider` como única carga del catálogo" | Ahora lo pide `App.jsx` una vez y queda en los slices `experiences`, `sessions`, `categories` |
-| Guardado en `localStorage`: `etrip:token`, `plan:profileExtras`, `plan:favoritesByUser`, `plan:savedCards`, `plan:theme`, `plan:currency`, `plan:recentSearches` | Lo guarda redux-persist: `persist:auth` (token, usuario, perfil), `persist:preferences` (tema, moneda, búsquedas), `persist:savedCards`. Los favoritos se sacaron |
+| Guardado en `localStorage`: `etrip:token`, `plan:profileExtras`, `plan:favoritesByUser`, `plan:savedCards`, `plan:theme`, `plan:currency`, `plan:recentSearches` | Lo guarda redux-persist: `persist:auth` (token y usuario), `persist:preferences` (tema, moneda, búsquedas), `persist:savedCards`, `persist:recentlyViewed`. El perfil y los favoritos están en el back |
 | "Filtros híbridos: texto, precio final, fechas, viajeros… siguen en el front" | Desde `cb4d2af` **todos** los filtros los resuelve el back; el front solo ordena y muestra de a 8 |
 | "Carrito y checkout piden las fechas al entrar" | Ya no: se piden una vez. El back valida al pagar y, si rechaza, el front vuelve a pedir carrito y fechas |
 | "Se actualiza con `reload()` / `refreshSessions()`" | Ya no existen: los reducers actualizan el store con la respuesta del back |
@@ -300,16 +317,16 @@ Ese archivo es de la 2da entrega (19/10) y ya no está en el repo. Varias cosas 
 
 | Pendiente | ¿Back? | Recomendación |
 |---|---|---|
-| Perfil en el back (bio, ciudad, intereses, foto) | Sí | **Hacerlo si hay tiempo** (3.6) |
-| Borrar experiencias: el back bloquea si tuvo cualquier reserva | No (el texto) | Arreglar texto y chequeo + botón **Pausar** (3.4 y 3.5) |
+| Perfil en el back (bio, ciudad, intereses, foto) | Sí | ✅ Hecho (16/11) |
+| Borrar experiencias: el back bloquea si tuvo cualquier reserva | — | ✅ Ahora "dar de baja" reembolsa y avisa a todos; además hay **Pausar** |
 | Recuperar contraseña por mail | Sí | Preguntar a la profe |
 | Filtro de precio sobre el precio final | Sí | Verificar en el back que `minPrice`/`maxPrice` filtre por precio con descuento |
 | Ciudades habilitadas en el back (tabla `City`) | Sí | No hace falta para la entrega |
 | Cotizaciones desde el back | Sí | No hace falta (están fijas y aclaradas) |
 | Reservar con cantidades por tipo (adultos/niños/bebés) | Sí | No hace falta |
 | Coordenadas por experiencia (mapa exacto) | Sí | No hace falta |
-| Favoritos y tarjetas guardadas en el back | Sí | Los favoritos se sacaron; las tarjetas pueden quedar en el navegador |
-| Vistos recientemente | No | **Buena idea con Redux** (4.2) |
+| Favoritos y tarjetas guardadas en el back | Sí | ✅ Favoritos en el back (`/favorites`); las tarjetas quedan en el navegador |
+| Vistos recientemente | No | ✅ `recentlyViewedSlice` persistido |
 | `Tabs` con `role="tablist"` y flechas | No | S, accesibilidad |
 | Filtros en el celu como panel aparte (drawer) | No | Opcional |
 | Esqueletos de carga (`Skeleton`) | No | Opcional |
@@ -320,33 +337,37 @@ Ese archivo es de la 2da entrega (19/10) y ya no está en el repo. Varias cosas 
 ## 6. Prioridades sugeridas
 
 **Imprescindible (consigna y defensa)**
-- [ ] 4.1 Registro de vendedores + página "Ser anfitrión" (M)
-- [ ] 3.1 Búsqueda por texto (S)
-- [ ] 3.4 Botón Pausar / Activar en Mis experiencias (S)
-- [ ] 3.5 Textos que no son ciertos (S)
-- [ ] 3.2 Intereses: "Para vos" (M) o cambiar el texto (S)
+- [x] ~~4.1 Registro de vendedores~~ (decidido: toda cuenta compra y vende)
+- [x] 3.1 Búsqueda por texto ✅
+- [x] 3.4 Botón Pausar / Activar en Mis experiencias ✅
+- [x] 3.5 Textos que no son ciertos ✅
+- [x] 3.2 Intereses: tags en el back + "Para vos" ✅
 - [ ] Ensayar la defensa de Redux con Redux DevTools y decidir dev vs. producción para la demo (S)
-- [ ] Probar el guion de demo de punta a punta (S)
+- [ ] Probar el guion de demo de punta a punta (S) — sumar al guion: guardar con el corazón, lista de espera, regalo y dar de baja una experiencia (los compradores reciben el aviso)
+- [ ] **Volver a cargar el seed** en la base de la demo: el seed nuevo trae tags, perfiles, guardados, lista de espera y el regalo
 
 **Muy recomendable**
-- [ ] Anfitrión destacado + números de PLAN en el Home (S + S)
-- [ ] "Agregar a mi calendario" en el voucher (S)
-- [ ] Vistos recientemente con Redux (S-M)
-- [ ] Ocultar "Datos de prueba" en producción (S)
+- [x] Anfitrión destacado + números de PLAN en el Home ✅
+- [x] "Agregar a mi calendario" en el voucher ✅
+- [x] Vistos recientemente con Redux ✅
+- [x] Ocultar "Datos de prueba" en producción ✅
 - [x] Rendimiento: cargar aparte admin, anfitrión y editor ✅
 
-**Si hay tiempo**
-- [ ] Perfil del anfitrión en el back (L)
-- [ ] Deploy (L, preguntar antes a la profe)
+**Hecho también (necesitaban back)**
+- [x] Perfil del anfitrión en el back ✅ · Guardados ✅ · Lista de espera ✅ · Regalar ✅ · Dar de baja con reembolso y aviso ✅
 
-**No hacer:** paginación, tests del front, filtros en Redux.
+**Si hay tiempo (ver 4.5)**
+- [ ] Página "Ser anfitrión" con calculadora (S-M)
+- [ ] Reseñas con foto del autor (S, back)
+- [ ] Reseñas paginadas en el detalle (S-M)
+
+**No hacer:** deploy, tests del front, filtros en Redux.
 
 ---
 
 ## 7. Para decidir en equipo
 
 1. ¿La demo se hace con `npm run dev` (GET doble por StrictMode, explicable) o con el build de producción?
-2. ¿La profe espera deploy? Si sí, es lo más largo: empezar ya.
-3. ¿Se toca el back para el perfil del anfitrión, o queda como "próximo paso"?
-4. ¿Por qué se sacaron los favoritos (`cb4d2af`)?
-5. ¿Quién defiende qué parte de Redux? (sugerido: store y slices · thunks y axios · persistencia y "un solo GET").
+2. ¿Quién defiende qué parte de Redux? (sugerido: store y slices · thunks y axios · persistencia y "un solo GET" · slices que escuchan a otros: regalo, baja, lista de espera).
+3. ¿Se hace la página "Ser anfitrión" (4.5)?
+4. ¿Recuperar contraseña sigue por consola o se pregunta a la profe?

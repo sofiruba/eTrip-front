@@ -1,15 +1,17 @@
 import { useEffect, useRef } from 'react'
-import { Share2 } from 'lucide-react'
+import { MessageCircle, Share2 } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams } from 'react-router-dom'
 import BookingPanel from '../components/experience/BookingPanel'
 import ExperienceMeta from '../components/experience/ExperienceMeta'
+import FavoriteButton from '../components/experience/FavoriteButton'
 import Gallery from '../components/experience/Gallery'
 import HostCard from '../components/experience/HostCard'
 import LocationMap from '../components/experience/LocationMap'
 import RelatedExperiences from '../components/experience/RelatedExperiences'
 import ReviewsSection from '../components/experience/ReviewsSection'
 import StickyBookingBar from '../components/experience/StickyBookingBar'
+import TagList from '../components/experience/TagList'
 import ErrorState from '../components/ui/ErrorState'
 import IconButton from '../components/ui/IconButton'
 import Loading from '../components/ui/Loading'
@@ -18,11 +20,14 @@ import PageHeader from '../components/ui/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useElementOffscreen } from '../hooks/useElementOffscreen'
 import { fetchExperienceById } from '../redux/experiencesSlice'
+import { addRecentlyViewed } from '../redux/recentlyViewedSlice'
 import { experienceKey, fetchReviewsByExperience, replyToReview } from '../redux/reviewsSlice'
 import { showToast } from '../redux/toastsSlice'
 import { fetchUserById } from '../redux/usersSlice'
+import { whatsappUrl } from '../utils/calendar'
 import { hoursBetween } from '../utils/dates'
-import { addSessionInfo, byNewest, getUpcomingSessions } from '../utils/experiences'
+import { addSessionInfo, byNewest, getHostStats, getUpcomingSessions } from '../utils/experiences'
+import { formatMoney, pluralize } from '../utils/format'
 import { getCity } from '../utils/location'
 import NotFoundPage from './NotFoundPage'
 import './ExperiencePage.css'
@@ -39,7 +44,7 @@ function ExperienceRoute() {
 function ExperiencePage({ id }) {
   const dispatch = useDispatch()
   const user = useSelector((state) => state.auth.user)
-  const catalogItems = useSelector((state) => state.experiences.items) // para "También te puede gustar"
+  const catalogItems = useSelector((state) => state.experiences.items) // para "También te puede gustar" y la insignia del anfitrión
   // La experiencia con TODAS sus fotos (el catálogo solo tiene la portada): { item, loading, error, notFound }
   const detail = useSelector((state) => state.experiences.details[id])
   const allSessions = useSelector((state) => state.sessions.items)
@@ -64,6 +69,12 @@ function ExperiencePage({ id }) {
     if (publisherId && !profile) dispatch(fetchUserById(publisherId))
   }, [publisherId, profile, dispatch])
 
+  // "Vistos recientemente" (slice persistido): se anota cuando la experiencia cargó bien
+  const experienceId = experience?.id
+  useEffect(() => {
+    if (experienceId) dispatch(addRecentlyViewed(experienceId))
+  }, [experienceId, dispatch])
+
   const catalog = addSessionInfo(catalogItems, allSessions)
   const reviews = allReviews.filter((review) => review.experienceId === Number(id)).sort(byNewest)
 
@@ -74,9 +85,9 @@ function ExperiencePage({ id }) {
   useDocumentTitle(experience?.title ?? 'Experiencia')
 
   if (loading) return <Loading text="Cargando la experiencia..." />
-  // Una pausada el back solo se la devuelve a su anfitrión y a los administradores
+  // Una pausada el back solo se la devuelve a su anfitrión y a los administradores; una dada de baja, solo al admin
   if (detail.notFound) {
-    return <NotFoundPage title="Esta experiencia no está disponible" text="Puede que el anfitrión la haya despublicado." />
+    return <NotFoundPage title="Esta experiencia no está disponible" text="Puede que el anfitrión la haya despublicado o dado de baja." />
   }
   if (detail.error) {
     return (
@@ -92,9 +103,11 @@ function ExperiencePage({ id }) {
   const duration = upcoming[0] && hoursBetween(upcoming[0].startsAt, upcoming[0].endsAt)
   // Mientras llega el perfil (o si falló) armamos uno con el nombre que viene en la experiencia
   const hostInfo = host ?? { id: experience.publisherId, firstName: experience.publisherName, lastName: '' }
+  const hostStats = getHostStats(catalog, experience.publisherId)
 
   const city = getCity(experience.location)
   const isHost = Boolean(user) && user.id === experience.publisherId
+  const isDeleted = experience.status === 'DELETED'
 
   // El anfitrión responde una reseña (PUT): el reducer la reemplaza por la que devuelve el back
   const replyReview = (review, text) =>
@@ -114,6 +127,8 @@ function ExperiencePage({ id }) {
       .then(() => dispatch(showToast({ message: 'Link copiado. ¡Compartilo con quien quieras!', tone: 'info' })))
       .catch(() => dispatch(showToast({ message: 'No pudimos copiar el link', tone: 'error' })))
   }
+  // Los planes se deciden en grupo: el link listo para mandar por WhatsApp
+  const whatsappText = `Mirá este plan: ${experience.title} en ${city}, desde ${formatMoney(experience.finalPrice)} por persona. ${window.location.href}`
 
   return (
     <div className="container page experience-page">
@@ -126,11 +141,23 @@ function ExperiencePage({ id }) {
         ]}
         eyebrow={experience.categoryName}
         title={experience.title}
-        actions={<IconButton icon={Share2} label="Copiar link" onClick={share} />}
+        actions={
+          <>
+            {!isDeleted && <FavoriteButton experience={experience} withLabel />}
+            <a className="icon-btn icon-btn--default" href={whatsappUrl(whatsappText)} target="_blank" rel="noreferrer" aria-label="Compartir por WhatsApp" title="Compartir por WhatsApp">
+              <MessageCircle size={18} aria-hidden />
+            </a>
+            <IconButton icon={Share2} label="Copiar link" onClick={share} />
+          </>
+        }
       />
 
-      {!experience.active && (
-        <Notice tone="warning">Esta experiencia está pausada: no aparece en el catálogo y solo la ven su anfitrión y los administradores.</Notice>
+      {isDeleted ? (
+        <Notice tone="danger">Esta experiencia fue dada de baja: solo la ven los administradores. Sus reservas se reembolsaron.</Notice>
+      ) : (
+        !experience.active && (
+          <Notice tone="warning">Esta experiencia está pausada: no aparece en el catálogo y solo la ven su anfitrión y los administradores.</Notice>
+        )
       )}
 
       <ExperienceMeta experience={experience} duration={duration} />
@@ -142,6 +169,15 @@ function ExperiencePage({ id }) {
           <section>
             <h2>Qué vas a hacer</h2>
             <p className="experience__description">{experience.description}</p>
+            {experience.tags.length > 0 && (
+              <>
+                <p className="muted small experience__tags-title">Ideal si te gusta…</p>
+                <TagList tags={experience.tags} />
+              </>
+            )}
+            {experience.favoriteCount > 0 && (
+              <p className="muted small experience__saved">♥ {pluralize(experience.favoriteCount, 'persona la guardó', 'personas la guardaron')}</p>
+            )}
           </section>
 
           <section className="section">
@@ -150,7 +186,7 @@ function ExperiencePage({ id }) {
           </section>
 
           <section className="section">
-            <HostCard host={hostInfo} />
+            <HostCard host={hostInfo} stats={hostStats} />
           </section>
 
           <ReviewsSection reviews={reviews} averageRating={experience.averageRating} onReply={isHost ? replyReview : undefined} />

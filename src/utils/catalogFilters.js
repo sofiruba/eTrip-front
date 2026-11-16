@@ -87,6 +87,8 @@ export function readFilters(params) {
     durationMin: toNumber(params.get('duracionMin')),
     durationMax: toNumber(params.get('duracionMax')),
     times: (params.get('horario') ?? '').split(',').filter((id) => TIME_SLOTS.some((slot) => slot.id === id)),
+    // Intereses (tags de las experiencias): ?tags=Vinos,Gastronomía
+    tags: (params.get('tags') ?? '').split(',').map((tag) => tag.trim()).filter(Boolean),
     sort: params.get('orden') ?? '',
     page: Math.max(toNumber(params.get('page')) ?? 0, 0),
   }
@@ -114,6 +116,7 @@ export function toBackQuery(filters) {
   add('durationMin', filters.durationMin)
   add('durationMax', filters.durationMax)
   add('timeSlots', filters.times.join(','))
+  add('tags', filters.tags.join(','))
   // Con niños o bebés el back no muestra las experiencias solo para mayores de 18
   add('withKids', filters.children > 0 || filters.infants > 0)
   return params.toString()

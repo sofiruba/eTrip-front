@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Printer, Star, Undo2 } from 'lucide-react'
+import { Gift, Printer, Star, Undo2 } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams } from 'react-router-dom'
+import BookingExtras from '../components/booking/BookingExtras'
 import BookingInfoCard from '../components/booking/BookingInfoCard'
 import CancellationPolicy from '../components/booking/CancellationPolicy'
 import OrderSummary from '../components/booking/OrderSummary'
@@ -35,7 +36,9 @@ function BookingDetailPage() {
   // La reserva: de "Mis reservas" si ya estaba en el store, o pedida aparte (si se entró por link)
   const booking = useSelector((state) => state.bookings.items.find((entry) => entry.id === Number(id)) ?? state.bookings.details[id]?.item)
   const bookingDetail = useSelector((state) => state.bookings.details[id])
-  const orderId = booking?.orderId
+  // Un regalo que recibí: la orden (el comprobante) es de quien lo compró, no mía. No se pide ni se muestra
+  const isGiftReceived = Boolean(booking) && booking.recipientId === user.id && booking.buyerId !== user.id
+  const orderId = isGiftReceived ? null : booking?.orderId
   const order = useSelector((state) => state.orders.items.find((entry) => entry.id === orderId) ?? state.orders.details[orderId]?.item)
   const orderDetail = useSelector((state) => state.orders.details[orderId])
   // La experiencia (foto y lugar): del catálogo, o pedida aparte si ya no está publicada
@@ -83,14 +86,15 @@ function BookingDetailPage() {
       </div>
     )
   }
-  if (!booking || !order) return <Loading />
+  if (!booking || (orderId && !order)) return <Loading />
 
   const past = isPast(booking.startsAt)
   const status = getBookingStatus({ ...booking, isPast: past })
   // Misma regla que se muestra en el checkout: reembolso solo hasta 48 h antes
   const policy = getCancellationPolicy(booking.startsAt)
   const showPolicy = !past && !booking.refunded
-  const canRefund = showPolicy && policy.refundable
+  // El reembolso lo pide quien pagó: si me lo regalaron, le aviso a esa persona
+  const canRefund = showPolicy && policy.refundable && !isGiftReceived
   // El back no permite editar reseñas: solo se escribe una vez, cuando la experiencia terminó
   const canReview = isPast(booking.endsAt) && !booking.refunded && !myReview
 
@@ -101,9 +105,10 @@ function BookingDetailPage() {
       <div className="split">
         <div className="stack">
           <BookingInfoCard booking={booking} experience={experience} status={status} />
-          {showPolicy && <CancellationPolicy policy={policy} />}
+          {showPolicy && !isGiftReceived && <CancellationPolicy policy={policy} />}
 
           <VoucherCard booking={booking} />
+          {!past && <BookingExtras booking={booking} experience={experience} />}
 
           <div className="row">
             {experience && (
@@ -125,19 +130,33 @@ function BookingDetailPage() {
           </div>
         </div>
 
-        <OrderSummary
-          title={`Orden #${order.id}`}
-          items={toSummaryItems(order.bookings)}
-          discount={order.discountAmount}
-          couponCode={order.couponCode}
-          totalLabel="Total pagado"
-          refunded={Number(order.refunded ?? 0)}
-        >
-          <p className="muted small">Comprada el {formatFullDate(order.createdAt)}</p>
-          <Button variant="ghost" icon={Printer} full onClick={() => window.print()}>
-            Descargar comprobante
-          </Button>
-        </OrderSummary>
+        {isGiftReceived ? (
+          <aside className="card stack">
+            <span className="eyebrow">Regalo</span>
+            <p>
+              <Gift size={18} aria-hidden /> Este plan te lo regaló <strong>{booking.giftFromName}</strong>. El comprobante de pago lo tiene esa persona.
+            </p>
+            {showPolicy && (
+              <p className="muted small">
+                Si no podés ir, avisale a {booking.giftFromName}: el reembolso lo pide quien pagó, hasta 48 h antes.
+              </p>
+            )}
+          </aside>
+        ) : (
+          <OrderSummary
+            title={`Orden #${order.id}`}
+            items={toSummaryItems(order.bookings)}
+            discount={order.discountAmount}
+            couponCode={order.couponCode}
+            totalLabel="Total pagado"
+            refunded={Number(order.refunded ?? 0)}
+          >
+            <p className="muted small">Comprada el {formatFullDate(order.createdAt)}</p>
+            <Button variant="ghost" icon={Printer} full onClick={() => window.print()}>
+              Descargar comprobante
+            </Button>
+          </OrderSummary>
+        )}
       </div>
 
       {/* Después del reembolso o de la reseña, los reducers actualizan la reserva, la orden, los lugares y la reseña:

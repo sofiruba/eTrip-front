@@ -5,6 +5,7 @@ import { refundBooking } from './bookingsSlice'
 import { deleteExperience } from './experiencesSlice'
 import { removeById, replaceById } from './helpers'
 import { cancelOrder, createOrder } from './ordersSlice'
+import { joinWaitlist, leaveWaitlist } from './waitlistSlice'
 
 /**
  * Fechas (sesiones) de las experiencias, con sus cupos (el "stock" del TPO).
@@ -69,13 +70,24 @@ const initialState = {
 
 const isUpcoming = (session) => session.active && new Date(session.startsAt) > new Date()
 
+// Las copias de una fecha en las dos listas (catálogo y calendario)
+const copiesOf = (state, sessionId) => [...state.items, ...state.managed.items].filter((session) => session.id === sessionId)
+
 // Suma (o resta, con números negativos) lugares libres a una fecha, en las dos listas
 function changeSeats(state, sessionId, seats) {
-  const copies = [...state.items, ...state.managed.items].filter((session) => session.id === sessionId)
-  copies.forEach((session) => {
+  copiesOf(state, sessionId).forEach((session) => {
     session.availableSeats = Math.min(Math.max(session.availableSeats + seats, 0), session.capacity)
     if (session.status === 'SOLD_OUT' && session.availableSeats > 0) session.status = 'PUBLISHED'
     if (session.status === 'PUBLISHED' && session.availableSeats === 0) session.status = 'SOLD_OUT'
+    // Se liberó un lugar: el back ya avisó a la lista de espera y la vació
+    if (seats > 0 && session.availableSeats > 0) session.waitlistCount = 0
+  })
+}
+
+// Alguien se anota (delta = 1) o se baja (delta = -1) de la lista de espera de una fecha
+function changeWaitlist(state, sessionId, delta) {
+  copiesOf(state, sessionId).forEach((session) => {
+    session.waitlistCount = Math.max((session.waitlistCount ?? 0) + delta, 0)
   })
 }
 
@@ -151,7 +163,11 @@ const sessionsSlice = createSlice({
         action.payload.released.forEach((booking) => changeSeats(state, booking.experienceSessionId, booking.quantity))
       })
 
-      // Se borró una experiencia: el back borra sus fechas
+      // Lista de espera: el contador de cada fecha ("3 en lista de espera" en el calendario)
+      .addCase(joinWaitlist.fulfilled, (state, action) => changeWaitlist(state, action.payload, 1))
+      .addCase(leaveWaitlist.fulfilled, (state, action) => changeWaitlist(state, action.payload, -1))
+
+      // Se dio de baja una experiencia: el back cancela (o borra) sus fechas
       .addCase(deleteExperience.fulfilled, (state, action) => {
         const { id } = action.payload
         state.items = state.items.filter((session) => session.experienceId !== id)

@@ -133,11 +133,11 @@ const bookingsSlice = createSlice({
         state.items = state.items.filter(fromOtherSession)
         state.sales.items = state.sales.items.filter(fromOtherSession)
       })
-      // Experiencia borrada: el back borra sus reservas (solo puede tener pasadas)
+      // Experiencia dada de baja: el back reembolsó todas las reservas de sus fechas futuras (las pasadas quedan)
       .addCase(deleteExperience.fulfilled, (state, action) => {
-        const fromOtherExperience = (booking) => booking.experienceId !== action.payload.id
-        state.items = state.items.filter(fromOtherExperience)
-        state.sales.items = state.sales.items.filter(fromOtherExperience)
+        allBookings(state)
+          .filter((booking) => booking.experienceId === action.payload.id && !booking.refunded && new Date(booking.startsAt) > new Date())
+          .forEach((booking) => Object.assign(booking, { refunded: true, status: 'REFUNDED' }))
       })
 
       // Al cerrar sesión vuelve al estado inicial

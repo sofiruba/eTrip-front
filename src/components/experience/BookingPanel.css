@@ -58,6 +58,47 @@
   accent-color: var(--color-brand);
 }
 
+/* Lista de espera de las fechas agotadas */
+.booking-panel__waitlist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.booking-panel__waitlist li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px dashed var(--color-line-strong);
+  border-radius: var(--radius-md);
+}
+
+.booking-panel__waitlist li > span {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-sm);
+}
+
+.booking-panel__waitlist small {
+  color: var(--color-muted);
+}
+
+.booking-panel__soldout summary {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.booking-panel__soldout[open] summary {
+  margin-bottom: var(--space-2);
+}
+
 .session-option span {
   display: flex;
   flex: 1;

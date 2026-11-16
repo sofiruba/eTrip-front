@@ -55,7 +55,9 @@ function CheckoutSuccessPage() {
       </h1>
       <p className="muted">
         {state?.paymentLabel ? `Pagaste ${formatMoney(order.total)} con ${state.paymentLabel}.` : `Pagaste ${formatMoney(order.total)}.`}{' '}
-        Tus vouchers quedaron guardados en Mis reservas.
+        {order.giftRecipientName
+          ? `Es un regalo para ${order.giftRecipientName}: ${order.giftRecipientEmail ? 'le avisamos y el voucher le aparece en sus reservas' : 'mostrale el voucher o mandáselo'}. También queda en Mis reservas.`
+          : 'Tus vouchers quedaron guardados en Mis reservas.'}
       </p>
 
       <dl className="checkout-success__receipt card">

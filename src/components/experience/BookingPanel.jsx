@@ -12,6 +12,7 @@ import Button from '../ui/Button'
 import EmptyState from '../ui/EmptyState'
 import Money from '../ui/Money'
 import QuantityStepper from '../ui/QuantityStepper'
+import WaitlistButton from './WaitlistButton'
 import './BookingPanel.css'
 
 /** Panel lateral del detalle: elegir sesión + cantidad y reservar. `ref` (React 19) apunta al panel, para scrollear hasta él. */
@@ -23,6 +24,7 @@ function BookingPanel({ id, ref, experience, sessions }) {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const bookable = sessions.filter((session) => session.availableSeats > 0)
+  const soldOutSessions = sessions.filter((session) => session.availableSeats === 0)
   const [sessionId, setSessionId] = useState(bookable[0]?.id ?? null)
   const [adding, setAdding] = useState(false) // mientras el back responde, los botones quedan deshabilitados
   // Si viene del buscador con cantidad de personas, arranca con esa cantidad
@@ -56,6 +58,21 @@ function BookingPanel({ id, ref, experience, sessions }) {
       })
       .then(() => setAdding(false))
   }
+
+  // Fechas agotadas: "Avisame si se libera un lugar" (lista de espera del back)
+  const waitlist = (list) => (
+    <ul className="booking-panel__waitlist">
+      {list.map((session) => (
+        <li key={session.id}>
+          <span>
+            <strong>{formatLongDate(session.startsAt)}</strong>
+            <small>{formatTime(session.startsAt)}</small>
+          </span>
+          <WaitlistButton session={session} />
+        </li>
+      ))}
+    </ul>
+  )
 
   return (
     <aside id={id} ref={ref} className="booking-panel card">
@@ -91,11 +108,14 @@ function BookingPanel({ id, ref, experience, sessions }) {
       ) : !sessions.length ? (
         <EmptyState icon={CalendarX} title="Sin fechas disponibles" text="El anfitrión todavía no publicó nuevas sesiones." />
       ) : !bookable.length ? (
-        <EmptyState
-          icon={CalendarX}
-          title="Agotado"
-          text="Se agotaron los lugares de todas las fechas. Volvé a mirar más adelante por si se suman nuevas."
-        />
+        <div className="stack">
+          <EmptyState
+            icon={CalendarX}
+            title="Agotado"
+            text="Se agotaron los lugares de todas las fechas. Anotate y te avisamos si alguien libera el suyo."
+          />
+          {waitlist(soldOutSessions)}
+        </div>
       ) : (
         <>
           <fieldset className="booking-panel__sessions">
@@ -155,6 +175,13 @@ function BookingPanel({ id, ref, experience, sessions }) {
             Agregar al carrito
           </Button>
           <p className="muted small booking-panel__hint">No se te cobra nada todavía.</p>
+
+          {soldOutSessions.length > 0 && (
+            <details className="booking-panel__soldout">
+              <summary>¿Querías {soldOutSessions.length === 1 ? 'la fecha agotada' : 'una fecha agotada'}? Te avisamos si se libera un lugar</summary>
+              {waitlist(soldOutSessions)}
+            </details>
+          )}
         </>
       )}
     </aside>

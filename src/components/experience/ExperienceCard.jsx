@@ -6,6 +6,7 @@ import Badge from '../ui/Badge'
 import ImageWithFallback from '../ui/ImageWithFallback'
 import Money from '../ui/Money'
 import { Rating } from '../ui/Rating'
+import FavoriteButton from './FavoriteButton'
 import './ExperienceCard.css'
 
 /**
@@ -28,10 +29,13 @@ function ExperienceCard({ experience, to = `/experiencias/${experience.id}`, foo
               <Badge tone="brand">-{discountPercentage}%</Badge>
             </div>
           )}
+          {/* El corazón solo si la tarjeta es un link (no en la vista previa del editor) y la experiencia sigue publicada */}
+          {to && experience.id > 0 && experience.status !== 'DELETED' && <FavoriteButton experience={experience} />}
           <div className="experience-card__badges">
-            {/* Solo se ven en "Mis experiencias": el catálogo no muestra pausadas ni experiencias sin fechas */}
+            {/* Solo se ven en "Mis experiencias" y en el panel: el catálogo no muestra pausadas, dadas de baja ni sin fechas */}
             {experience.status === 'NO_DATES' && <Badge tone="warning">No aparece en el catálogo</Badge>}
             {experience.status === 'INACTIVE' && <Badge tone="neutral">Pausada</Badge>}
+            {experience.status === 'DELETED' && <Badge tone="danger">Dada de baja</Badge>}
             {experience.adultsOnly && <Badge tone="neutral">+18</Badge>}
             {soldOut ? (
               <Badge tone="danger">Agotado</Badge>

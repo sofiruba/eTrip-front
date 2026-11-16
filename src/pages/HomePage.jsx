@@ -6,8 +6,11 @@ import CatalogFilters from '../components/experience/CatalogFilters'
 import CategoryFilter from '../components/experience/CategoryFilter'
 import CatalogResults from '../components/home/CatalogResults'
 import DealsSection from '../components/home/DealsSection'
+import ForYouSection from '../components/home/ForYouSection'
 import HomeHero from '../components/home/HomeHero'
+import HomeStats from '../components/home/HomeStats'
 import HostInvite from '../components/home/HostInvite'
+import RecentlyViewedSection from '../components/home/RecentlyViewedSection'
 import SectionHeader from '../components/ui/SectionHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { fetchBookings } from '../redux/bookingsSlice'
@@ -22,7 +25,7 @@ import './HomePage.css'
 
 const MAX_DEALS = 4
 
-/** Inicio: buscador, próximos planes, catálogo con filtros (guardados en la URL) y ofertas. */
+/** Inicio: buscador, próximos planes, "Para vos", catálogo con filtros (guardados en la URL), vistos recientemente y ofertas. */
 function HomePage() {
   const dispatch = useDispatch()
   // useSelector: el Home se suscribe a las partes del estado global que muestra.
@@ -39,6 +42,7 @@ function HomePage() {
   const user = useSelector((state) => state.auth.user)
   const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
   const { items: myBookings, loaded: bookingsLoaded } = useSelector((state) => state.bookings)
+  const recentIds = useSelector((state) => state.recentlyViewed.ids)
   const [params, setParams] = useSearchParams()
   const resultsRef = useRef(null)
   useDocumentTitle(null)
@@ -70,7 +74,13 @@ function HomePage() {
   const deals = experiences.filter((experience) => experience.discountPercentage > 0 && experience.nextSession).slice(0, MAX_DEALS)
   // El admin no compra: sus "reservas" en el store son las de todo el sitio
   const upcoming = user && !isAdmin ? splitBookings(addBookingInfo(myBookings, experiences)).upcoming : []
-  const sectionTitle = filters.location ? `Planes en ${filters.location}` : filters.title ? `Resultados para “${filters.title}”` : '¿Qué plan pinta?'
+  const sectionTitle = filters.location
+    ? `Planes en ${filters.location}`
+    : filters.title
+      ? `Resultados para “${filters.title}”`
+      : filters.tags.length
+        ? `Planes de ${filters.tags.join(', ').toLowerCase()}`
+        : '¿Qué plan pinta?'
 
   // Cualquier cambio de filtro vuelve a la primera página
   const updateFilters = (patch, options) => setParams((current) => applyFilters(current, patch, options), { preventScrollReset: true })
@@ -90,7 +100,21 @@ function HomePage() {
         }}
       />
 
+      {!loading && !error && <HomeStats experiences={experiences} />}
+
       {upcoming.length > 0 && <UpcomingPlans bookings={upcoming} />}
+
+      {/* "Para vos": según los intereses del usuario (slice auth) y los tags de las experiencias */}
+      {user && !isAdmin && !hasFilters && !loading && (
+        <ForYouSection
+          experiences={experiences}
+          interests={user.interests ?? []}
+          onSeeAll={() => {
+            updateFilters({ tags: user.interests })
+            scrollToExperiences()
+          }}
+        />
+      )}
 
       <section className="section" id="experiencias" ref={resultsRef}>
         <SectionHeader eyebrow="Explorá" title={sectionTitle} />
@@ -123,6 +147,8 @@ function HomePage() {
           onClear={clearFilters}
         />
       </section>
+
+      {!hasFilters && <RecentlyViewedSection ids={recentIds} experiences={experiences} />}
 
       {!hasFilters && (
         <DealsSection

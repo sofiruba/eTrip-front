@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
 import CheckoutSteps from '../components/checkout/CheckoutSteps'
 import CheckoutSummary from '../components/checkout/CheckoutSummary'
+import GiftFields from '../components/checkout/GiftFields'
 import PaymentMethods from '../components/checkout/PaymentMethods'
 import { EMPTY_CARD, WALLETS } from '../components/checkout/paymentOptions'
 import PaymentProcessing from '../components/checkout/PaymentProcessing'
@@ -53,6 +54,9 @@ function CheckoutPage() {
   const [touched, setTouched] = useState({})
   const [submitted, setSubmitted] = useState(false)
   const [coupon, setCoupon] = useState(null) // resultado de validateCoupon (trae los montos que calcula el back)
+  // "Es un regalo": va en la orden; si el email es de una cuenta de PLAN, esa persona recibe el voucher en sus reservas
+  const [gift, setGift] = useState({ enabled: false, recipientName: '', recipientEmail: '', message: '' })
+  const [giftErrors, setGiftErrors] = useState({})
   const [error, setError] = useState('')
   const [payment, setPayment] = useState(null) // { provider, label } mientras se procesa
   const completingOrder = useRef(false)
@@ -118,6 +122,15 @@ function CheckoutPage() {
     const problemLine = lines.find((line) => getCartProblem(line))
     if (problemLine) return setError(`“${problemLine.experience.title}”: ${getCartProblem(problemLine)} Ajustá la cantidad.`)
 
+    if (gift.enabled) {
+      const nextGiftErrors = {}
+      if (!gift.recipientName.trim()) nextGiftErrors.recipientName = 'Contanos para quién es el regalo.'
+      if (gift.recipientEmail.trim() && !/^\S+@\S+\.\S+$/.test(gift.recipientEmail.trim())) nextGiftErrors.recipientEmail = 'Ingresá un email válido.'
+      if (gift.recipientEmail.trim().toLowerCase() === user.email.toLowerCase()) nextGiftErrors.recipientEmail = 'Ese es tu propio email.'
+      setGiftErrors(nextGiftErrors)
+      if (Object.keys(nextGiftErrors).length) return undefined
+    }
+
     if (Object.keys(cardErrors).length) {
       setSubmitted(true)
       // Llevamos el foco al primer campo con error, buscándolo solo dentro de este formulario (ref)
@@ -140,6 +153,9 @@ function CheckoutPage() {
       cardNumber: method === 'card' ? onlyDigits(card.number) : null,
       // El total que se le mostró: si un precio cambió mientras pagaba, el back rechaza en vez de cobrar otro monto
       expectedTotal: Math.round(total * 100) / 100,
+      gift: gift.enabled
+        ? { recipientName: gift.recipientName.trim(), recipientEmail: gift.recipientEmail.trim() || null, message: gift.message.trim() || null }
+        : null,
     }
     return dispatch(createOrder(newOrder))
       .then((action) => {
@@ -218,8 +234,18 @@ function CheckoutPage() {
             />
           </section>
 
+          <GiftFields
+            gift={gift}
+            errors={giftErrors}
+            onChange={(next) => {
+              setGift(next)
+              setGiftErrors({})
+            }}
+          />
+
           <p className="checkout__buyer">
-            Pagás como <strong>{fullName(user)}</strong> · {user.email}. Tus vouchers van a quedar en Mis reservas.
+            Pagás como <strong>{fullName(user)}</strong> · {user.email}.{' '}
+            {gift.enabled ? 'El voucher queda en tus reservas y, si tiene cuenta, también en las de quien lo recibe.' : 'Tus vouchers van a quedar en Mis reservas.'}
           </p>
 
           <p className="checkout__legal">

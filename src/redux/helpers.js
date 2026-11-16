@@ -28,3 +28,15 @@ export function removeById(list, id) {
  * Así cada GET se hace una sola vez (si falló, se vuelve a pedir con el botón "Reintentar").
  */
 export const isMissing = (list) => !list.loaded && !list.loading && !list.error
+
+/**
+ * Usuario del back → usuario del front. La foto de perfil viene en base64 (`avatarBase64`): la pasamos a un
+ * data URL (`avatarUrl`) que entiende <img src>. Lo usan el slice de sesión (yo) y el de usuarios (perfiles públicos).
+ */
+export function toUser({ avatarBase64, ...user }) {
+  return {
+    ...user,
+    avatarUrl: avatarBase64 ? `data:image/jpeg;base64,${avatarBase64}` : null,
+    interests: user.interests ?? [],
+  }
+}

@@ -7,8 +7,9 @@ import { deleteExperience, fetchAllExperiences, updateExperienceStatus } from '.
 import { isMissing } from '../../redux/helpers'
 import { fetchManagedSessions } from '../../redux/sessionsSlice'
 import { showToast } from '../../redux/toastsSlice'
+import { describeDeletion, describeDeletionResult } from '../../utils/deletion'
 import { addSessionInfo, getUpcomingSessions, isSoldOut } from '../../utils/experiences'
-import { formatMoney, formatSessionDate, normalizeText, pluralize } from '../../utils/format'
+import { formatMoney, formatSessionDate, isPast, normalizeText, pluralize } from '../../utils/format'
 import { getCity } from '../../utils/location'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
@@ -29,9 +30,13 @@ const STATUS_FILTERS = [
   { value: 'agotada', label: 'Agotadas' },
   { value: 'sin-fechas', label: 'Sin fechas' },
   { value: 'oferta', label: 'En oferta' },
+  { value: 'pausada', label: 'Pausadas' },
+  { value: 'baja', label: 'Dadas de baja' },
 ]
 
 function getStatus(experience) {
+  if (experience.status === 'DELETED') return { id: 'baja', label: 'Dada de baja', tone: 'danger' }
+  if (!experience.active) return { id: 'pausada', label: 'Pausada', tone: 'neutral' }
   if (isSoldOut(experience)) return { id: 'agotada', label: 'Agotada', tone: 'danger' }
   if (!experience.upcomingCount) return { id: 'sin-fechas', label: 'Sin fechas', tone: 'warning' }
   return { id: 'disponible', label: pluralize(experience.availableSeats, 'lugar', 'lugares'), tone: 'success' }
@@ -85,7 +90,8 @@ function ExperiencesAdmin() {
 
   const query = normalizeText(search.trim())
   const rows = experiences
-    .map((experience) => ({ ...experience, status: getStatus(experience), sales: salesOf(experience.id) }))
+    // `status` del back (ACTIVE / INACTIVE / DELETED…) se reemplaza por el estado visible del panel; `deleted` lo recuerda
+    .map((experience) => ({ ...experience, deleted: experience.status === 'DELETED', status: getStatus(experience), sales: salesOf(experience.id) }))
     .filter((experience) => normalizeText(`${experience.title} ${experience.publisherName} ${experience.location}`).includes(query))
     .filter((experience) => !category || experience.categoryId === Number(category))
     .filter((experience) => {
@@ -99,8 +105,9 @@ function ExperiencesAdmin() {
   if (managed.error) return <ErrorState message={managed.error} onRetry={() => dispatch(fetchAllExperiences())} />
   if (!managed.loaded) return <Loading />
 
-  // El back decide si se puede: borra en cascada, salvo que tenga reservas para fechas que todavía no pasaron
+  // Dar de baja: el back reembolsa y avisa a todos los que tenían reservas (regla de PLAN) y cancela sus fechas
   const askDelete = (experience) => setDeleting(experience)
+  const bookingsWithInfo = bookings.map((booking) => ({ ...booking, isPast: isPast(booking.startsAt) }))
 
   return (
     <>
@@ -167,10 +174,13 @@ function ExperiencesAdmin() {
             render: (experience) => (
               <div className="cell-actions">
                 <IconButton icon={Eye} label="Ver detalle" variant="ghost" onClick={() => setSelectedId(experience.id)} />
-                <IconButton icon={Pencil} label="Editar (fotos, texto, precio)" variant="ghost" onClick={() => navigate(`/admin/experiencias/${experience.id}/editar`)} />
-                {/* Si ya está desactivada, se puede eliminar directo desde la fila; el resto de las acciones está en el detalle */}
-                {!experience.active && (
-                  <IconButton icon={Trash2} label="Eliminar experiencia" variant="ghost" onClick={() => askDelete(experience)} />
+                {/* Una dada de baja ya no se edita ni se vuelve a borrar: queda para consultar sus ventas y reseñas */}
+                {!experience.deleted && (
+                  <IconButton icon={Pencil} label="Editar (fotos, texto, precio)" variant="ghost" onClick={() => navigate(`/admin/experiencias/${experience.id}/editar`)} />
+                )}
+                {/* Si ya está pausada, se puede dar de baja directo desde la fila; el resto de las acciones está en el detalle */}
+                {!experience.active && !experience.deleted && (
+                  <IconButton icon={Trash2} label="Dar de baja" variant="ghost" onClick={() => askDelete(experience)} />
                 )}
               </div>
             ),
@@ -197,19 +207,23 @@ function ExperiencesAdmin() {
               <Button variant="ghost" icon={ExternalLink} to={`/experiencias/${selected.id}`}>
                 Ver publicación
               </Button>
-              <Button variant="secondary" icon={Pencil} to={`/admin/experiencias/${selected.id}/editar`}>
-                Editar
-              </Button>
-              <Button
-                variant="secondary"
-                icon={Power}
-                onClick={() => toggleActive(selected).then(() => setSelectedId(null))}
-              >
-                {selected.active ? 'Desactivar' : 'Activar'}
-              </Button>
-              <Button variant="danger" icon={Trash2} onClick={() => askDelete(selected)}>
-                Eliminar
-              </Button>
+              {!selected.deleted && (
+                <>
+                  <Button variant="secondary" icon={Pencil} to={`/admin/experiencias/${selected.id}/editar`}>
+                    Editar
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    icon={Power}
+                    onClick={() => toggleActive(selected).then(() => setSelectedId(null))}
+                  >
+                    {selected.active ? 'Desactivar' : 'Activar'}
+                  </Button>
+                  <Button variant="danger" icon={Trash2} onClick={() => askDelete(selected)}>
+                    Dar de baja
+                  </Button>
+                </>
+              )}
             </>
           }
         >
@@ -233,9 +247,9 @@ function ExperiencesAdmin() {
 
       {deleting && (
         <ConfirmDialog
-          title="¿Eliminar la experiencia?"
-          message={`“${deleting.title}” de ${deleting.publisherName} se elimina junto con sus fechas, sus reservas pasadas y sus reseñas. No se puede deshacer.`}
-          confirmLabel="Eliminar"
+          title="¿Dar de baja la experiencia?"
+          message={`${describeDeletion(deleting, bookingsWithInfo)} Si alguna vez se vendió, queda en el panel como “Dada de baja”.`}
+          confirmLabel="Dar de baja"
           onConfirm={() =>
             dispatch(deleteExperience(deleting))
               .then((action) => {
@@ -244,7 +258,7 @@ function ExperiencesAdmin() {
                   return dispatch(showToast({ message: action.error.message, tone: 'error' }))
                 }
                 setSelectedId(null)
-                dispatch(showToast({ message: 'Experiencia eliminada', tone: 'info' }))
+                dispatch(showToast({ message: describeDeletionResult(action.payload.result), tone: 'info' }))
               })
           }
           onClose={() => setDeleting(null)}

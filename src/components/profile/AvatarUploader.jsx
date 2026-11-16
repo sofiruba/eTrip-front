@@ -1,7 +1,7 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Camera } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
-import { updateProfileExtras } from '../../redux/authSlice'
+import { updateMe } from '../../redux/authSlice'
 import { showToast } from '../../redux/toastsSlice'
 import { fullName } from '../../utils/format'
 import Avatar from '../ui/Avatar'
@@ -13,10 +13,8 @@ const TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const AVATAR_SIZE = 320
 
 /**
- * Achica la foto antes de guardarla. La foto queda en el estado global, que redux-persist guarda en el localStorage
- * (~5 MB para todo el sitio): una foto de celular
- * en base64 no entraba, no se guardaba (sin avisar) y desde ahí tampoco se guardaba el resto del perfil.
- * Devuelve una promesa con el data URL (JPEG de pocos KB).
+ * Achica la foto antes de mandarla al back (que acepta hasta 400 KB): una foto de celular pesa varios MB,
+ * y a 320 px en JPEG quedan unos pocos KB. Devuelve una promesa con el data URL.
  */
 function shrinkPhoto(file) {
   return new Promise((resolve, reject) => {
@@ -42,12 +40,27 @@ function shrinkPhoto(file) {
   })
 }
 
-/** Foto de perfil. El back no guarda fotos de usuario: queda en el estado global, persistida en este navegador. */
+/** Foto de perfil. Se guarda en el back (PUT /users/me con `avatarBase64`): se ve en el perfil público y en las experiencias. */
 // `buttonRef` deja que el padre abra el selector de foto (por ejemplo, desde "Completá tu perfil")
 function AvatarUploader({ buttonRef }) {
   const dispatch = useDispatch()
   const user = useSelector((state) => state.auth.user)
   const inputRef = useRef(null)
+  const [saving, setSaving] = useState(false)
+
+  // PUT con la foto (o con "" para borrarla); el reducer guarda el usuario que devuelve el back
+  const savePhoto = (avatarBase64, message) => {
+    setSaving(true)
+    return dispatch(updateMe({ avatarBase64 }))
+      .then((action) => {
+        setSaving(false)
+        // rejected: el back respondió con un error (action.error.message, como en el reducer)
+        if (action.error) {
+          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+        }
+        return dispatch(showToast({ message, tone: avatarBase64 ? 'success' : 'info' }))
+      })
+  }
 
   const handleFile = (event) => {
     const file = event.target.files?.[0]
@@ -57,16 +70,8 @@ function AvatarUploader({ buttonRef }) {
     if (file.size > MAX_MB * 1024 * 1024) return dispatch(showToast({ message: `La foto puede pesar hasta ${MAX_MB} MB.`, tone: 'error' }))
 
     return shrinkPhoto(file)
-      .then((avatarUrl) => {
-        dispatch(updateProfileExtras({ avatarUrl }))
-        dispatch(showToast({ message: 'Foto de perfil actualizada' }))
-      })
+      .then((dataUrl) => savePhoto(dataUrl, 'Foto de perfil actualizada'))
       .catch(() => dispatch(showToast({ message: 'No pudimos leer la foto. Probá con otra.', tone: 'error' })))
-  }
-
-  const removePhoto = () => {
-    dispatch(updateProfileExtras({ avatarUrl: null }))
-    dispatch(showToast({ message: 'Quitaste tu foto de perfil', tone: 'info' }))
   }
 
   return (
@@ -79,6 +84,7 @@ function AvatarUploader({ buttonRef }) {
           className="avatar-uploader__button"
           aria-label={user.avatarUrl ? 'Cambiar foto de perfil' : 'Subir foto de perfil'}
           title={user.avatarUrl ? 'Cambiar foto' : 'Subir foto'}
+          disabled={saving}
           onClick={() => inputRef.current?.click()}
         >
           <Camera size={16} aria-hidden />
@@ -86,7 +92,7 @@ function AvatarUploader({ buttonRef }) {
         <input ref={inputRef} type="file" accept={TYPES.join(',')} hidden onChange={handleFile} />
       </div>
       {user.avatarUrl && (
-        <button type="button" className="avatar-uploader__remove" onClick={removePhoto}>
+        <button type="button" className="avatar-uploader__remove" disabled={saving} onClick={() => savePhoto('', 'Quitaste tu foto de perfil')}>
           Quitar foto
         </button>
       )}

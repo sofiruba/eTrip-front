@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, withToken } from './api'
 import { createExperience, deleteExperience } from './experiencesSlice'
+import { toUser } from './helpers'
 import { createOrder } from './ordersSlice'
 import { createReview, deleteReview } from './reviewsSlice'
 
@@ -18,15 +19,15 @@ const URL = '/api/v1/auth'
 export const login = createAsyncThunk('auth/login', async ({ usernameOrEmail, password }) => {
   const { data } = await api.post(`${URL}/authenticate`, { usernameOrEmail, password })
   const { data: user } = await api.get('/users/me', withToken(data.access_token))
-  return { token: data.access_token, user }
+  return { token: data.access_token, user: toUser(user) }
 })
 
-// POST /api/v1/auth/register → { access_token }. Los intereses no los guarda el back: quedan en el navegador
+// POST /api/v1/auth/register → { access_token }. Los intereses se guardan en el back (el Home los usa en "Para vos")
 export const register = createAsyncThunk('auth/register', async ({ account, interests }) => {
   const { username, firstname, lastname, email, password } = account
-  const { data } = await api.post(`${URL}/register`, { username, firstname, lastname, email, password })
+  const { data } = await api.post(`${URL}/register`, { username, firstname, lastname, email, password, interests })
   const { data: user } = await api.get('/users/me', withToken(data.access_token))
-  return { token: data.access_token, user, interests }
+  return { token: data.access_token, user: toUser(user) }
 })
 
 // GET /api/v1/auth/availability → { usernameAvailable, emailAvailable }. Solo lo usa el formulario de registro
@@ -50,40 +51,36 @@ export const verifyResetCode = createAsyncThunk('auth/verifyResetCode', async ({
 export const resetPassword = createAsyncThunk('auth/resetPassword', async ({ usernameOrEmail, code, newPassword }) => {
   const { data } = await api.post(`${URL}/reset-password`, { usernameOrEmail, code, newPassword })
   const { data: user } = await api.get('/users/me', withToken(data.access_token))
-  return { token: data.access_token, user }
+  return { token: data.access_token, user: toUser(user) }
 })
 
 // GET /users/me: al abrir la app con una sesión guardada, para tener el rol y los contadores al día
 export const fetchMe = createAsyncThunk('auth/fetchMe', async () => {
   const { data } = await api.get('/users/me')
-  return data
+  return toUser(data)
 })
 
-// PUT /users/me: el back solo guarda nombre y apellido
-export const updateMe = createAsyncThunk('auth/updateMe', async ({ firstName, lastName }) => {
-  const { data } = await api.put('/users/me', { firstName, lastName })
-  return data
+// PUT /users/me: nombre, apellido, bio, ciudad, foto (avatarBase64) e intereses. Se manda solo lo que cambia;
+// el back devuelve el usuario completo y el reducer lo guarda
+export const updateMe = createAsyncThunk('auth/updateMe', async (changes) => {
+  const { data } = await api.put('/users/me', changes)
+  return toUser(data)
 })
 
 // ---------- Slice ----------
 
 const initialState = {
   token: null,
-  // El usuario que devuelve el back, con lo que se guarda en el navegador (bio, ciudad, intereses y foto) ya sumado
+  // El usuario que devuelve el back (con bio, ciudad, intereses y foto, que desde la 3ra entrega se guardan en el back)
   user: null,
-  // Bio, ciudad, intereses y foto no existen en el back: se guardan en este navegador, por usuario ({ [userId]: {...} })
-  profileExtras: {},
   // Modal de login / registro / recuperar contraseña: qué vista está abierta (null = cerrado) y a dónde ir después
   authModal: { mode: null, redirect: null },
 }
 
-// El usuario del back + lo que guardamos en el navegador para esa cuenta
-const withExtras = (state, user) => ({ ...user, ...state.profileExtras[user.id] })
-
 // Login, registro y recuperar contraseña terminan igual: guardamos el token y el usuario y cerramos el modal
 function startSession(state, action) {
   state.token = action.payload.token
-  state.user = withExtras(state, action.payload.user)
+  state.user = action.payload.user
   state.authModal.mode = null
 }
 
@@ -117,30 +114,21 @@ const authSlice = createSlice({
     closeAuth: (state) => {
       state.authModal.mode = null
     },
-    // Lo que el back no guarda (bio, ciudad, intereses, foto) del usuario que inició sesión
-    updateProfileExtras: (state, action) => {
-      const userId = state.user.id
-      state.profileExtras[userId] = { ...state.profileExtras[userId], ...action.payload }
-      state.user = { ...state.user, ...action.payload }
-    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(login.fulfilled, startSession)
+      .addCase(register.fulfilled, startSession)
       .addCase(resetPassword.fulfilled, startSession)
-      .addCase(register.fulfilled, (state, action) => {
-        state.profileExtras[action.payload.user.id] = { interests: action.payload.interests }
-        startSession(state, action)
-      })
       .addCase(fetchMe.fulfilled, (state, action) => {
-        state.user = withExtras(state, action.payload)
+        state.user = action.payload
       })
       .addCase(fetchMe.rejected, (state, action) => {
         // 4xx = token inválido o cuenta desactivada: se cierra la sesión. Si el back no respondió, la dejamos como estaba
         if (action.error.code?.startsWith('4')) endSession(state)
       })
       .addCase(updateMe.fulfilled, (state, action) => {
-        state.user = withExtras(state, action.payload)
+        state.user = action.payload
       })
       // Contadores del perfil
       .addCase(createOrder.fulfilled, (state) => addToCounter(state, 'bookingsCount', 1))
@@ -155,6 +143,6 @@ const authSlice = createSlice({
   },
 })
 
-export const { logout, sessionExpired, openAuth, closeAuth, updateProfileExtras } = authSlice.actions
+export const { logout, sessionExpired, openAuth, closeAuth } = authSlice.actions
 
 export default authSlice.reducer

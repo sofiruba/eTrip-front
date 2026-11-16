@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CalendarCheck, ChevronDown, LayoutDashboard, LogOut, Store, User } from 'lucide-react'
+import { CalendarCheck, ChevronDown, Heart, LayoutDashboard, LogOut, Store, User } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { logout } from '../../redux/authSlice'
@@ -40,6 +40,7 @@ function UserMenu() {
     : [
         { to: '/perfil', label: 'Mi perfil', icon: User },
         { to: '/mis-reservas', label: 'Mis reservas', icon: CalendarCheck },
+        { to: '/guardados', label: 'Guardados', icon: Heart },
         { to: '/anfitrion', label: 'Modo anfitrión', icon: Store },
       ]
 

@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, MapPin, Users } from 'lucide-react'
+import { CalendarDays, ChevronRight, Gift, MapPin, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { formatSessionDate, pluralize } from '../../utils/format'
 import Badge from '../ui/Badge'
@@ -15,7 +15,15 @@ function BookingCard({ booking, action }) {
     <Link to={`/mis-reservas/${booking.id}`} className="booking-card">
       <ImageWithFallback src={experience?.images[0]} alt="" className="booking-card__image" />
       <div className="booking-card__body">
-        <Badge tone={status.tone}>{status.label}</Badge>
+        <div className="row">
+          <Badge tone={status.tone}>{status.label}</Badge>
+          {booking.giftRecipientName && (
+            <Badge tone="brand">
+              <Gift size={12} aria-hidden />
+              Regalo {booking.giftFromName ? `de ${booking.giftFromName}` : `para ${booking.giftRecipientName}`}
+            </Badge>
+          )}
+        </div>
         <h3>{booking.experienceTitle}</h3>
         <div className="booking-card__meta">
           <span className="meta">

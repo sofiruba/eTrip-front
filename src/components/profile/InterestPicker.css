@@ -36,19 +36,33 @@
 .interest-picker__footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-3);
 }
 
-.interest-picker__more {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-ink);
-  font-size: var(--text-sm);
+.interest-picker__group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.interest-picker__group-title {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* "3 planes": cuántas experiencias disponibles tiene el interés (lo cuenta el back) */
+.interest-picker__plans {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+
+.chip--interest.is-selected .interest-picker__plans {
+  color: var(--color-ink);
 }
 
 .interest-picker__count {

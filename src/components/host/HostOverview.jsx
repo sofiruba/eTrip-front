@@ -44,7 +44,7 @@ function HostOverview({ experiences, sessions, bookings }) {
             </p>
           </div>
           <CapacityBar session={nextSession} />
-          <Button variant="secondary" iconRight={ArrowRight} to="/anfitrion/reservas">
+          <Button variant="secondary" iconRight={ArrowRight} to={`/anfitrion/fechas/${nextSession.experienceId}`}>
             Ver huéspedes
           </Button>
         </section>

@@ -54,8 +54,8 @@ function HostExperiences({ experiences, bookings }) {
                 <Button size="sm" variant="secondary" icon={Pencil} to={`/anfitrion/experiencias/${experience.id}/editar`}>
                   Editar
                 </Button>
-                <Button size="sm" variant="ghost" icon={CalendarDays} to={`/anfitrion/calendario?experiencia=${experience.id}`}>
-                  Fechas
+                <Button size="sm" variant="ghost" icon={CalendarDays} to={`/anfitrion/fechas/${experience.id}`}>
+                  Fechas y huéspedes
                 </Button>
                 <Button
                   size="sm"

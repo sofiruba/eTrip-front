@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { CalendarDays, LayoutGrid, Plus, Store, Users } from 'lucide-react'
+import { CalendarDays, LayoutGrid, Plus, Store } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useParams } from 'react-router-dom'
-import HostBookings from '../components/host/HostBookings'
-import HostCalendar from '../components/host/HostCalendar'
+import { Navigate, useParams, useSearchParams } from 'react-router-dom'
+import HostAgenda from '../components/host/HostAgenda'
+import HostExperienceAgenda from '../components/host/HostExperienceAgenda'
 import HostExperiences from '../components/host/HostExperiences'
 import HostOverview from '../components/host/HostOverview'
 import Button from '../components/ui/Button'
@@ -23,8 +23,8 @@ import './HostPage.css'
 const TABS = [
   { id: 'resumen', label: 'Resumen', icon: LayoutGrid, to: '/anfitrion' },
   { id: 'experiencias', label: 'Mis experiencias', icon: Store, to: '/anfitrion/experiencias' },
-  { id: 'calendario', label: 'Calendario', icon: CalendarDays, to: '/anfitrion/calendario' },
-  { id: 'reservas', label: 'Huéspedes', icon: Users, to: '/anfitrion/reservas' },
+  // Fechas y huéspedes juntos, por experiencia: /anfitrion/fechas y /anfitrion/fechas/:experienceId
+  { id: 'fechas', label: 'Fechas y huéspedes', icon: CalendarDays, to: '/anfitrion/fechas', end: false },
 ]
 
 /**
@@ -33,7 +33,8 @@ const TABS = [
  * y esta página (suscripta con useSelector) le pasa los datos nuevos. Ya no hace falta pasar funciones "setX" a los hijos.
  */
 function HostPage() {
-  const { tab = 'resumen' } = useParams()
+  const { tab = 'resumen', experienceId } = useParams()
+  const [params] = useSearchParams()
   const dispatch = useDispatch()
   const user = useSelector((state) => state.auth.user)
   const managed = useSelector((state) => state.experiences.managed) // las mías: { items, loaded, error }
@@ -56,7 +57,12 @@ function HostPage() {
     if (!salesState.loaded) dispatch(fetchSales())
   }, [salesState.loaded, dispatch])
 
-  if (!TABS.some((item) => item.id === tab)) return <NotFoundPage />
+  // Las pestañas viejas (Calendario y Huéspedes) ahora son "Fechas y huéspedes"
+  if (tab === 'calendario' || tab === 'reservas') {
+    const old = params.get('experiencia')
+    return <Navigate to={old ? `/anfitrion/fechas/${old}` : '/anfitrion/fechas'} replace />
+  }
+  if (!TABS.some((item) => item.id === tab) || (experienceId && tab !== 'fechas')) return <NotFoundPage />
 
   const myIds = experiences.map((experience) => experience.id)
   const mySessions = sessions.filter((session) => myIds.includes(session.experienceId)).sort(byStartsAt)
@@ -69,8 +75,36 @@ function HostPage() {
       <HostExperiences experiences={[]} bookings={[]} />
     ),
     experiencias: <HostExperiences experiences={experiences} bookings={myBookings} />,
-    calendario: <HostCalendar experiences={experiences} sessions={mySessions} />,
-    reservas: <HostBookings bookings={myBookings} sessions={sessions} />,
+    fechas: <HostAgenda experiences={experiences} />,
+  }
+
+  // Detalle de una experiencia: sus fechas y, adentro de cada una, quién reservó
+  const selected = experienceId && experiences.find((experience) => experience.id === Number(experienceId))
+  // Una experiencia que no es mía (o que ya no existe): volvemos a la lista
+  if (experienceId && managed.loaded && !selected) return <Navigate to="/anfitrion/fechas" replace />
+  if (selected) {
+    // Sus fechas y reservas también tienen que estar en el store antes de mostrarlas
+    const waiting = !managedSessions.loaded || !salesState.loaded
+    const failed = managedSessions.error || salesState.error
+    panels.fechas = failed ? (
+      <ErrorState
+        message={failed}
+        onRetry={() => {
+          if (managedSessions.error) dispatch(fetchManagedSessions())
+          if (salesState.error) dispatch(fetchSales())
+        }}
+      />
+    ) : waiting ? (
+      <Loading />
+    ) : (
+      <HostExperienceAgenda
+        // key: al pasar de una experiencia a otra el componente arranca de cero (pestaña y fechas abiertas)
+        key={selected.id}
+        experience={selected}
+        sessions={mySessions.filter((session) => session.experienceId === selected.id)}
+        bookings={myBookings.filter((booking) => booking.experienceId === selected.id)}
+      />
+    )
   }
 
   const content = managed.error ? (

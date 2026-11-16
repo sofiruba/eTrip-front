@@ -6,7 +6,9 @@ export const MAX_GIFT_MESSAGE = 300
 
 /**
  * "Es un regalo": nombre de quien lo recibe, su email (opcional) y un mensaje. Va en la orden (POST /orders, campo `gift`).
- * Si el email es de una cuenta de PLAN, esa persona ve la reserva en sus "Mis reservas" y recibe el aviso.
+ * Con email, el back le manda un mail (sin el voucher). El regalo pasa a ser suyo recién cuando tiene una cuenta
+ * VERIFICADA con ese email: si ya la tiene, en el momento; si no, cuando la crea. Hasta entonces el voucher es de quien
+ * pagó, que puede corregir el email o quedárselo desde la reserva.
  */
 function GiftFields({ gift, onChange, errors = {} }) {
   const setField = (field) => (event) => onChange({ ...gift, [field]: event.target.value })
@@ -32,7 +34,7 @@ function GiftFields({ gift, onChange, errors = {} }) {
               value={gift.recipientEmail}
               onChange={setField('recipientEmail')}
               error={errors.recipientEmail}
-              hint="Si tiene cuenta en PLAN, la reserva le aparece en Mis reservas."
+              hint="Le avisamos por mail. El regalo pasa a ser suyo cuando entra a PLAN con ese email y lo verifica; hasta entonces el voucher es tuyo y podés corregir el email."
             />
           </div>
           <FormField

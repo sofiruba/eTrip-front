@@ -1,4 +1,5 @@
 import { CalendarDays, ChevronRight, Gift, MapPin, Users } from 'lucide-react'
+import { useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { formatSessionDate, pluralize } from '../../utils/format'
 import Badge from '../ui/Badge'
@@ -9,6 +10,9 @@ import './BookingCard.css'
 /** Tarjeta de una reserva (link al detalle). `action` (opcional) es un botón que va debajo, fuera del link. */
 function BookingCard({ booking, action }) {
   const status = getBookingStatus(booking)
+  const userId = useSelector((state) => state.auth.user?.id)
+  // El regalo lo hice yo (lo veo como "para X") o me lo hicieron ("de X")
+  const giftedByMe = booking.buyerId === userId
   const { experience } = booking
 
   const card = (
@@ -18,9 +22,10 @@ function BookingCard({ booking, action }) {
         <div className="row">
           <Badge tone={status.tone}>{status.label}</Badge>
           {booking.giftRecipientName && (
-            <Badge tone="brand">
+            <Badge tone={giftedByMe && booking.giftStatus === 'PENDING' ? 'warning' : 'brand'}>
               <Gift size={12} aria-hidden />
-              Regalo {booking.giftFromName ? `de ${booking.giftFromName}` : `para ${booking.giftRecipientName}`}
+              {giftedByMe ? `Regalo para ${booking.giftRecipientName}` : `Regalo de ${booking.giftFromName}`}
+              {giftedByMe && booking.giftStatus === 'PENDING' && ' · pendiente'}
             </Badge>
           )}
         </div>

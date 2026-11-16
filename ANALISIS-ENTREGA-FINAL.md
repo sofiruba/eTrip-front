@@ -190,8 +190,8 @@ Decidido: no se hacen en el front.
 
 ### 3.10 Otros
 
-- **Recuperar contraseña:** el código sigue saliendo por consola (`devCode`). Mandar mails es un cambio del back. Preguntarle a la profe si alcanza.
-- **"Datos de prueba" en el panel de admin:** ✅ solo se muestra en desarrollo (`import.meta.env.DEV`).
+- **Recuperar contraseña:** ✅ el código llega por mail, y el registro exige verificar el email (16/11, ver sección 15 de `REDUX-TERCERA-ENTREGA.md`).
+- **"Datos de prueba" en el panel de admin:** se sacó (ya no se pueden crear cuentas sin el código del mail); los datos se cargan con el seed del back.
 - **Fotos en base64:** el listado ya manda solo la portada (bien). Guardar archivos con URL sería lo profesional, pero no hace falta.
 - **`npm audit`:** 2 avisos en dependencias de desarrollo (`vite`, `source-map-js`); se arreglan con `npm audit fix`.
 
@@ -240,7 +240,7 @@ El registro no cambia (toda cuenta compra y vende). Sigue siendo buena idea una 
 | **Lista de espera** en fechas agotadas ✅ (avisa a todos cuando se libera un lugar) | Diferencial claro | L |
 | **Regalar una experiencia** ✅ (la destinataria la ve en sus reservas) | Caso de uso fuerte para vender | L |
 | **Dar de baja con reembolso y aviso a todos** ✅ | Regla de PLAN | L |
-| **Mails reales** (recuperar contraseña, confirmación de compra) | Producto "de verdad" | M-L |
+| **Mails reales** ✅ (verificar el email al registrarse y recuperar contraseña) | Producto "de verdad" y seguro | M-L |
 | ~~Deploy~~ (3.7) | Decidido: no hace falta | — |
 
 ### 4.5 Más ideas para la entrega final (abiertas)
@@ -319,7 +319,7 @@ Ese archivo es de la 2da entrega (19/10) y ya no está en el repo. Varias cosas 
 |---|---|---|
 | Perfil en el back (bio, ciudad, intereses, foto) | Sí | ✅ Hecho (16/11) |
 | Borrar experiencias: el back bloquea si tuvo cualquier reserva | — | ✅ Ahora "dar de baja" reembolsa y avisa a todos; además hay **Pausar** |
-| Recuperar contraseña por mail | Sí | Preguntar a la profe |
+| Recuperar contraseña por mail | Sí | ✅ Hecho (16/11), junto con la verificación del email |
 | Filtro de precio sobre el precio final | Sí | Verificar en el back que `minPrice`/`maxPrice` filtre por precio con descuento |
 | Ciudades habilitadas en el back (tabla `City`) | Sí | No hace falta para la entrega |
 | Cotizaciones desde el back | Sí | No hace falta (están fijas y aclaradas) |
@@ -350,7 +350,8 @@ Ese archivo es de la 2da entrega (19/10) y ya no está en el repo. Varias cosas 
 - [x] Anfitrión destacado + números de PLAN en el Home ✅
 - [x] "Agregar a mi calendario" en el voucher ✅
 - [x] Vistos recientemente con Redux ✅
-- [x] Ocultar "Datos de prueba" en producción ✅
+- [x] ~~Ocultar "Datos de prueba" en producción~~ → se sacó (16/11)
+- [x] Verificación de email y recuperar contraseña por mail ✅
 - [x] Rendimiento: cargar aparte admin, anfitrión y editor ✅
 
 **Hecho también (necesitaban back)**
@@ -370,4 +371,4 @@ Ese archivo es de la 2da entrega (19/10) y ya no está en el repo. Varias cosas 
 1. ¿La demo se hace con `npm run dev` (GET doble por StrictMode, explicable) o con el build de producción?
 2. ¿Quién defiende qué parte de Redux? (sugerido: store y slices · thunks y axios · persistencia y "un solo GET" · slices que escuchan a otros: regalo, baja, lista de espera).
 3. ¿Se hace la página "Ser anfitrión" (4.5)?
-4. ¿Recuperar contraseña sigue por consola o se pregunta a la profe?
+4. ~~¿Recuperar contraseña sigue por consola?~~ Resuelto: llega por mail.

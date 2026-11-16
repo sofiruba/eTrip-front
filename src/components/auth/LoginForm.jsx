@@ -7,7 +7,7 @@ import FormField from '../ui/FormField'
 import PasswordField from './PasswordField'
 
 /** Login con email o usuario. `identifier` se comparte con "Olvidé mi contraseña" para no tipearlo dos veces. */
-function LoginForm({ identifier, onIdentifierChange, onForgot, onRegister, onDone }) {
+function LoginForm({ identifier, onIdentifierChange, onForgot, onRegister, onVerify, onDone }) {
   const dispatch = useDispatch()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -25,9 +25,11 @@ function LoginForm({ identifier, onIdentifierChange, onForgot, onRegister, onDon
       .then((action) => {
         // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
+          setSending(false)
+          // 403: la contraseña es correcta pero el email no está verificado. El back ya mandó un código
+          if (action.error.code === '403') return onVerify(identifier.trim())
           // El back explica qué pasó: datos incorrectos (401) o cuenta desactivada
           setFormError(action.error.message)
-          setSending(false)
           return
         }
         const { user } = action.payload

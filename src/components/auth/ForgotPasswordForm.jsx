@@ -2,20 +2,15 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, MailCheck } from 'lucide-react'
 import { useDispatch } from 'react-redux'
 import { requestPasswordReset, resetPassword, verifyResetCode } from '../../redux/authSlice'
+import { maskEmail } from '../../utils/format'
 import Button from '../ui/Button'
 import FormField from '../ui/FormField'
 import CodeInput from './CodeInput'
 import PasswordField, { MIN_PASSWORD } from './PasswordField'
 
 const CODE_LENGTH = 6
-const RESEND_SECONDS = 30
-
-/** "nacho@gmail.com" → "na•••@gmail.com". Si escribió un usuario, no mostramos nada. */
-function maskEmail(identifier) {
-  const [name, domain] = identifier.trim().split('@')
-  if (!domain) return null
-  return `${name.slice(0, 2)}•••@${domain}`
-}
+// El back no manda otro mail a la misma cuenta antes de un minuto
+const RESEND_SECONDS = 60
 
 /**
  * Recuperar la contraseña en 3 pasos: pedir el código → ingresarlo → elegir la nueva.
@@ -61,8 +56,6 @@ function ForgotPasswordForm({ step, onStepChange, identifier, onIdentifierChange
         if (action.error) {
           return fail(action.error)
         }
-        // Todavía no hay mail: en desarrollo el back devuelve el código y lo mostramos en la consola
-        if (action.payload?.devCode) console.info(`%c[eTrip] Código para recuperar la contraseña: ${action.payload.devCode}`, 'font-weight:bold;font-size:14px')
         setCode('')
         setResendIn(RESEND_SECONDS)
         setResent(step === 'code')

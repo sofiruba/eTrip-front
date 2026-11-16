@@ -6,6 +6,7 @@ import BookingExtras from '../components/booking/BookingExtras'
 import BookingInfoCard from '../components/booking/BookingInfoCard'
 import CancellationPolicy from '../components/booking/CancellationPolicy'
 import OrderSummary from '../components/booking/OrderSummary'
+import PendingGiftCard from '../components/booking/PendingGiftCard'
 import RefundModal from '../components/booking/RefundModal'
 import ReviewFormModal from '../components/booking/ReviewFormModal'
 import VoucherCard from '../components/booking/VoucherCard'
@@ -108,6 +109,8 @@ function BookingDetailPage() {
           {showPolicy && !isGiftReceived && <CancellationPolicy policy={policy} />}
 
           <VoucherCard booking={booking} />
+          {/* Regalo que todavía no es de quien lo recibe (el estado lo calcula el back) */}
+          {!isGiftReceived && order?.giftStatus === 'PENDING' && <PendingGiftCard order={order} />}
           {!past && <BookingExtras booking={booking} experience={experience} />}
 
           <div className="row">

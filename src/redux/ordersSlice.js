@@ -52,6 +52,20 @@ export const cancelOrder = createAsyncThunk('orders/cancelOrder', async (order) 
   return { order: data, released }
 })
 
+// Regalo pendiente (todavía no es de quien lo recibe: no tiene cuenta verificada con ese email).
+// PATCH /orders/{id}/gift: quien pagó corrige el email; el back vuelve a mandar la invitación y, si el email nuevo
+// es de una cuenta verificada, se lo entrega en el momento. Devuelve la orden actualizada
+export const updateGiftEmail = createAsyncThunk('orders/updateGiftEmail', async ({ orderId, recipientEmail }) => {
+  const { data } = await api.patch(`${URL}/${orderId}/gift`, { recipientEmail })
+  return data
+})
+
+// DELETE /orders/{id}/gift: quien pagó se queda el regalo (pasa a ser una compra común). Devuelve la orden actualizada
+export const cancelGift = createAsyncThunk('orders/cancelGift', async (orderId) => {
+  const { data } = await api.delete(`${URL}/${orderId}/gift`)
+  return data
+})
+
 // ---------- Slice ----------
 
 const initialState = {
@@ -83,6 +97,12 @@ function refundInOrder(order, refunded) {
   order.commission = Math.round((Number(order.total) - order.refunded) * COMMISSION_RATE * 100) / 100
   const refundedCount = order.bookings.filter((booking) => booking.refunded).length
   order.status = refundedCount === order.bookings.length ? 'CANCELLED' : 'PARTIALLY_REFUNDED'
+}
+
+// Reemplaza una orden en la lista y en su detalle (findIndex + reemplazo, como el PUT de clase)
+function replaceOrder(state, order) {
+  replaceById(state.items, order)
+  if (state.details[order.id]) state.details[order.id].item = order
 }
 
 const ordersSlice = createSlice({
@@ -143,6 +163,9 @@ const ordersSlice = createSlice({
         if (state.details[order.id]) state.details[order.id].item = order
         state.stats.loaded = false // las ventas netas cambiaron: el resumen las vuelve a pedir
       })
+      // Regalo: el back devuelve la orden con el email nuevo o ya sin regalo
+      .addCase(updateGiftEmail.fulfilled, (state, action) => replaceOrder(state, action.payload))
+      .addCase(cancelGift.fulfilled, (state, action) => replaceOrder(state, action.payload))
       // Reembolso de una reserva: actualizamos la orden que la contiene
       .addCase(refundBooking.fulfilled, (state, action) => {
         allOrders(state).forEach((order) => refundInOrder(order, action.payload))

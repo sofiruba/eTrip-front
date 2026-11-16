@@ -7,43 +7,57 @@ import SectionHeader from '../ui/SectionHeader'
 const MAX_FOR_YOU = 4
 
 /**
- * "Para vos": experiencias con fechas disponibles que comparten algún interés (tag) con los del usuario.
- * Todo sale del store: los intereses del usuario (slice auth) y el catálogo con sus tags (slice experiences).
- * Primero las que coinciden en más intereses. Sin intereses, invita a elegirlos en el perfil.
+ * "Para vos": las recomendaciones que calcula el back (GET /experiences/recommended) con los intereses del usuario,
+ * lo que guardó, lo que reservó y lo que vio. Cada tarjeta muestra el motivo que manda el back.
+ * Este componente solo las muestra (la página las pide y les suma la próxima fecha del catálogo).
  */
-function ForYouSection({ experiences, interests, onSeeAll }) {
-  if (!interests.length) {
+function ForYouSection({ recommendations, hasInterests, onSeeAll }) {
+  if (!recommendations.length) {
     return (
       <section className="section card for-you__empty">
         <Sparkles size={22} aria-hidden />
         <div>
-          <h2>Contanos qué te gusta</h2>
-          <p className="muted small">
-            Elegí tus intereses y te mostramos planes para vos. <Link to="/perfil">Elegir intereses</Link>
-          </p>
+          {hasInterests ? (
+            <>
+              <h2>Todavía no hay planes con fecha para tus intereses</h2>
+              <p className="muted small">
+                Sumá algunos más y te mostramos otros planes. <Link to="/perfil">Elegir intereses</Link>
+              </p>
+            </>
+          ) : (
+            <>
+              <h2>Contanos qué te gusta</h2>
+              <p className="muted small">
+                Elegí tus intereses (o guardá planes con el ♥) y te recomendamos experiencias. <Link to="/perfil">Elegir intereses</Link>
+              </p>
+            </>
+          )}
         </div>
       </section>
     )
   }
 
-  const matches = experiences
-    .filter((experience) => experience.nextSession)
-    .map((experience) => ({ experience, hits: experience.tags.filter((tag) => interests.includes(tag)).length }))
-    .filter((entry) => entry.hits > 0)
-    .sort((a, b) => b.hits - a.hits || b.experience.averageRating - a.experience.averageRating)
-
-  if (!matches.length) return null
-
   return (
     <section className="section">
-      <SectionHeader eyebrow="Para vos" title="Según tus intereses" description={`Porque te gusta ${interests.slice(0, 3).join(', ').toLowerCase()}.`}>
-        <Button variant="ghost" size="sm" iconRight={ArrowRight} onClick={onSeeAll}>
-          Ver todas
-        </Button>
+      <SectionHeader eyebrow="Para vos" title="Elegidos para vos" description="Según tus intereses y los planes que guardaste, reservaste o miraste.">
+        {hasInterests && (
+          <Button variant="ghost" size="sm" iconRight={ArrowRight} onClick={onSeeAll}>
+            Ver todo de tus intereses
+          </Button>
+        )}
       </SectionHeader>
       <div className="experience-grid">
-        {matches.slice(0, MAX_FOR_YOU).map(({ experience }) => (
-          <ExperienceCard key={experience.id} experience={experience} />
+        {recommendations.slice(0, MAX_FOR_YOU).map(({ experience, reason }) => (
+          <ExperienceCard
+            key={experience.id}
+            experience={experience}
+            footer={
+              <p className="for-you__reason">
+                <Sparkles size={14} aria-hidden />
+                {reason}
+              </p>
+            }
+          />
         ))}
       </div>
     </section>

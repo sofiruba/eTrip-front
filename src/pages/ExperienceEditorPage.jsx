@@ -126,7 +126,7 @@ function ExperienceForm({ experience }) {
       .then((saved) => {
         dispatch(showToast({ message: isNew ? '¡Experiencia publicada! Ahora sumale fechas desde el calendario.' : 'Cambios guardados' }))
         allowLeave()
-        navigate(isNew ? `/anfitrion/calendario?experiencia=${saved.id}` : backTo)
+        navigate(isNew ? `/anfitrion/fechas/${saved.id}` : backTo)
       })
       .catch((saveError) => {
         setErrors({ form: saveError.message })
@@ -151,7 +151,7 @@ function ExperienceForm({ experience }) {
             <Button
               icon={CalendarDays}
               variant="secondary"
-              to={isAdmin ? `/admin/sesiones?experiencia=${existing.id}` : `/anfitrion/calendario?experiencia=${existing.id}`}
+              to={isAdmin ? `/admin/sesiones?experiencia=${existing.id}` : `/anfitrion/fechas/${existing.id}`}
             >
               Gestionar fechas
             </Button>
@@ -198,7 +198,7 @@ function ExperienceForm({ experience }) {
             title="¿Para quién es?"
             description={`Elegí hasta ${MAX_TAGS} intereses. Se los mostramos a las personas que eligieron esos intereses ("Para vos") y sirven para buscar.`}
           >
-            <InterestPicker value={form.tags} onChange={(tags) => changeField('tags', tags)} max={MAX_TAGS} />
+            <InterestPicker value={form.tags} onChange={(tags) => changeField('tags', tags)} max={MAX_TAGS} showCounts={false} />
           </EditorSection>
 
           <EditorSection step="04" title="Precio" description="Podés cambiarlo cuando quieras. La duración se define en cada fecha.">

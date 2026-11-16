@@ -76,8 +76,9 @@ const USERNAME_STATUS = {
 /**
  * Registro en 3 pasos. Antes de pasar de paso se pregunta al back si el email y el
  * usuario están libres, así nadie elige intereses para después enterarse de que el mail ya existe.
+ * Al crear la cuenta el back le manda un código al email: se sigue en VerifyEmailForm (onVerify).
  */
-function RegisterForm({ step, onStepChange, onLogin, onDone }) {
+function RegisterForm({ step, onStepChange, onLogin, onVerify }) {
   const dispatch = useDispatch()
   const [form, setForm] = useState(EMPTY_FORM)
   const [interests, setInterests] = useState([])
@@ -210,8 +211,8 @@ function RegisterForm({ step, onStepChange, onLogin, onDone }) {
           }
           return
         }
-        const { user } = action.payload
-        return onDone(user, `¡Bienvenido/a, ${user.firstName}! Tu cuenta está lista.`)
+        // La cuenta quedó creada sin verificar: pasamos a ingresar el código que llegó al email
+        return onVerify(action.payload.email)
       })
   }
 

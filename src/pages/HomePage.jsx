@@ -16,6 +16,8 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { fetchBookings } from '../redux/bookingsSlice'
 import { fetchCategories } from '../redux/categoriesSlice'
 import { fetchExperiences, searchExperiences } from '../redux/experiencesSlice'
+import { isMissing } from '../redux/helpers'
+import { fetchRecommendations } from '../redux/recommendationsSlice'
 import { fetchSessions } from '../redux/sessionsSlice'
 import { addBookingInfo, splitBookings } from '../utils/bookings'
 import { applyFilters, PAGE_SIZE, readFilters, toBackQuery } from '../utils/catalogFilters'
@@ -43,6 +45,7 @@ function HomePage() {
   const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
   const { items: myBookings, loaded: bookingsLoaded } = useSelector((state) => state.bookings)
   const recentIds = useSelector((state) => state.recentlyViewed.ids)
+  const recommendations = useSelector((state) => state.recommendations)
   const [params, setParams] = useSearchParams()
   const resultsRef = useRef(null)
   useDocumentTitle(null)
@@ -63,6 +66,13 @@ function HomePage() {
   useEffect(() => {
     if (userId && !isAdmin && !bookingsLoaded) dispatch(fetchBookings())
   }, [userId, isAdmin, bookingsLoaded, dispatch])
+
+  // "Para vos": las recomendaciones las calcula el back. Se piden una vez y otra vez solo si algo las cambió
+  // (guardar, quitar, cambiar intereses o comprar: el slice escucha esas acciones y marca loaded = false).
+  // Los "vistos recientemente" viven en este navegador, por eso se los mandamos
+  useEffect(() => {
+    if (userId && !isAdmin && isMissing(recommendations)) dispatch(fetchRecommendations(recentIds))
+  }, [userId, isAdmin, recommendations, recentIds, dispatch])
 
   // Sin filtros se usa el catálogo que ya está cargado (no hace falta otro pedido).
   // El front no filtra nada: solo ordena lo que mandó el back y lo muestra de a una página ("Ver más")
@@ -104,11 +114,14 @@ function HomePage() {
 
       {upcoming.length > 0 && <UpcomingPlans bookings={upcoming} />}
 
-      {/* "Para vos": según los intereses del usuario (slice auth) y los tags de las experiencias */}
-      {user && !isAdmin && !hasFilters && !loading && (
+      {/* "Para vos": recomendaciones del back, con la próxima fecha que ya está en el store */}
+      {user && !isAdmin && !hasFilters && !loading && recommendations.loaded && (
         <ForYouSection
-          experiences={experiences}
-          interests={user.interests ?? []}
+          recommendations={addSessionInfo(
+            recommendations.items.map((recommendation) => recommendation.experience),
+            sessions,
+          ).map((experience, index) => ({ experience, reason: recommendations.items[index].reason }))}
+          hasInterests={(user.interests ?? []).length > 0}
           onSeeAll={() => {
             updateFilters({ tags: user.interests })
             scrollToExperiences()

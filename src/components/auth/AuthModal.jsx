@@ -7,13 +7,15 @@ import Modal from '../ui/Modal'
 import ForgotPasswordForm from './ForgotPasswordForm'
 import LoginForm from './LoginForm'
 import RegisterForm from './RegisterForm'
+import VerifyEmailForm from './VerifyEmailForm'
 import './AuthModal.css'
 
-const FIRST_STEP = { login: null, register: 'account', forgot: 'request' }
+const FIRST_STEP = { login: null, register: 'account', forgot: 'request', verify: null }
 
 const COPY = {
   login: { title: 'Qué bueno verte', description: 'Ingresá para reservar y seguir tus planes.' },
   'register:account': { title: 'Empezá tu próximo plan', description: 'Creá tu cuenta para guardar y reservar experiencias.' },
+  verify: { title: 'Revisá tu email', description: 'Te mandamos un código para confirmar que es tuyo.' },
   'register:profile': { title: 'Contanos de vos', description: 'Así te van a ver anfitriones y otros viajeros.' },
   'register:interests': { title: '¿Qué te gusta hacer?', description: 'Elegí algunos intereses y te mostramos planes para vos.' },
   'forgot:request': { title: 'Recuperá tu contraseña', description: 'Te ayudamos a crear una nueva en un minuto.' },
@@ -21,7 +23,10 @@ const COPY = {
   'forgot:password': { title: 'Elegí una contraseña nueva', description: 'Es la que vas a usar de ahora en más.' },
 }
 
-/** Login, registro y "Olvidé mi contraseña" en un mismo modal. Cada flujo maneja sus pasos. */
+/**
+ * Login, registro, verificar el email y "Olvidé mi contraseña" en un mismo modal. Cada flujo maneja sus pasos.
+ * Después de registrarse (o si alguien sin verificar intenta entrar) se pasa a "verify" con el email en `identifier`.
+ */
 function AuthModal() {
   const dispatch = useDispatch()
   const { mode: authMode, redirect: authRedirect } = useSelector((state) => state.auth.authModal)
@@ -32,6 +37,10 @@ function AuthModal() {
 
   const go = (mode, step = FIRST_STEP[mode]) => setView({ mode, step })
   const setStep = (step) => setView({ ...view, step })
+  const goToVerify = (usernameOrEmail) => {
+    setIdentifier(usernameOrEmail)
+    go('verify')
+  }
 
   // Cuando el back confirma la sesión: saludamos y llevamos a donde corresponda
   const handleDone = (user, message) => {
@@ -51,6 +60,7 @@ function AuthModal() {
             onIdentifierChange={setIdentifier}
             onForgot={() => go('forgot')}
             onRegister={() => go('register')}
+            onVerify={goToVerify}
             onDone={handleDone}
           />
         )}
@@ -62,9 +72,10 @@ function AuthModal() {
               if (email) setIdentifier(email)
               go('login')
             }}
-            onDone={handleDone}
+            onVerify={goToVerify}
           />
         )}
+        {view.mode === 'verify' && <VerifyEmailForm identifier={identifier} onBack={() => go('login')} onDone={handleDone} />}
         {view.mode === 'forgot' && (
           <ForgotPasswordForm
             step={view.step}

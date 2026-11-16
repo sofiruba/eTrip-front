@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, withToken } from './api'
 import { createExperience, deleteExperience } from './experiencesSlice'
 import { toUser } from './helpers'
+import { deleteInterest, updateInterest } from './interestsSlice'
 import { createOrder } from './ordersSlice'
 import { createReview, deleteReview } from './reviewsSlice'
 
@@ -22,12 +23,24 @@ export const login = createAsyncThunk('auth/login', async ({ usernameOrEmail, pa
   return { token: data.access_token, user: toUser(user) }
 })
 
-// POST /api/v1/auth/register → { access_token }. Los intereses se guardan en el back (el Home los usa en "Para vos")
+// POST /api/v1/auth/register → { email }. Todavía NO hay sesión: el back le manda un código al email y la cuenta
+// queda sin verificar hasta que se ingrese (verifyEmail). Los intereses se guardan en el back (el Home los usa en "Para vos")
 export const register = createAsyncThunk('auth/register', async ({ account, interests }) => {
   const { username, firstname, lastname, email, password } = account
   const { data } = await api.post(`${URL}/register`, { username, firstname, lastname, email, password, interests })
+  return data
+})
+
+// POST /api/v1/auth/verify-email → { access_token }: confirma el email con el código y deja la sesión iniciada
+export const verifyEmail = createAsyncThunk('auth/verifyEmail', async ({ usernameOrEmail, code }) => {
+  const { data } = await api.post(`${URL}/verify-email`, { usernameOrEmail, code })
   const { data: user } = await api.get('/users/me', withToken(data.access_token))
   return { token: data.access_token, user: toUser(user) }
+})
+
+// POST /api/v1/auth/resend-verification → 204: manda otro código de verificación
+export const resendVerification = createAsyncThunk('auth/resendVerification', async (usernameOrEmail) => {
+  await api.post(`${URL}/resend-verification`, { usernameOrEmail })
 })
 
 // GET /api/v1/auth/availability → { usernameAvailable, emailAvailable }. Solo lo usa el formulario de registro
@@ -36,10 +49,9 @@ export const checkAvailability = createAsyncThunk('auth/checkAvailability', asyn
   return data
 })
 
-// POST /api/v1/auth/forgot-password → { devCode }. El mail todavía no se manda: en desarrollo el código viene en devCode
+// POST /api/v1/auth/forgot-password → 204: el back le manda el código al email de la cuenta
 export const requestPasswordReset = createAsyncThunk('auth/requestPasswordReset', async (usernameOrEmail) => {
-  const { data } = await api.post(`${URL}/forgot-password`, { usernameOrEmail })
-  return data
+  await api.post(`${URL}/forgot-password`, { usernameOrEmail })
 })
 
 // POST /api/v1/auth/verify-reset-code → 204 si el código es válido
@@ -77,7 +89,7 @@ const initialState = {
   authModal: { mode: null, redirect: null },
 }
 
-// Login, registro y recuperar contraseña terminan igual: guardamos el token y el usuario y cerramos el modal
+// Login, verificar el email y recuperar contraseña terminan igual: guardamos el token y el usuario y cerramos el modal
 function startSession(state, action) {
   state.token = action.payload.token
   state.user = action.payload.user
@@ -118,7 +130,7 @@ const authSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(login.fulfilled, startSession)
-      .addCase(register.fulfilled, startSession)
+      .addCase(verifyEmail.fulfilled, startSession)
       .addCase(resetPassword.fulfilled, startSession)
       .addCase(fetchMe.fulfilled, (state, action) => {
         state.user = action.payload
@@ -129,6 +141,14 @@ const authSlice = createSlice({
       })
       .addCase(updateMe.fulfilled, (state, action) => {
         state.user = action.payload
+      })
+      // El admin renombró o borró un interés: el usuario lo tiene guardado por nombre
+      .addCase(updateInterest.fulfilled, (state, action) => {
+        const { previousName, name } = action.payload
+        if (state.user) state.user.interests = state.user.interests.map((interest) => (interest === previousName ? name : interest))
+      })
+      .addCase(deleteInterest.fulfilled, (state, action) => {
+        if (state.user) state.user.interests = state.user.interests.filter((interest) => interest !== action.payload.name)
       })
       // Contadores del perfil
       .addCase(createOrder.fulfilled, (state) => addToCounter(state, 'bookingsCount', 1))

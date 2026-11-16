@@ -10,10 +10,11 @@ import categoriesReducer from './categoriesSlice'
 import couponsReducer from './couponsSlice'
 import experiencesReducer from './experiencesSlice'
 import favoritesReducer from './favoritesSlice'
-import importReducer from './importSlice'
+import interestsReducer from './interestsSlice'
 import notificationsReducer from './notificationsSlice'
 import ordersReducer from './ordersSlice'
 import preferencesReducer from './preferencesSlice'
+import recommendationsReducer from './recommendationsSlice'
 import recentlyViewedReducer from './recentlyViewedSlice'
 import reviewsReducer from './reviewsSlice'
 import savedCardsReducer from './savedCardsSlice'
@@ -40,6 +41,7 @@ export const store = configureStore({
     experiences: experiencesReducer,
     sessions: sessionsReducer,
     categories: categoriesReducer,
+    interests: interestsReducer,
     cart: cartReducer,
     orders: ordersReducer,
     bookings: bookingsReducer,
@@ -49,6 +51,7 @@ export const store = configureStore({
     notifications: notificationsReducer,
     favorites: favoritesReducer,
     waitlist: waitlistReducer,
+    recommendations: recommendationsReducer,
     // Sesión (persistida)
     auth: persist('auth', authReducer, ['token', 'user']),
     // Solo de front
@@ -56,7 +59,6 @@ export const store = configureStore({
     savedCards: persist('savedCards', savedCardsReducer),
     recentlyViewed: persist('recentlyViewed', recentlyViewedReducer),
     toasts: toastsReducer,
-    dataImport: importReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

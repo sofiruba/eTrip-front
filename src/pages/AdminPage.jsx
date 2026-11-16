@@ -1,11 +1,11 @@
-import { CalendarCheck, CalendarDays, DatabaseZap, LayoutGrid, MessageSquare, Receipt, Store, Tags, TicketPercent, Users } from 'lucide-react'
+import { CalendarCheck, CalendarDays, LayoutGrid, MessageSquare, Receipt, Sparkles, Store, Tags, TicketPercent, Users } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import AdminOverview from '../components/admin/AdminOverview'
 import BookingsAdmin from '../components/admin/BookingsAdmin'
 import CategoriesAdmin from '../components/admin/CategoriesAdmin'
 import CouponsAdmin from '../components/admin/CouponsAdmin'
-import DataImportAdmin from '../components/admin/DataImportAdmin'
 import ExperiencesAdmin from '../components/admin/ExperiencesAdmin'
+import InterestsAdmin from '../components/admin/InterestsAdmin'
 import OrdersAdmin from '../components/admin/OrdersAdmin'
 import ReviewsAdmin from '../components/admin/ReviewsAdmin'
 import SessionsAdmin from '../components/admin/SessionsAdmin'
@@ -38,6 +38,13 @@ const GROUPS = [
         description: 'Todas las fechas publicadas. Podés crear, editar, pausar o quitar sesiones.',
       },
       { id: 'categorias', label: 'Categorías', icon: Tags, component: CategoriesAdmin, description: 'Cómo se agrupan las experiencias en el catálogo.' },
+      {
+        id: 'intereses',
+        label: 'Intereses',
+        icon: Sparkles,
+        component: InterestsAdmin,
+        description: 'Los que eligen las personas y con los que los anfitriones etiquetan sus experiencias. Con ellos el back arma "Para vos".',
+      },
     ],
   },
   {
@@ -60,23 +67,6 @@ const GROUPS = [
       { id: 'resenas', label: 'Reseñas', icon: MessageSquare, component: ReviewsAdmin, description: 'Lo que opina la gente. Las de puntuación baja se marcan para revisar.' },
     ],
   },
-  // Solo en desarrollo: en el build de producción (la demo del producto) no se muestra
-  ...(import.meta.env.DEV
-    ? [
-        {
-          label: 'Herramientas',
-          sections: [
-            {
-              id: 'datos',
-              label: 'Datos de prueba',
-              icon: DatabaseZap,
-              component: DataImportAdmin,
-              description: 'Cargá un set de datos desde un JSON para probar la app sin crear todo a mano.',
-            },
-          ],
-        },
-      ]
-    : []),
 ]
 
 const SECTIONS = GROUPS.flatMap((group) => group.sections)

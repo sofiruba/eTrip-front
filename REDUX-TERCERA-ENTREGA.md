@@ -64,6 +64,8 @@ src/redux/
   couponsSlice.js       cupones
   notificationsSlice.js avisos
   favoritesSlice.js     guardados (corazón): ids de experiencia, se guardan en el back
+  interestsSlice.js     intereses (entidad del back, los administra el admin) con cuántos planes tiene cada uno
+  recommendationsSlice.js "Para vos": recomendaciones con su motivo, calculadas por el back
   waitlistSlice.js      lista de espera: ids de las fechas agotadas en las que estoy anotado
   authSlice.js          sesión: token, usuario (con bio, ciudad, foto e intereses, que ahora guarda el back), modal de login
 
@@ -72,7 +74,6 @@ src/redux/
   recentlyViewedSlice.js vistos recientemente (ids), persistido
   savedCardsSlice.js    tarjetas guardadas
   toastsSlice.js        avisos de abajo a la derecha
-  importSlice.js        herramienta "Datos de prueba" del panel de admin
 ```
 
 **Se borraron:** `src/context/` (los 6 providers y `AppProviders`), `src/services/` (los 13 servicios, que llamaban al back con `fetch`) y los hooks que envolvían
@@ -230,8 +231,10 @@ se actualizan solos, sin GET.
 | Slice | Estado | Acciones asíncronas (método · endpoint) |
 |---|---|---|
 | **experiences** | `items` (catálogo público), `managed` (anfitrión: las suyas · admin: todas, también pausadas), `details[id]` (una experiencia con **todas** sus fotos), `searches[query]` (resultados de cada búsqueda con filtros) | `fetchExperiences` GET `/experiences` · `fetchMyExperiences` GET `/experiences/mine` (anfitrión) · `fetchAllExperiences` GET `?includeInactive=true` (admin) · `fetchExperienceById` GET `/experiences/{id}` · `searchExperiences` GET `/experiences?filtros` · `createExperience` POST · `updateExperience` PUT · `updateDiscount` PATCH `/{id}/discount` · `updateExperienceStatus` PATCH `/{id}/status` · `deleteExperience` DELETE |
-| **sessions** | `items` (fechas públicas), `managed` (calendario, también pasadas y canceladas) | `fetchSessions` GET · `fetchManagedSessions` GET `/manage` · `createSession` POST · `updateSession` PUT · `cancelSession` DELETE `/{id}` · `removeSession` DELETE `/{id}/permanent` |
+| **sessions** | `items` (fechas públicas), `managed` (calendario, también pasadas y canceladas), `agenda` (resumen por experiencia del anfitrión, lo calcula el back; se marca `loaded = false` cuando cambia una fecha, una reserva o una experiencia) | `fetchSessions` GET · `fetchManagedSessions` GET `/manage` · `fetchHostAgenda` GET `/manage/summary` · `createSession` POST · `updateSession` PUT · `cancelSession` DELETE `/{id}` · `removeSession` DELETE `/{id}/permanent` |
 | **categories** | `items` | GET · POST · PUT · DELETE |
+| **interests** | `items` (`{ id, name, categoryId, categoryName, availableExperiences }`) | `fetchInterests` GET `/interests` (al abrir la app) · `createInterest` POST · `updateInterest` PUT · `deleteInterest` DELETE (admin). `experiences` y `auth` escuchan `updateInterest` / `deleteInterest` para renombrar o sacar el nombre en los `tags` y en los intereses del usuario |
+| **recommendations** | `items` (`[{ experience, reason }]`) | `fetchRecommendations(viewedIds)` GET `/experiences/recommended?viewed=…`. Escucha `addFavorite`, `removeFavorite`, `updateMe` y `createOrder` y marca `loaded = false`: el Home la vuelve a pedir solo si cambió algo que la afecta |
 | **cart** | `items`, `total` | `fetchCart` GET `/carts/user/{id}` · `addToCart` POST `/carts/items` · `updateCartItem` PATCH · `removeCartItem` DELETE |
 | **orders** | `items`, `stats` (admin), `details[id]` | `fetchOrders` GET · `fetchOrderStats` GET `/orders/stats` · `fetchOrderById` GET · `createOrder` POST `/orders` (checkout) · `cancelOrder` POST `/orders/{id}/cancel` |
 | **bookings** | `items` (mías, o todas si es admin), `sales` (anfitrión), `details[id]` | `fetchBookings` GET · `fetchSales` GET `/bookings/sales` · `fetchBookingById` GET · `refundBooking` POST `/bookings/{id}/refund` |
@@ -241,12 +244,11 @@ se actualizan solos, sin GET.
 | **notifications** | `items` | `fetchNotifications` GET · `markNotificationRead` PATCH |
 | **favorites** | `ids` (experiencias guardadas, la última primero) | `fetchFavorites` GET `/favorites` · `addFavorite` POST `/favorites/{id}` · `removeFavorite` DELETE |
 | **waitlist** | `sessionIds` (fechas agotadas en las que estoy anotado) | `fetchWaitlist` GET `/experience-sessions/waitlist/mine` · `joinWaitlist` POST `/{id}/waitlist` · `leaveWaitlist` DELETE |
-| **auth** | `token`, `user`, `authModal` | `login`, `register` (manda `interests`), `resetPassword` (POST + GET `/users/me`) · `fetchMe` GET · `updateMe` PUT `/users/me` (nombre, bio, ciudad, `avatarBase64`, `interests`: se manda solo lo que cambia) · `checkAvailability`, `requestPasswordReset`, `verifyResetCode`. Reducers comunes: `logout`, `sessionExpired`, `openAuth`, `closeAuth` |
+| **auth** | `token`, `user`, `authModal` | `login`, `verifyEmail`, `resetPassword` (POST + GET `/users/me`, inician la sesión) · `register` (manda `interests`; devuelve `{ email }`, **sin sesión** hasta verificar) · `resendVerification` · `fetchMe` GET · `updateMe` PUT `/users/me` (nombre, bio, ciudad, `avatarBase64`, `interests`: se manda solo lo que cambia) · `checkAvailability`, `requestPasswordReset`, `verifyResetCode`. Reducers comunes: `logout`, `sessionExpired`, `openAuth`, `closeAuth` |
 | **preferences** | `currency`, `theme`, `recentSearches` | (solo reducers) `setCurrency`, `setTheme`, `addRecentSearch` |
 | **recentlyViewed** | `ids` | (solo reducers) `addRecentlyViewed`; escucha `deleteExperience` |
 | **savedCards** | `byUser` | (solo reducers) `saveCard`, `removeCard` |
 | **toasts** | `items` | (solo reducers) `showToast`, `hideToast` |
-| **dataImport** | `log`, `running` | `importData` (usa los endpoints de siempre, uno por uno) |
 
 > Sobre `details[id]`: los listados del back mandan **solo la foto de portada** y `GET /experiences/{id}` manda todas.
 > Por eso el detalle y el editor piden la experiencia por id, **una vez por experiencia**: si se vuelve a entrar, ya está en el store.
@@ -283,7 +285,6 @@ algo que el front no ve:
 - **La campanita**, al abrirla: los avisos los generan otros usuarios (alguien compró, un anfitrión canceló).
 - **Pago rechazado** en el checkout: lo que tenemos quedó viejo (por ejemplo, otra persona se llevó los últimos lugares);
   se vuelven a pedir carrito y fechas.
-- **Carga de datos de prueba** del admin: se crean muchas cosas de una en el back.
 - **Estadísticas del resumen del admin** después de un reembolso o una cancelación (las calcula el back).
 
 ### Actualizar el store sin volver a pedir (la respuesta del back alcanza)
@@ -402,7 +403,7 @@ Lo único que no se vio tal cual en clase y **se mantiene** (porque sin eso se p
 | `src/pages/HostProfilePage.jsx` | Perfil con `fetchUserById`; sus experiencias salen del catálogo (sin otro GET) |
 | `src/pages/ProfilePage.jsx` | Reseñas del store; contadores del usuario del store (los reducers los mantienen al día) |
 | `src/components/admin/*` | Cada sección despacha sus GET (una vez) y sus acciones; muestran error y "Reintentar" si el back falla |
-| `src/components/host/*` | `DiscountModal`, `SessionFormModal`, `HostCalendar`, `HostBookings`, `HostExperiences` despachan sus acciones y dejan de recibir `onSaved` / `setX` |
+| `src/components/host/*` | `DiscountModal`, `SessionFormModal`, `HostCalendar` (lo usa el admin), `HostAgenda` + `HostExperienceAgenda` ("Fechas y huéspedes", 16/11), `HostExperiences` despachan sus acciones y dejan de recibir `onSaved` / `setX` |
 | `src/components/auth/*` | Login, registro y recuperar contraseña con thunks; el resultado se lee de la acción (`action.error` / `action.payload`); el modal lee `state.auth.authModal` |
 | `src/components/booking/RefundModal.jsx`, `ReviewFormModal.jsx` | `refundBooking` y `createReview` |
 | `src/components/layout/*` | Navbar, menú de usuario, campanita, moneda y layout con `useSelector` / `useDispatch`; el layout dibuja `<Toaster />` |
@@ -432,7 +433,7 @@ Lo único que no se vio tal cual en clase y **se mantiene** (porque sin eso se p
   - **Visitante:** el Home hace 3 GET y nada más; detalle con todas las fotos; volver al Home o al mismo detalle no repite pedidos; un filtro hace un GET y volver a él no lo repite.
   - **Compradora:** login (token persistido), agregar al carrito (1 POST, el navbar se actualiza solo), carrito sin pedidos, pagar (**1 POST y ningún GET**: el carrito queda vacío y los lugares de la fecha bajan solos), Mis reservas, reembolso (1 POST), perfil, recargar (la sesión sigue), tema persistido, logout (todo vuelve al estado inicial).
   - **Anfitrión:** modo anfitrión (3 GET, cambiar de pestaña no repite), descuento (PATCH), fecha nueva (POST), editarla (PUT), cancelarla (DELETE, queda en el historial), borrarla (DELETE permanente), crear una experiencia con foto (POST), editarla (PUT), cambiarle las fotos y borrarla (DELETE).
-  - **Admin:** el resumen pide cada lista una sola vez y recorrer las 9 secciones no repite ningún GET; categorías (POST/PUT/DELETE), cupones (crear, borrar uno sin usar, desactivar uno usado), pausar una experiencia (sale del catálogo público sin GET), cancelar una orden, borrar una reseña, desactivar y activar un usuario, carga de datos de prueba.
+  - **Admin:** el resumen pide cada lista una sola vez y recorrer las 9 secciones no repite ningún GET; categorías (POST/PUT/DELETE), cupones (crear, borrar uno sin usar, desactivar uno usado), pausar una experiencia (sale del catálogo público sin GET), cancelar una orden, borrar una reseña, desactivar y activar un usuario.
   - **Otros:** registro en 3 pasos, recuperar contraseña con el código de la consola, login con datos incorrectos, cupón en el checkout, tarjeta rechazada (se sincronizan carrito y fechas), notificaciones (abrir y marcar leída), respuesta del anfitrión a una reseña, escribir y borrar una reseña.
   - Los recorridos de visitante y compradora se repitieron con el **build de producción** (`vite preview`).
 
@@ -471,8 +472,7 @@ Lo que es de un solo componente: formularios mientras se escriben, modales abier
 
 ## 13. Pendientes y notas
 
-- **Recuperar contraseña:** sigue mostrando el código por consola (`devCode`), como estaba. Mandar el mail de verdad
-  es un cambio del **back** (y necesita una cuenta de correo); no se tocó.
+- **Recuperar contraseña y verificar el email:** ver la sección **15** (los códigos llegan por mail).
 - **Rendimiento (15/11):** el panel de admin, el modo anfitrión y el editor se descargan recién cuando alguien entra (como el checkout). La primera carga bajó de 685 kB a 393 kB y el build ya no avisa nada.
 - `npm audit` marca 2 vulnerabilidades en dependencias **de desarrollo** (`vite` 8.3.0 y `source-map-js`) que ya estaban
   antes de este cambio; se arreglan con `npm audit fix`. Las dependencias de producción no tienen ninguna.
@@ -501,11 +501,11 @@ sin repetir GETs, slices que escuchan acciones de otros slices). Los endpoints n
 | Qué | Back | Front (Redux) |
 |---|---|---|
 | **Perfil en el back**: bio, ciudad, foto e intereses | `User` + `PUT /users/me` (campos opcionales, `""` borra) · `GET /users/{id}` los muestra a todos | Se fue `profileExtras`: `updateMe` manda solo lo que cambia y el reducer guarda el usuario que devuelve. `helpers.toUser` pasa `avatarBase64` a data URL |
-| **Intereses = tags** de las experiencias | `Experience.tags` (hasta 8) · `GET /experiences?tags=A,B` (alguno) | El editor tiene un paso "¿Para quién es?" con el mismo `InterestPicker` del perfil (`max={8}`); el detalle muestra los tags como links al catálogo filtrado (`?tags=`) |
-| **"Para vos"** en el Home | — | Cruza `state.auth.user.interests` con los `tags` del catálogo que ya está en el store: ningún GET nuevo |
+| **Intereses en la base** (actualizado el 16/11) | Entidad `Interest` (pertenece a una categoría) relacionada con `Experience.tags` y `User.interests` (`@ManyToMany`). CRUD `/interests` (admin) y `availableExperiences` calculado por el back. Seed: 27 intereses, todos con planes | `interestsSlice`. `InterestPicker` (registro, perfil y editor) muestra los intereses del back agrupados por categoría con "N planes". Se borró la lista fija `data/interests.js`. Panel → **Intereses** |
+| **"Para vos"** en el Home (actualizado el 16/11) | `GET /experiences/recommended`: el back puntúa el catálogo con los intereses (x3), lo guardado y lo reservado (x2) y lo visto (x1) y devuelve el **motivo** de cada una | `recommendationsSlice`: el front solo pide y muestra; cada tarjeta lleva su motivo. Si no hay resultados, la sección lo dice en vez de desaparecer |
 | **Guardados** (corazón) | `favorites` + `favoriteCount` en cada experiencia | `favoritesSlice` (ids). `FavoriteButton` en tarjetas y detalle; página `/guardados` arma las tarjetas con el catálogo. `experiencesSlice` escucha `addFavorite` / `removeFavorite` para el contador |
 | **Lista de espera** en fechas agotadas | `waitlist_entries`; al liberarse un lugar (reembolso o más cupo) el back **avisa a todos** y vacía la lista; `waitlistCount` en cada fecha | `waitlistSlice` (ids de fechas). `WaitlistButton` en el panel de reserva; el calendario del anfitrión muestra "N en lista de espera"; `sessionsSlice` escucha `joinWaitlist` / `leaveWaitlist` y pone el contador en 0 cuando un reembolso libera lugares |
-| **Regalar una experiencia** | `gift` en `POST /orders`; si el email es de una cuenta, la reserva queda a su nombre (`recipient`), la ve en **sus** reservas, recibe el aviso y puede reseñar | Casilla "Es un regalo" en el checkout (`GiftFields`); el voucher muestra "Regalo de X para Y" con el mensaje; badge en Mis reservas |
+| **Regalar una experiencia** | `gift` en `POST /orders`; le llega un **mail de aviso sin el voucher**. Se entrega (`recipient`) **solo a una cuenta verificada** con ese email: en el momento si ya existe, o cuando se registra y verifica. Mientras tanto queda `PENDING` y el voucher es de quien pagó: `PATCH /orders/{id}/gift` corrige el email, `DELETE` se lo queda | `updateGiftEmail` y `cancelGift` (ordersSlice; bookingsSlice escucha y reemplaza las reservas). `PendingGiftCard` en el detalle de la reserva; badge "Regalo para X · pendiente". Casilla "Es un regalo" en el checkout (`GiftFields`); el voucher muestra "Regalo de X para Y" con el mensaje |
 | **Pausar / publicar de nuevo** en Mis experiencias | Ya existía (`PATCH /status`) | Botón en cada tarjeta con el `updateExperienceStatus` que ya usaba el admin |
 | **Búsqueda por texto** | Ya existía (`title=`) | Si lo escrito no es una ciudad conocida ni la ubicación de una experiencia, se manda como `title` |
 | **Vistos recientemente** | — | `recentlyViewedSlice` persistido con redux-persist (estado solo de front en Redux, como se vio en clase) |
@@ -513,7 +513,6 @@ sin repetir GETs, slices que escuchan acciones de otros slices). Los endpoints n
 | **Números de PLAN** en el Home | — | `HomeStats`: experiencias, ciudades, anfitriones y promedio, calculados con el store |
 | **Agregar a mi calendario** y **Compartir por WhatsApp** | — | `utils/calendar.js`: archivo `.ics`, link a Google Calendar y link de WhatsApp (en el voucher y en el detalle) |
 | **Meta tags** para compartir | — | `index.html` (`og:title`, `og:description`, `og:image`) |
-| "Datos de prueba" solo en desarrollo | — | `import.meta.env.DEV` en `AdminPage` |
 
 ### Datos de ejemplo (seed)
 
@@ -536,3 +535,28 @@ El seed del back (`seed-data.json` + `DataSeeder`) ahora trae: tags en las 43 ex
   regalo del seed en Mis reservas y en el voucher; intereses y ciudad = 1 PUT cada uno; compra con regalo = 1 POST y ningún GET),
   anfitrión (pausar y publicar = 1 PATCH cada uno; dar de baja = 1 DELETE con el resumen en el aviso) y admin (filtro
   "Dadas de baja", "en lista de espera" en el calendario). La base temporal se borró al terminar.
+
+---
+
+## 15. Seguridad de las cuentas: verificación de email y mails reales (16/11)
+
+Lo que distingue a PLAN en la entrega final: **nadie puede crear una cuenta con un email que no es suyo** y
+recuperar la contraseña **llega por mail** (antes el código salía por la consola). Los mails salen de
+`equipodeplan@gmail.com`; la configuración está en `eTrip-back/insomnia/ENDPOINTS.md` ("Verificación de email y mails").
+
+| Paso | Back | Front (Redux) |
+|---|---|---|
+| Registrarse | `POST /register` crea la cuenta **sin verificar**, manda un código de 6 dígitos y devuelve `{ email }` (sin token) | `register` ya **no** inicia la sesión: `RegisterForm` pasa al modo `verify` del `AuthModal` |
+| Verificar | `POST /verify-email` → token; la cuenta queda verificada | `verifyEmail` (POST + GET `/users/me`) → `startSession`, igual que el login. Componente nuevo: `VerifyEmailForm` (reusa `CodeInput`) |
+| Reenviar | `POST /resend-verification` → 204 (como mucho un mail por minuto) | `resendVerification` + cuenta regresiva de 60 s |
+| Entrar sin verificar | `POST /authenticate` → **403** y un código nuevo al mail | `LoginForm`: si `action.error.code === '403'` pasa a verificar |
+| Olvidé mi contraseña | `POST /forgot-password` → 204 y el código **por mail**. Cambiar la contraseña también verifica el email | `requestPasswordReset` sin `devCode` |
+
+Reglas de seguridad (todas en el back, `AuthenticationService`): solo se guarda el **hash** del código, vence en
+15 minutos, con 5 intentos fallidos se invalida, no se manda otro mail a la misma cuenta antes de 1 minuto y
+`resend-verification` responde lo mismo exista o no la cuenta. La contraseña de Gmail vive en `eTrip-back/.env`, que no se sube a git.
+
+**Se sacó la herramienta "Datos de prueba"** del panel de admin (`importSlice`, `DataImportAdmin`, `sampleData.json`)
+y `insomnia/seed.sh`: registraban usuarios y seguían de largo, y eso ya no se puede sin el código del mail. Los datos
+de ejemplo se cargan con el seed del back (`app.seed=true`), que crea las cuentas ya verificadas.
+

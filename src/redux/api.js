@@ -15,7 +15,7 @@ export const API_URL = import.meta.env?.VITE_API_URL ?? 'http://localhost:4002'
 
 export const api = axios.create({ baseURL: API_URL })
 
-/** Header con un token puntual (login/registro, o el cargador de datos de prueba que actúa como otro usuario). */
+/** Header con un token puntual: el que acaba de devolver el login (todavía no está en el estado global). */
 export const withToken = (token) => ({ headers: { Authorization: `Bearer ${token}` } })
 
 /** Los listados del back vienen paginados ({ content: [...] }): esto devuelve solo la lista. */
@@ -53,9 +53,8 @@ function toApiError(error) {
  */
 export function setupInterceptors(store, onSessionExpired) {
   api.interceptors.request.use((config) => {
-    // `skipAuth`: pedidos públicos que no tienen que llevar el token de la sesión (cargador de datos de prueba).
-    // Si el pedido ya trae su propio token (withToken), se respeta.
-    if (config.skipAuth || config.headers.Authorization) return config
+    // Si el pedido ya trae su propio token (withToken), se respeta
+    if (config.headers.Authorization) return config
 
     const { token } = store.getState().auth
     if (!token) return config

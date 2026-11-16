@@ -3,6 +3,7 @@ import { api, listOf } from './api'
 import { logout, sessionExpired } from './authSlice'
 import { updateCategory } from './categoriesSlice'
 import { addFavorite, removeFavorite } from './favoritesSlice'
+import { deleteInterest, updateInterest } from './interestsSlice'
 import { removeById, replaceById, upsertById } from './helpers'
 import { createReview, deleteReview } from './reviewsSlice'
 
@@ -132,6 +133,9 @@ function replaceEverywhere(state, updated) {
   state.searches = {}
 }
 
+/** Todas las copias de experiencias que hay en el store: catálogo, panel y detalles. */
+const allCopies = (state) => [...state.items, ...state.managed.items, ...Object.values(state.details).map((detail) => detail.item)]
+
 // Todas las copias de una experiencia que tenemos (para recalcular algo en todas)
 const copiesOf = (state, id) =>
   [...state.items, ...state.managed.items, state.details[id]?.item].filter((experience) => experience?.id === id)
@@ -182,7 +186,7 @@ const experiencesSlice = createSlice({
         state.loading = false
         state.loaded = true
         state.items = action.payload
-        // Si se volvió a pedir (por ejemplo, después de cargar datos de prueba), las búsquedas guardadas quedaron viejas
+        // Si se volvió a pedir el catálogo, las búsquedas guardadas quedaron viejas
         state.searches = {}
       })
       .addCase(fetchExperiences.rejected, (state, action) => {
@@ -254,10 +258,22 @@ const experiencesSlice = createSlice({
       // Cambios de otras entidades que se ven en las experiencias
       .addCase(updateCategory.fulfilled, (state, action) => {
         const category = action.payload
-        const all = [...state.items, ...state.managed.items, ...Object.values(state.details).map((detail) => detail.item)]
-        all.forEach((experience) => {
+        allCopies(state).forEach((experience) => {
           if (experience?.categoryId === category.id) experience.categoryName = category.name
         })
+      })
+      // El admin renombró o borró un interés: las experiencias lo guardan por nombre (igual que el back, que ya lo cambió)
+      .addCase(updateInterest.fulfilled, (state, action) => {
+        const { previousName, name } = action.payload
+        allCopies(state).forEach((experience) => {
+          if (experience) experience.tags = experience.tags.map((tag) => (tag === previousName ? name : tag))
+        })
+      })
+      .addCase(deleteInterest.fulfilled, (state, action) => {
+        allCopies(state).forEach((experience) => {
+          if (experience) experience.tags = experience.tags.filter((tag) => tag !== action.payload.name)
+        })
+        state.searches = {}
       })
       .addCase(createReview.fulfilled, (state, action) => applyReview(state, action.payload, 1))
       .addCase(deleteReview.fulfilled, (state, action) => applyReview(state, action.payload, -1))

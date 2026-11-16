@@ -96,3 +96,10 @@ export function formatTimeRange(startIso, endIso) {
 export function normalizeText(text = '') {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }
+
+/** "nacho@gmail.com" → "na•••@gmail.com" (para decir a dónde mandamos un código). Si es un usuario, devuelve null. */
+export function maskEmail(identifier = '') {
+  const [name, domain] = identifier.trim().split('@')
+  if (!domain) return null
+  return `${name.slice(0, 2)}•••@${domain}`
+}

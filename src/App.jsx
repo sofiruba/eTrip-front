@@ -18,6 +18,7 @@ import { isTokenExpired } from './redux/api'
 import { fetchMe, logout } from './redux/authSlice'
 import { fetchCart } from './redux/cartSlice'
 import { fetchCategories } from './redux/categoriesSlice'
+import { fetchInterests } from './redux/interestsSlice'
 import { fetchExperiences } from './redux/experiencesSlice'
 import { fetchFavorites } from './redux/favoritesSlice'
 import { fetchNotifications } from './redux/notificationsSlice'
@@ -52,6 +53,7 @@ function App() {
     dispatch(fetchExperiences())
     dispatch(fetchSessions())
     dispatch(fetchCategories())
+    dispatch(fetchInterests())
   }, [dispatch])
 
   // Sesión guardada: si el token venció se cierra; si no, traemos los datos actualizados del usuario (rol, contadores)
@@ -98,6 +100,7 @@ function App() {
             <Route path="guardados" element={<SavedPage />} />
             <Route path="perfil" element={<ProfilePage />} />
             <Route path="anfitrion/:tab?" element={lazyPage(HostPage)} />
+            <Route path="anfitrion/:tab/:experienceId" element={lazyPage(HostPage)} />
             {/* Misma página para crear y editar: RemountOnParam la monta de nuevo al pasar de una a otra */}
             <Route path="anfitrion/experiencias/nueva" element={lazyElement(<RemountOnParam page={ExperienceEditorPage} />)} />
             <Route path="anfitrion/experiencias/:id/editar" element={lazyElement(<RemountOnParam page={ExperienceEditorPage} />)} />

@@ -3,7 +3,7 @@ import { api, listOf } from './api'
 import { logout, sessionExpired } from './authSlice'
 import { deleteExperience } from './experiencesSlice'
 import { replaceById } from './helpers'
-import { cancelOrder, createOrder } from './ordersSlice'
+import { cancelGift, cancelOrder, createOrder, updateGiftEmail } from './ordersSlice'
 import { cancelSession, removeSession } from './sessionsSlice'
 
 /** Reservas (vouchers). Cada compra genera una reserva por fecha. */
@@ -120,6 +120,13 @@ const bookingsSlice = createSlice({
       // El admin canceló una orden: sus reservas vienen actualizadas adentro de la orden
       .addCase(cancelOrder.fulfilled, (state, action) => {
         action.payload.order.bookings.forEach((booking) => replaceEverywhere(state, booking))
+      })
+      // Regalo pendiente corregido o cancelado: las reservas vienen actualizadas adentro de la orden
+      .addCase(updateGiftEmail.fulfilled, (state, action) => {
+        action.payload.bookings.forEach((booking) => replaceEverywhere(state, booking))
+      })
+      .addCase(cancelGift.fulfilled, (state, action) => {
+        action.payload.bookings.forEach((booking) => replaceEverywhere(state, booking))
       })
       // Fecha cancelada: el back reembolsa todas sus reservas
       .addCase(cancelSession.fulfilled, (state, action) => {

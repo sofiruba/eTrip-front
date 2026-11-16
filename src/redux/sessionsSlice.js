@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { api, listOf } from './api'
 import { logout, sessionExpired } from './authSlice'
 import { refundBooking } from './bookingsSlice'
-import { deleteExperience } from './experiencesSlice'
+import { createExperience, deleteExperience, updateExperience, updateExperienceStatus } from './experiencesSlice'
 import { removeById, replaceById } from './helpers'
 import { cancelOrder, createOrder } from './ordersSlice'
 import { joinWaitlist, leaveWaitlist } from './waitlistSlice'
@@ -27,6 +27,13 @@ export const fetchSessions = createAsyncThunk('sessions/fetchSessions', async ()
 export const fetchManagedSessions = createAsyncThunk('sessions/fetchManagedSessions', async () => {
   const { data } = await api.get(`${URL}/manage`)
   return listOf(data)
+})
+
+// "Fechas y huéspedes" del anfitrión: un resumen por experiencia que calcula el back
+// (fechas próximas, pasadas y canceladas, lugares reservados, ocupación y lista de espera)
+export const fetchHostAgenda = createAsyncThunk('sessions/fetchHostAgenda', async () => {
+  const { data } = await api.get(`${URL}/manage/summary`)
+  return data
 })
 
 // ---------- POST / PUT / DELETE ----------
@@ -66,6 +73,13 @@ const initialState = {
   error: null,
   // Modo anfitrión / panel de admin
   managed: { items: [], loading: false, loaded: false, error: null },
+  // Resumen por experiencia del anfitrión (lo calcula el back)
+  agenda: { items: [], loading: false, loaded: false, error: null },
+}
+
+// Cambió algo que el resumen del anfitrión cuenta: la próxima vez que se muestre se vuelve a pedir al back
+function agendaOutdated(state) {
+  state.agenda.loaded = false
 }
 
 const isUpcoming = (session) => session.active && new Date(session.startsAt) > new Date()
@@ -127,16 +141,33 @@ const sessionsSlice = createSlice({
         state.managed.error = action.error.message
       })
 
+      // GET resumen del anfitrión
+      .addCase(fetchHostAgenda.pending, (state) => {
+        state.agenda.loading = true
+        state.agenda.error = null
+      })
+      .addCase(fetchHostAgenda.fulfilled, (state, action) => {
+        state.agenda.loading = false
+        state.agenda.loaded = true
+        state.agenda.items = action.payload
+      })
+      .addCase(fetchHostAgenda.rejected, (state, action) => {
+        state.agenda.loading = false
+        state.agenda.error = action.error.message
+      })
+
       // POST: la fecha nueva va al calendario y, como es futura, también a las públicas
       .addCase(createSession.fulfilled, (state, action) => {
         state.managed.items.push(action.payload)
         if (isUpcoming(action.payload)) state.items.push(action.payload)
+        agendaOutdated(state)
       })
 
       // PUT: findIndex + reemplazo en las dos listas
       .addCase(updateSession.fulfilled, (state, action) => {
         replaceById(state.managed.items, action.payload)
         replaceById(state.items, action.payload)
+        agendaOutdated(state)
       })
 
       // Cancelada: queda en el historial del calendario (con sus lugares liberados) y sale de las públicas
@@ -145,22 +176,27 @@ const sessionsSlice = createSlice({
         const session = state.managed.items.find((entry) => entry.id === id)
         if (session) Object.assign(session, { active: false, editable: false, status: 'CANCELLED', availableSeats: capacity })
         removeById(state.items, id)
+        agendaOutdated(state)
       })
       .addCase(removeSession.fulfilled, (state, action) => {
         removeById(state.managed.items, action.payload)
         removeById(state.items, action.payload)
+        agendaOutdated(state)
       })
 
       // Compra: cada reserva de la orden descuenta sus lugares
       .addCase(createOrder.fulfilled, (state, action) => {
         action.payload.bookings.forEach((booking) => changeSeats(state, booking.experienceSessionId, -booking.quantity))
+        agendaOutdated(state)
       })
       // Reembolso de una reserva o cancelación de una orden: los lugares vuelven a estar disponibles
       .addCase(refundBooking.fulfilled, (state, action) => {
         changeSeats(state, action.payload.experienceSessionId, action.payload.quantity)
+        agendaOutdated(state)
       })
       .addCase(cancelOrder.fulfilled, (state, action) => {
         action.payload.released.forEach((booking) => changeSeats(state, booking.experienceSessionId, booking.quantity))
+        agendaOutdated(state)
       })
 
       // Lista de espera: el contador de cada fecha ("3 en lista de espera" en el calendario)
@@ -172,14 +208,21 @@ const sessionsSlice = createSlice({
         const { id } = action.payload
         state.items = state.items.filter((session) => session.experienceId !== id)
         state.managed.items = state.managed.items.filter((session) => session.experienceId !== id)
+        agendaOutdated(state)
       })
+      // Experiencia nueva, renombrada o pausada: también cambia el resumen
+      .addCase(createExperience.fulfilled, agendaOutdated)
+      .addCase(updateExperience.fulfilled, agendaOutdated)
+      .addCase(updateExperienceStatus.fulfilled, agendaOutdated)
 
       // Al cerrar sesión, el calendario de esa cuenta vuelve al estado inicial
       .addCase(logout, (state) => {
         state.managed = initialState.managed
+        state.agenda = initialState.agenda
       })
       .addCase(sessionExpired, (state) => {
         state.managed = initialState.managed
+        state.agenda = initialState.agenda
       })
   },
 })

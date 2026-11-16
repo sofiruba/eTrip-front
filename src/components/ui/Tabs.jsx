@@ -3,12 +3,13 @@ import './Tabs.css'
 
 /**
  * Pestañas. Cada item puede navegar (`to`) o avisar con onChange(id).
+ * Con `to`, la pestaña queda marcada solo en esa ruta exacta; `end: false` la marca también en sus subrutas.
  * orientation="vertical" se usa como sidebar en los paneles.
  */
 function Tabs({ items, value, onChange, orientation = 'horizontal', label }) {
   return (
     <nav className={`tabs tabs--${orientation}`} aria-label={label}>
-      {items.map(({ id, label: itemLabel, icon: Icon, count, to }) => {
+      {items.map(({ id, label: itemLabel, icon: Icon, count, to, end = true }) => {
         const content = (
           <>
             {Icon && <Icon size={18} aria-hidden />}
@@ -17,7 +18,7 @@ function Tabs({ items, value, onChange, orientation = 'horizontal', label }) {
           </>
         )
         return to ? (
-          <NavLink key={id} to={to} end className={({ isActive }) => `tabs__item ${isActive ? 'is-active' : ''}`}>
+          <NavLink key={id} to={to} end={end} className={({ isActive }) => `tabs__item ${isActive ? 'is-active' : ''}`}>
             {content}
           </NavLink>
         ) : (

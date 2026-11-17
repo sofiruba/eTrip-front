@@ -8,7 +8,7 @@ import HostCalendar from '../host/HostCalendar'
 import ErrorState from '../ui/ErrorState'
 import Loading from '../ui/Loading'
 
-/** Gestión global de fechas: el mismo calendario del anfitrión, con todas las experiencias. */
+/** Gestión global de fechas: todas las fechas de todas las experiencias. */
 function SessionsAdmin() {
   const dispatch = useDispatch()
   // Como admin, "managed" son todas las experiencias y todas las fechas del sitio (también las pasadas y las canceladas)

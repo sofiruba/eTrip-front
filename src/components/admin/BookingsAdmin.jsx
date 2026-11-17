@@ -84,7 +84,7 @@ function BookingsAdmin() {
             header: '',
             align: 'right',
             render: (booking) =>
-              !booking.isPast && !booking.refunded ? (
+              booking.refundable ? (
                 <Button size="sm" variant="danger" onClick={() => setRefunding(booking)}>
                   Reembolsar
                 </Button>
@@ -96,13 +96,11 @@ function BookingsAdmin() {
       {refunding && (
         <ConfirmDialog
           title="¿Reembolsar reserva?"
-          message={`Se anula el voucher ${refunding.voucherCode} de ${refunding.buyerName} y se liberan los lugares. Como administrador podés reembolsar aunque falten menos de 48 h.`}
+          message={`Se anula el voucher ${refunding.voucherCode} de ${refunding.buyerName}, se le devuelve el dinero y se liberan los lugares.`}
           confirmLabel="Reembolsar"
-          // Los reducers actualizan la reserva, su orden y los lugares de la fecha (el catálogo se entera solo)
           onConfirm={() =>
             dispatch(refundBooking(refunding.id))
               .then((action) => {
-                // rejected: el back respondió con un error (action.error.message, como en el reducer)
                 if (action.error) {
                   return dispatch(showToast({ message: action.error.message, tone: 'error' }))
                 }

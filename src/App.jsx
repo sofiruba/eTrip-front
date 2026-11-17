@@ -18,6 +18,7 @@ import { isTokenExpired } from './redux/api'
 import { fetchMe, logout } from './redux/authSlice'
 import { fetchCart } from './redux/cartSlice'
 import { fetchCategories } from './redux/categoriesSlice'
+import { fetchCurrencies } from './redux/currenciesSlice'
 import { fetchInterests } from './redux/interestsSlice'
 import { fetchExperiences } from './redux/experiencesSlice'
 import { fetchFavorites } from './redux/favoritesSlice'
@@ -54,13 +55,19 @@ function App() {
     dispatch(fetchSessions())
     dispatch(fetchCategories())
     dispatch(fetchInterests())
+    dispatch(fetchCurrencies())
   }, [dispatch])
 
   // Sesión guardada: si el token venció se cierra; si no, traemos los datos actualizados del usuario (rol, contadores)
   useEffect(() => {
     if (!savedToken) return
     if (isTokenExpired(savedToken)) dispatch(logout())
-    else dispatch(fetchMe())
+    // 4xx = el token ya no sirve o la cuenta se desactivó: logout limpia todo lo de esa cuenta (carrito, avisos…).
+    // Si el back no respondió, la sesión queda como estaba
+    else
+      dispatch(fetchMe()).then((action) => {
+        if (action.error?.code?.startsWith('4')) dispatch(logout())
+      })
   }, [savedToken, dispatch])
 
   // Carrito, guardados, lista de espera y avisos: se piden cuando hay un usuario (por eso userId va en las
@@ -80,7 +87,7 @@ function App() {
       <Route element={<AppLayout />}>
         {/* Públicas */}
         <Route index element={<HomePage />} />
-        <Route path="experiencias/:id" element={<ExperiencePage />} />
+        <Route path="experiencias/:id" element={<RemountOnParam page={ExperiencePage} />} />
         <Route path="anfitriones/:id" element={<RemountOnParam page={HostProfilePage} />} />
         <Route path="nosotros" element={<AboutPage />} />
         <Route path="ayuda" element={<HelpPage />} />

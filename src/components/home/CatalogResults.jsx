@@ -1,4 +1,5 @@
 import { SearchX, ServerCrash } from 'lucide-react'
+import { useSelector } from 'react-redux'
 import ExperienceCard from '../experience/ExperienceCard'
 import Button from '../ui/Button'
 import EmptyState from '../ui/EmptyState'
@@ -10,6 +11,7 @@ import './CatalogResults.css'
  * `visible` son las que se muestran ahora; `total`, cuántas encontró la búsqueda.
  */
 function CatalogResults({ loading, error, onRetry, visible, total, location, placeIsEmpty, cardLink, onMore, onClear }) {
+  const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
   if (loading) return <Loading text="Buscando experiencias..." />
 
   if (error) {
@@ -28,9 +30,9 @@ function CatalogResults({ loading, error, onRetry, visible, total, location, pla
       <EmptyState
         icon={SearchX}
         title={`Todavía no hay planes en ${location}`}
-        text="Estamos empezando por Buenos Aires. ¿Sos de ahí? Podés publicar la primera experiencia."
+        text={isAdmin ? 'Probá con otra ciudad o mirá todo el catálogo.' : '¿Sos de ahí? Podés publicar la primera experiencia.'}
       >
-        <Button to="/anfitrion/experiencias/nueva">Publicar una experiencia</Button>
+        {!isAdmin && <Button to="/anfitrion/experiencias/nueva">Publicar una experiencia</Button>}
         <Button variant="secondary" onClick={onClear}>
           Ver todas
         </Button>

@@ -8,28 +8,25 @@ import { cancelSession } from './sessionsSlice'
 
 /** Órdenes: cada checkout genera una orden que agrupa sus reservas. */
 
-const URL = '/orders'
-
-// Igual que PLAN_COMMISSION_RATE del back: la comisión de PLAN sobre lo cobrado neto
-const COMMISSION_RATE = 0.1
+const ENDPOINT = '/orders'
 
 // ---------- GET ----------
 
 // Cliente: sus órdenes. Administrador: todas
 export const fetchOrders = createAsyncThunk('orders/fetchOrders', async () => {
-  const { data } = await api.get(URL)
+  const { data } = await api.get(ENDPOINT)
   return listOf(data)
 })
 
 // Administrador: ventas netas y comisión → { orderCount, grossSales, refunded, netSales, commission, commissionRate }
 export const fetchOrderStats = createAsyncThunk('orders/fetchOrderStats', async () => {
-  const { data } = await api.get(`${URL}/stats`)
+  const { data } = await api.get(`${ENDPOINT}/stats`)
   return data
 })
 
 // Una orden. Recién comprada ya está en el store (createOrder la guarda): la página solo la pide si se recargó
 export const fetchOrderById = createAsyncThunk('orders/fetchOrderById', async (id) => {
-  const { data } = await api.get(`${URL}/${id}`)
+  const { data } = await api.get(`${ENDPOINT}/${id}`)
   return data
 })
 
@@ -39,14 +36,14 @@ export const fetchOrderById = createAsyncThunk('orders/fetchOrderById', async (i
 // payment = { couponCode, paymentMethod, cardNumber, expectedTotal, gift: { recipientName, recipientEmail, message } | null }
 // El back valida el stock de cada fecha, lo descuenta, crea las reservas y vacía el carrito
 export const createOrder = createAsyncThunk('orders/createOrder', async (payment) => {
-  const { data } = await api.post(URL, payment)
+  const { data } = await api.post(ENDPOINT, payment)
   return data
 })
 
 // POST /orders/{id}/cancel (admin): reembolsa las reservas que todavía no empezaron.
 // Recibe la orden como estaba antes, para saber qué reservas se reembolsaron recién (sus lugares vuelven a estar libres)
 export const cancelOrder = createAsyncThunk('orders/cancelOrder', async (order) => {
-  const { data } = await api.post(`${URL}/${order.id}/cancel`)
+  const { data } = await api.post(`${ENDPOINT}/${order.id}/cancel`)
   const wasRefunded = (bookingId) => order.bookings.some((booking) => booking.id === bookingId && booking.refunded)
   const released = data.bookings.filter((booking) => booking.refunded && !wasRefunded(booking.id))
   return { order: data, released }
@@ -56,13 +53,13 @@ export const cancelOrder = createAsyncThunk('orders/cancelOrder', async (order) 
 // PATCH /orders/{id}/gift: quien pagó corrige el email; el back vuelve a mandar la invitación y, si el email nuevo
 // es de una cuenta verificada, se lo entrega en el momento. Devuelve la orden actualizada
 export const updateGiftEmail = createAsyncThunk('orders/updateGiftEmail', async ({ orderId, recipientEmail }) => {
-  const { data } = await api.patch(`${URL}/${orderId}/gift`, { recipientEmail })
+  const { data } = await api.patch(`${ENDPOINT}/${orderId}/gift`, { recipientEmail })
   return data
 })
 
 // DELETE /orders/{id}/gift: quien pagó se queda el regalo (pasa a ser una compra común). Devuelve la orden actualizada
 export const cancelGift = createAsyncThunk('orders/cancelGift', async (orderId) => {
-  const { data } = await api.delete(`${URL}/${orderId}/gift`)
+  const { data } = await api.delete(`${ENDPOINT}/${orderId}/gift`)
   return data
 })
 
@@ -77,29 +74,16 @@ const initialState = {
   details: {}, // { [id]: { item, loading, error, notFound } }
 }
 
-const allOrders = (state) => [
-  ...state.items,
-  ...Object.values(state.details)
-    .map((detail) => detail.item)
-    .filter(Boolean),
-]
-
-/**
- * Una reserva de la orden se reembolsó: la reemplazamos y recalculamos lo mismo que calcula el back
- * (monto reembolsado, comisión sobre lo neto y estado: PAID / PARTIALLY_REFUNDED / CANCELLED).
- */
-function refundInOrder(order, refunded) {
-  const index = order.bookings.findIndex((booking) => booking.id === refunded.id)
-  if (index === -1 || order.bookings[index].refunded) return
-  const previous = order.bookings[index]
-  order.bookings[index] = refunded
-  order.refunded = Number(order.refunded ?? 0) + Number(previous.paidAmount ?? 0)
-  order.commission = Math.round((Number(order.total) - order.refunded) * COMMISSION_RATE * 100) / 100
-  const refundedCount = order.bookings.filter((booking) => booking.refunded).length
-  order.status = refundedCount === order.bookings.length ? 'CANCELLED' : 'PARTIALLY_REFUNDED'
+// Se reembolsaron reservas: lo devuelto, la comisión y el estado de sus órdenes los calcula el back.
+// Se descartan las órdenes guardadas y la pantalla que las muestre las vuelve a pedir
+function ordersChanged(state) {
+  state.items = []
+  state.loaded = false
+  state.details = {}
+  state.stats.loaded = false
 }
 
-// Reemplaza una orden en la lista y en su detalle (findIndex + reemplazo, como el PUT de clase)
+// Reemplaza una orden en la lista y en su detalle
 function replaceOrder(state, order) {
   replaceById(state.items, order)
   if (state.details[order.id]) state.details[order.id].item = order
@@ -166,29 +150,10 @@ const ordersSlice = createSlice({
       // Regalo: el back devuelve la orden con el email nuevo o ya sin regalo
       .addCase(updateGiftEmail.fulfilled, (state, action) => replaceOrder(state, action.payload))
       .addCase(cancelGift.fulfilled, (state, action) => replaceOrder(state, action.payload))
-      // Reembolso de una reserva: actualizamos la orden que la contiene
-      .addCase(refundBooking.fulfilled, (state, action) => {
-        allOrders(state).forEach((order) => refundInOrder(order, action.payload))
-        state.stats.loaded = false
-      })
-      // Fecha cancelada: el back reembolsa todas sus reservas
-      .addCase(cancelSession.fulfilled, (state, action) => {
-        allOrders(state).forEach((order) =>
-          order.bookings
-            .filter((booking) => booking.experienceSessionId === action.payload.id && !booking.refunded)
-            .forEach((booking) => refundInOrder(order, { ...booking, refunded: true, status: 'REFUNDED', paidAmount: 0 })),
-        )
-        state.stats.loaded = false
-      })
-      // Experiencia dada de baja: el back reembolsa las reservas de sus fechas futuras
-      .addCase(deleteExperience.fulfilled, (state, action) => {
-        allOrders(state).forEach((order) =>
-          order.bookings
-            .filter((booking) => booking.experienceId === action.payload.id && !booking.refunded && new Date(booking.startsAt) > new Date())
-            .forEach((booking) => refundInOrder(order, { ...booking, refunded: true, status: 'REFUNDED', paidAmount: 0 })),
-        )
-        state.stats.loaded = false
-      })
+      // Reembolsos (de una reserva, de una fecha cancelada o de una experiencia dada de baja)
+      .addCase(refundBooking.fulfilled, ordersChanged)
+      .addCase(cancelSession.fulfilled, ordersChanged)
+      .addCase(deleteExperience.fulfilled, ordersChanged)
 
       // Al cerrar sesión vuelve al estado inicial
       .addCase(logout, () => initialState)

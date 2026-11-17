@@ -1,9 +1,9 @@
-import { isPast } from './format'
-
-/** Estado visible de un cupón en el panel. */
-export function getCouponStatus(coupon) {
-  if (!coupon.active) return { label: 'Inactivo', tone: 'neutral' }
-  if (isPast(coupon.validUntil)) return { label: 'Vencido', tone: 'danger' }
-  if (!isPast(coupon.validFrom)) return { label: 'Programado', tone: 'warning' }
-  return { label: 'Activo', tone: 'success' }
+// El estado de cada cupón lo calcula el back (status): acá solo se elige el texto y el color
+const COUPON_STATUS = {
+  ACTIVE: { label: 'Activo', tone: 'success' },
+  NOT_YET_VALID: { label: 'Programado', tone: 'warning' },
+  EXPIRED: { label: 'Vencido', tone: 'danger' },
+  INACTIVE: { label: 'Inactivo', tone: 'neutral' },
 }
+
+export const getCouponStatus = (coupon) => COUPON_STATUS[coupon.status] ?? COUPON_STATUS.INACTIVE

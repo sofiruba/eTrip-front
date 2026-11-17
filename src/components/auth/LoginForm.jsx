@@ -20,10 +20,8 @@ function LoginForm({ identifier, onIdentifierChange, onForgot, onRegister, onVer
     if (!identifier.trim()) return setError('Ingresá tu email o nombre de usuario.')
 
     setSending(true)
-    // El reducer guarda el token y el usuario en el estado global. dispatch devuelve la acción final: fulfilled o rejected
     return dispatch(login({ usernameOrEmail: identifier.trim(), password }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           setSending(false)
           // 403: la contraseña es correcta pero el email no está verificado. El back ya mandó un código

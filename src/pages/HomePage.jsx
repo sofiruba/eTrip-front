@@ -15,9 +15,8 @@ import SectionHeader from '../components/ui/SectionHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { fetchBookings } from '../redux/bookingsSlice'
 import { fetchCategories } from '../redux/categoriesSlice'
-import { fetchExperiences, searchExperiences } from '../redux/experiencesSlice'
+import { fetchExperiences, fetchRecommendations, searchExperiences } from '../redux/experiencesSlice'
 import { isMissing } from '../redux/helpers'
-import { fetchRecommendations } from '../redux/recommendationsSlice'
 import { fetchSessions } from '../redux/sessionsSlice'
 import { addBookingInfo, splitBookings } from '../utils/bookings'
 import { applyFilters, PAGE_SIZE, readFilters, toBackQuery } from '../utils/catalogFilters'
@@ -30,7 +29,6 @@ const MAX_DEALS = 4
 /** Inicio: buscador, próximos planes, "Para vos", catálogo con filtros (guardados en la URL), vistos recientemente y ofertas. */
 function HomePage() {
   const dispatch = useDispatch()
-  // useSelector: el Home se suscribe a las partes del estado global que muestra.
   // El catálogo ya está en el store (se pidió una sola vez al abrir la app, en App.jsx)
   const catalog = useSelector((state) => state.experiences)
   const sessionsState = useSelector((state) => state.sessions)
@@ -45,7 +43,7 @@ function HomePage() {
   const isAdmin = useSelector((state) => state.auth.user?.role === 'ADMIN')
   const { items: myBookings, loaded: bookingsLoaded } = useSelector((state) => state.bookings)
   const recentIds = useSelector((state) => state.recentlyViewed.ids)
-  const recommendations = useSelector((state) => state.recommendations)
+  const recommendations = useSelector((state) => state.experiences.recommended)
   const [params, setParams] = useSearchParams()
   const resultsRef = useRef(null)
   useDocumentTitle(null)
@@ -68,7 +66,7 @@ function HomePage() {
   }, [userId, isAdmin, bookingsLoaded, dispatch])
 
   // "Para vos": las recomendaciones las calcula el back. Se piden una vez y otra vez solo si algo las cambió
-  // (guardar, quitar, cambiar intereses o comprar: el slice escucha esas acciones y marca loaded = false).
+  // (guardar, quitar, cambiar intereses o comprar: experiencesSlice escucha esas acciones y marca loaded = false).
   // Los "vistos recientemente" viven en este navegador, por eso se los mandamos
   useEffect(() => {
     if (userId && !isAdmin && isMissing(recommendations)) dispatch(fetchRecommendations(recentIds))

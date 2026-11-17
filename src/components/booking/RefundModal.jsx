@@ -3,33 +3,32 @@ import { useDispatch } from 'react-redux'
 import { refundBooking } from '../../redux/bookingsSlice'
 import { showToast } from '../../redux/toastsSlice'
 import { formatMoney, formatSessionDate } from '../../utils/format'
-import { getRefundAmount } from '../../utils/orders'
 import Button from '../ui/Button'
 import Modal from '../ui/Modal'
 import Notice from '../ui/Notice'
 
 /**
- * Pide el reembolso al back (POST /bookings/{id}/refund). Con la reserva que devuelve, los reducers actualizan
- * la reserva, la orden y los lugares de la fecha (que vuelven a estar disponibles) sin volver a pedir nada.
- * El back vuelve a chequear la política de 48 h: si ya pasó el plazo, se muestra su mensaje.
+ * Cancela la reserva con reembolso (POST /bookings/{id}/refund). El back controla el plazo y quién puede hacerlo;
+ * si algo no se cumple, se muestra su mensaje. La plata vuelve siempre a quien pagó.
  */
-function RefundModal({ booking, order, onClose }) {
+function RefundModal({ booking, onClose }) {
   const dispatch = useDispatch()
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
+  // Un regalo que me entregaron: lo puedo cancelar, pero la plata vuelve a quien lo pagó
+  const giftReceived = booking.giftStatus === 'DELIVERED' && booking.recipientId !== booking.buyerId
 
   const handleSubmit = (event) => {
     event.preventDefault()
     setSending(true)
     return dispatch(refundBooking(booking.id))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           setError(action.error.message)
           setSending(false)
           return
         }
-        dispatch(showToast({ message: 'Reembolso confirmado. Te devolvemos el dinero en 5 a 10 días hábiles.' }))
+        dispatch(showToast({ message: giftReceived ? 'Cancelaste el regalo: le devolvimos el dinero a quien lo pagó.' : 'Reembolso confirmado. Te devolvemos el dinero en 5 a 10 días hábiles.' }))
         onClose()
       })
   }
@@ -52,7 +51,9 @@ function RefundModal({ booking, order, onClose }) {
     >
       <form id="refund-form" className="stack" onSubmit={handleSubmit}>
         <p>
-          Vas a recibir {formatMoney(getRefundAmount(booking, order))} y tu voucher {booking.voucherCode} quedará anulado.
+          {giftReceived
+            ? `${booking.giftFromName} va a recibir el reembolso de ${formatMoney(booking.paidAmount)} y el voucher ${booking.voucherCode} quedará anulado.`
+            : `Vas a recibir ${formatMoney(booking.paidAmount)} y tu voucher ${booking.voucherCode} quedará anulado.`}{' '}
           Los lugares vuelven a estar disponibles para otras personas.
         </p>
         {error && <Notice tone="danger">{error}</Notice>}

@@ -7,18 +7,17 @@ import { createOrder } from './ordersSlice'
 import { createReview, deleteReview } from './reviewsSlice'
 
 /**
- * Sesión del usuario. El token vive en el estado global (antes lo pasábamos por todos lados):
- * axios lo lee de acá en cada pedido (ver api.js) y redux-persist lo guarda para que la sesión
- * siga abierta al recargar la página (ver store.js).
+ * Sesión del usuario. El token vive en el estado global: axios lo lee de acá en cada pedido (ver api.js)
+ * y redux-persist lo guarda para que la sesión siga abierta al recargar la página (ver store.js).
  */
 
-const URL = '/api/v1/auth'
+const ENDPOINT = '/api/v1/auth'
 
 // ---------- Acciones asíncronas ----------
 
 // POST /api/v1/auth/authenticate → { access_token }. Con ese token pedimos quién es el usuario (GET /users/me)
 export const login = createAsyncThunk('auth/login', async ({ usernameOrEmail, password }) => {
-  const { data } = await api.post(`${URL}/authenticate`, { usernameOrEmail, password })
+  const { data } = await api.post(`${ENDPOINT}/authenticate`, { usernameOrEmail, password })
   const { data: user } = await api.get('/users/me', withToken(data.access_token))
   return { token: data.access_token, user: toUser(user) }
 })
@@ -27,41 +26,41 @@ export const login = createAsyncThunk('auth/login', async ({ usernameOrEmail, pa
 // queda sin verificar hasta que se ingrese (verifyEmail). Los intereses se guardan en el back (el Home los usa en "Para vos")
 export const register = createAsyncThunk('auth/register', async ({ account, interests }) => {
   const { username, firstname, lastname, email, password } = account
-  const { data } = await api.post(`${URL}/register`, { username, firstname, lastname, email, password, interests })
+  const { data } = await api.post(`${ENDPOINT}/register`, { username, firstname, lastname, email, password, interests })
   return data
 })
 
 // POST /api/v1/auth/verify-email → { access_token }: confirma el email con el código y deja la sesión iniciada
 export const verifyEmail = createAsyncThunk('auth/verifyEmail', async ({ usernameOrEmail, code }) => {
-  const { data } = await api.post(`${URL}/verify-email`, { usernameOrEmail, code })
+  const { data } = await api.post(`${ENDPOINT}/verify-email`, { usernameOrEmail, code })
   const { data: user } = await api.get('/users/me', withToken(data.access_token))
   return { token: data.access_token, user: toUser(user) }
 })
 
 // POST /api/v1/auth/resend-verification → 204: manda otro código de verificación
 export const resendVerification = createAsyncThunk('auth/resendVerification', async (usernameOrEmail) => {
-  await api.post(`${URL}/resend-verification`, { usernameOrEmail })
+  await api.post(`${ENDPOINT}/resend-verification`, { usernameOrEmail })
 })
 
 // GET /api/v1/auth/availability → { usernameAvailable, emailAvailable }. Solo lo usa el formulario de registro
 export const checkAvailability = createAsyncThunk('auth/checkAvailability', async ({ username, email }) => {
-  const { data } = await api.get(`${URL}/availability`, { params: { username: username || undefined, email: email || undefined } })
+  const { data } = await api.get(`${ENDPOINT}/availability`, { params: { username: username || undefined, email: email || undefined } })
   return data
 })
 
 // POST /api/v1/auth/forgot-password → 204: el back le manda el código al email de la cuenta
 export const requestPasswordReset = createAsyncThunk('auth/requestPasswordReset', async (usernameOrEmail) => {
-  await api.post(`${URL}/forgot-password`, { usernameOrEmail })
+  await api.post(`${ENDPOINT}/forgot-password`, { usernameOrEmail })
 })
 
 // POST /api/v1/auth/verify-reset-code → 204 si el código es válido
 export const verifyResetCode = createAsyncThunk('auth/verifyResetCode', async ({ usernameOrEmail, code }) => {
-  await api.post(`${URL}/verify-reset-code`, { usernameOrEmail, code })
+  await api.post(`${ENDPOINT}/verify-reset-code`, { usernameOrEmail, code })
 })
 
 // POST /api/v1/auth/reset-password → { access_token }: cambia la contraseña y deja la sesión iniciada
 export const resetPassword = createAsyncThunk('auth/resetPassword', async ({ usernameOrEmail, code, newPassword }) => {
-  const { data } = await api.post(`${URL}/reset-password`, { usernameOrEmail, code, newPassword })
+  const { data } = await api.post(`${ENDPOINT}/reset-password`, { usernameOrEmail, code, newPassword })
   const { data: user } = await api.get('/users/me', withToken(data.access_token))
   return { token: data.access_token, user: toUser(user) }
 })
@@ -83,7 +82,7 @@ export const updateMe = createAsyncThunk('auth/updateMe', async (changes) => {
 
 const initialState = {
   token: null,
-  // El usuario que devuelve el back (con bio, ciudad, intereses y foto, que desde la 3ra entrega se guardan en el back)
+  // El usuario que devuelve el back (con bio, ciudad, intereses y foto)
   user: null,
   // Modal de login / registro / recuperar contraseña: qué vista está abierta (null = cerrado) y a dónde ir después
   authModal: { mode: null, redirect: null },
@@ -135,10 +134,6 @@ const authSlice = createSlice({
       .addCase(fetchMe.fulfilled, (state, action) => {
         state.user = action.payload
       })
-      .addCase(fetchMe.rejected, (state, action) => {
-        // 4xx = token inválido o cuenta desactivada: se cierra la sesión. Si el back no respondió, la dejamos como estaba
-        if (action.error.code?.startsWith('4')) endSession(state)
-      })
       .addCase(updateMe.fulfilled, (state, action) => {
         state.user = action.payload
       })
@@ -154,7 +149,7 @@ const authSlice = createSlice({
       .addCase(createOrder.fulfilled, (state) => addToCounter(state, 'bookingsCount', 1))
       .addCase(createReview.fulfilled, (state) => addToCounter(state, 'reviewsCount', 1))
       .addCase(deleteReview.fulfilled, (state, action) => {
-        if (action.payload.userId === state.user?.id) addToCounter(state, 'reviewsCount', -1)
+        if (action.payload.review.userId === state.user?.id) addToCounter(state, 'reviewsCount', -1)
       })
       .addCase(createExperience.fulfilled, (state) => addToCounter(state, 'publishedExperiences', 1))
       .addCase(deleteExperience.fulfilled, (state, action) => {

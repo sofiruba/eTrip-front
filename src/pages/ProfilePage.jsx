@@ -46,7 +46,6 @@ function ProfilePage() {
   const removeReview = (review) =>
     dispatch(deleteReview(review))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return dispatch(showToast({ message: action.error.message, tone: 'error' }))
         }
@@ -66,7 +65,6 @@ function ProfilePage() {
     dispatch(updateMe({ interests: interestsDraft }))
       .then((action) => {
         setSavingInterests(false)
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return dispatch(showToast({ message: action.error.message, tone: 'error' }))
         }

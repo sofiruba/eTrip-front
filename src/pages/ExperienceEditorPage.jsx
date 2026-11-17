@@ -100,7 +100,7 @@ function ExperienceForm({ experience }) {
     if (saving) return // mientras se guarda, un segundo clic no manda otra experiencia
     setSaving(true)
     const isNew = !existing
-    // dispatch devuelve la acción final. Si es rejected (action.error), cortamos la cadena: el .catch de abajo muestra el error
+    // Si una acción vuelve rechazada, se corta la cadena y el .catch de abajo muestra el error
     const resultOf = (action) => {
       if (action.error) throw action.error
       return action.payload
@@ -124,7 +124,7 @@ function ExperienceForm({ experience }) {
           : saved
       })
       .then((saved) => {
-        dispatch(showToast({ message: isNew ? '¡Experiencia publicada! Ahora sumale fechas desde el calendario.' : 'Cambios guardados' }))
+        dispatch(showToast({ message: isNew ? '¡Experiencia publicada! Ahora sumale fechas.' : 'Cambios guardados' }))
         allowLeave()
         navigate(isNew ? `/anfitrion/fechas/${saved.id}` : backTo)
       })
@@ -143,7 +143,7 @@ function ExperienceForm({ experience }) {
         accent={existing ? 'experiencia.' : 'inolvidable.'}
         description={
           existing
-            ? 'Contá qué hace especial a tu plan y gestioná sus fechas desde el calendario.'
+            ? 'Contá qué hace especial a tu plan y gestioná sus fechas desde Fechas y huéspedes.'
             : 'Contá qué hace especial a tu plan. Al publicarlo vas a poder agregar sus fechas y horarios.'
         }
         actions={

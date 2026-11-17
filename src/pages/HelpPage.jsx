@@ -1,7 +1,6 @@
 import { Mail } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { FREE_CANCELLATION_HOURS } from '../utils/cancellation'
 import './InfoPage.css'
 
 const CONTACT_EMAIL = 'hola@plan.com'
@@ -35,7 +34,7 @@ const SECTIONS = [
     questions: [
       {
         q: '¿Puedo cancelar una reserva?',
-        a: `Sí, con reembolso total si faltan más de ${FREE_CANCELLATION_HOURS} horas para la experiencia. Lo pedís desde el detalle de la reserva. Pasado ese plazo, la reserva ya no es reembolsable.`,
+        a: `Sí, con reembolso total si faltan más de 48 horas para la experiencia. Lo pedís desde el detalle de la reserva. Pasado ese plazo, la reserva ya no es reembolsable.`,
       },
       {
         q: '¿Cuánto tarda el reembolso?',
@@ -71,7 +70,7 @@ const SECTIONS = [
       },
       {
         q: '¿Puedo eliminar una experiencia?',
-        a: 'Sí, siempre que no tenga reservas próximas. Si las tiene, primero tienen que pasar o cancelarse.',
+        a: 'Sí, desde Mis experiencias. Si tiene reservas próximas, se cancelan sus fechas, a cada persona se le devuelve el dinero y le llega un aviso. Si alguna vez se vendió, queda guardada (sin publicar) para no perder las reservas pasadas ni las reseñas. También podés pausarla para que no aparezca en el catálogo.',
       },
     ],
   },

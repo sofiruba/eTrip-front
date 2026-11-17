@@ -54,7 +54,6 @@ function AvatarUploader({ buttonRef }) {
     return dispatch(updateMe({ avatarBase64 }))
       .then((action) => {
         setSaving(false)
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return dispatch(showToast({ message: action.error.message, tone: 'error' }))
         }

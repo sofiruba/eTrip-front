@@ -15,7 +15,7 @@ export const toForm = (experience) => ({
   images: experience?.images ?? [],
 })
 
-/** Intereses (tags) por experiencia, igual que el back. */
+/** Hasta cuántos intereses puede tener una experiencia (el back valida lo mismo). */
 export const MAX_TAGS = 8
 
 /** Errores del formulario: { campo: mensaje }. Vacío si está todo bien. */
@@ -26,8 +26,7 @@ export function validate(form) {
   if (form.description.trim().length < 30) errors.description = 'Contá un poco más (mínimo 30 caracteres).'
   if (!form.city.trim()) errors.city = 'Indicá la ciudad.'
   else if (form.city.includes(',')) errors.city = 'Solo el nombre de la ciudad (sin comas).'
-  // Ciudad libre (la lista cerrada de ciudades habilitadas queda para el back en la 3ra entrega).
-  // Mismas reglas que valida el back sobre `location`: sin números.
+  // El back valida lo mismo sobre `location`; acá es para avisar antes de mandar
   else if (/\d/.test(form.city)) errors.city = 'Escribí solo el nombre de la ciudad, sin números.'
   else if (form.city.trim().length < 2 || !/\p{L}/u.test(form.city)) errors.city = 'Escribí el nombre de la ciudad.'
   if (!form.area.trim()) errors.area = 'Indicá el barrio o la zona.'

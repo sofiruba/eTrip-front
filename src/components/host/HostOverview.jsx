@@ -7,11 +7,8 @@ import './HostOverview.css'
 
 function HostOverview({ experiences, sessions, bookings }) {
   const activeBookings = bookings.filter((booking) => !booking.refunded)
-  // Lo calcula el back por reserva: lo pagado (con el cupón repartido), la comisión de PLAN y lo que te queda
-  const sumOf = (field) => activeBookings.reduce((sum, booking) => sum + Number(booking[field] ?? 0), 0)
-  const sales = sumOf('paidAmount')
-  const commission = sumOf('commission')
-  const earnings = sumOf('hostEarnings')
+  // Lo que te queda de cada reserva lo calcula el back (hostEarnings)
+  const earnings = activeBookings.reduce((sum, booking) => sum + Number(booking.hostEarnings), 0)
   const reviewCount = experiences.reduce((sum, experience) => sum + experience.reviewCount, 0)
   const rating = reviewCount
     ? experiences.reduce((sum, experience) => sum + experience.averageRating * experience.reviewCount, 0) / reviewCount
@@ -28,7 +25,7 @@ function HostOverview({ experiences, sessions, bookings }) {
           icon={Wallet}
           label="Tu ganancia"
           value={formatMoney(earnings)}
-          hint={`Ventas ${formatMoney(sales)} − comisión PLAN 10 % ${formatMoney(commission)}`}
+          hint="Ya descontada la comisión de PLAN (los descuentos de cupones los paga PLAN)"
         />
         <StatCard icon={Star} label="Calificación" value={reviewCount ? rating.toFixed(1) : '—'} hint={`${reviewCount} reseñas`} />
         <StatCard icon={Store} label="Experiencias" value={experiences.length} />
@@ -37,7 +34,7 @@ function HostOverview({ experiences, sessions, bookings }) {
       {nextSession && (
         <section className="card host-next">
           <div>
-            <span className="eyebrow">Próxima sesión</span>
+            <span className="eyebrow">Próxima fecha</span>
             <h2>{formatLongDate(nextSession.startsAt)}</h2>
             <p className="muted">
               {formatTime(nextSession.startsAt)} · {nextExperience?.title}

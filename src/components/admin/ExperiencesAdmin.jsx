@@ -34,11 +34,12 @@ const STATUS_FILTERS = [
   { value: 'baja', label: 'Dadas de baja' },
 ]
 
+// El estado lo manda el back (status); "agotada" sale de los lugares de sus fechas
 function getStatus(experience) {
   if (experience.status === 'DELETED') return { id: 'baja', label: 'Dada de baja', tone: 'danger' }
-  if (!experience.active) return { id: 'pausada', label: 'Pausada', tone: 'neutral' }
+  if (experience.status === 'INACTIVE') return { id: 'pausada', label: 'Pausada', tone: 'neutral' }
+  if (experience.status === 'NO_DATES') return { id: 'sin-fechas', label: 'Sin fechas', tone: 'warning' }
   if (isSoldOut(experience)) return { id: 'agotada', label: 'Agotada', tone: 'danger' }
-  if (!experience.upcomingCount) return { id: 'sin-fechas', label: 'Sin fechas', tone: 'warning' }
   return { id: 'disponible', label: pluralize(experience.availableSeats, 'lugar', 'lugares'), tone: 'success' }
 }
 
@@ -72,7 +73,6 @@ function ExperiencesAdmin() {
   const toggleActive = (experience) =>
     dispatch(updateExperienceStatus({ id: experience.id, active: !experience.active }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return dispatch(showToast({ message: action.error.message, tone: 'error' }))
         }
@@ -253,7 +253,6 @@ function ExperiencesAdmin() {
           onConfirm={() =>
             dispatch(deleteExperience(deleting))
               .then((action) => {
-                // rejected: el back respondió con un error (action.error.message, como en el reducer)
                 if (action.error) {
                   return dispatch(showToast({ message: action.error.message, tone: 'error' }))
                 }

@@ -48,7 +48,6 @@ function BookingPanel({ id, ref, experience, sessions }) {
     setAdding(true)
     return dispatch(addToCart({ sessionId: selected.id, quantity: amount }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return dispatch(showToast({ message: action.error.message, tone: 'error' }))
         }

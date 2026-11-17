@@ -65,7 +65,6 @@ function UsersAdmin() {
         : dispatch(updateUserStatus({ id: selected.id, active: !selected.active }))
     return request
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return dispatch(showToast({ message: action.error.message, tone: 'error' }))
         }

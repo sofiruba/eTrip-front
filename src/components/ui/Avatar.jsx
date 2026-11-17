@@ -4,7 +4,7 @@ import './Avatar.css'
 
 /**
  * Foto de perfil, o las iniciales si no hay foto (o no carga).
- * src: URL o data URL (hoy la foto de perfil se guarda solo en este navegador; el back no tiene foto de usuario).
+ * src: URL o data URL (la foto de perfil la guarda el back).
  * size: sm | md | lg | xl
  */
 function Avatar({ name, src, size = 'md' }) {

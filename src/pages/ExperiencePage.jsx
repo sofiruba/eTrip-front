@@ -29,16 +29,10 @@ import { getCity } from '../utils/location'
 import NotFoundPage from './NotFoundPage'
 import './ExperiencePage.css'
 
-/**
- * Al pasar de una experiencia a otra (por ejemplo, desde "También te puede gustar") cambia el id:
- * con key={id} React monta la página de nuevo.
- */
-function ExperienceRoute() {
+// En App.jsx va dentro de RemountOnParam: al pasar de una experiencia a otra (por ejemplo, desde
+// "También te puede gustar") la página se monta de nuevo
+function ExperiencePage() {
   const { id } = useParams()
-  return <ExperiencePage key={id} id={id} />
-}
-
-function ExperiencePage({ id }) {
   const dispatch = useDispatch()
   const user = useSelector((state) => state.auth.user)
   const catalogItems = useSelector((state) => state.experiences.items) // para "También te puede gustar" y la insignia del anfitrión
@@ -110,7 +104,6 @@ function ExperiencePage({ id }) {
   const replyReview = (review, text) =>
     dispatch(replyToReview({ id: review.id, reply: text }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           dispatch(showToast({ message: action.error.message, tone: 'error' }))
           throw action.error // ReviewCard deja el borrador abierto
@@ -186,4 +179,4 @@ function ExperiencePage({ id }) {
   )
 }
 
-export default ExperienceRoute
+export default ExperiencePage

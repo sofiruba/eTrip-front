@@ -25,7 +25,6 @@ function InterestFormModal({ interest, categories, onClose }) {
       ? dispatch(updateInterest({ id: interest.id, previousName: interest.name, ...data }))
       : dispatch(createInterest(data))
     return request.then((action) => {
-      // rejected: el back respondió con un error (action.error.message, como en el reducer)
       if (action.error) {
         setError(action.error.message)
         setSending(false)

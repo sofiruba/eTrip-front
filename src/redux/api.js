@@ -1,8 +1,7 @@
 import axios from 'axios'
 
 /**
- * Cliente HTTP con axios: lo usan TODAS las acciones asíncronas (createAsyncThunk) de los slices.
- * Igual que en clase: `const { data } = await api.get(URL)` y la acción devuelve `data`.
+ * Cliente HTTP con axios: lo usan todas las acciones asíncronas (createAsyncThunk) de los slices.
  *
  * Una sola instancia para todo el front, así no repetimos en cada slice:
  *  - la URL base del back,
@@ -10,8 +9,8 @@ import axios from 'axios'
  *  - el mensaje de error que manda el back ({ message }).
  */
 
-// URL base del back. En desarrollo es localhost; al desplegar (Vercel) se define VITE_API_URL (ver .env.example).
-export const API_URL = import.meta.env?.VITE_API_URL ?? 'http://localhost:4002'
+// URL base del back: localhost, o la que se defina en VITE_API_URL (ver .env.example).
+const API_URL = import.meta.env?.VITE_API_URL ?? 'http://localhost:4002'
 
 export const api = axios.create({ baseURL: API_URL })
 

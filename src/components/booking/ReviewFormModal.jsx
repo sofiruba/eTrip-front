@@ -26,7 +26,6 @@ function ReviewFormModal({ experienceId, experienceTitle, onClose }) {
     setSending(true)
     return dispatch(createReview({ experienceId, rating, comment: comment.trim() }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           setError(action.error.message)
           setSending(false)

@@ -158,7 +158,6 @@ function RegisterForm({ step, onStepChange, onLogin, onVerify }) {
     setSending(true)
     return dispatch(checkAvailability({ email: form.email.trim() }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return setFormError(action.error.message)
         }
@@ -191,10 +190,8 @@ function RegisterForm({ step, onStepChange, onLogin, onVerify }) {
     setSending(true)
     setFormError('')
     const data = { ...form, email: form.email.trim(), firstname: form.firstname.trim(), lastname: form.lastname.trim() }
-    // dispatch devuelve la acción final: si es rejected (action.error), mostramos el error en el formulario
     return dispatch(register({ account: data, interests: chosen }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           setSending(false)
           // Por si alguien tomó el usuario o el email mientras tanto: volvemos al paso que corresponde

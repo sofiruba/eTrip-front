@@ -8,30 +8,30 @@ import { removeById, replaceById } from './helpers'
  * que lo calcula el back. Los usan el registro, el perfil y el editor de experiencias.
  */
 
-const URL = '/interests'
+const ENDPOINT = '/interests'
 
 // GET: una sola vez, al abrir la app → [{ id, name, categoryId, categoryName, availableExperiences }]
 export const fetchInterests = createAsyncThunk('interests/fetchInterests', async () => {
-  const { data } = await api.get(URL)
+  const { data } = await api.get(ENDPOINT)
   return data
 })
 
 // POST: interest = { name, categoryId }
 export const createInterest = createAsyncThunk('interests/createInterest', async (newInterest) => {
-  const { data } = await api.post(URL, newInterest)
+  const { data } = await api.post(ENDPOINT, newInterest)
   return data
 })
 
 // PUT: desestructuramos el id y mandamos el resto en el body. Devolvemos también el nombre anterior:
 // las experiencias y el usuario del store guardan los intereses por nombre y lo tienen que cambiar
 export const updateInterest = createAsyncThunk('interests/updateInterest', async ({ id, name, categoryId, previousName }) => {
-  const { data } = await api.put(`${URL}/${id}`, { name, categoryId })
+  const { data } = await api.put(`${ENDPOINT}/${id}`, { name, categoryId })
   return { ...data, previousName }
 })
 
 // DELETE: el back no devuelve nada; devolvemos id y nombre para sacarlo de la lista y de las experiencias
 export const deleteInterest = createAsyncThunk('interests/deleteInterest', async ({ id, name }) => {
-  await api.delete(`${URL}/${id}`)
+  await api.delete(`${ENDPOINT}/${id}`)
   return { id, name }
 })
 

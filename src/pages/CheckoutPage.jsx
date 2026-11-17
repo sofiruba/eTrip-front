@@ -159,7 +159,6 @@ function CheckoutPage() {
     }
     return dispatch(createOrder(newOrder))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return { ok: false, message: action.error.message }
         }
@@ -192,7 +191,6 @@ function CheckoutPage() {
   const applyCoupon = (code) => {
     dispatch(validateCoupon(code))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return dispatch(showToast({ message: action.error.message, tone: 'error' }))
         }
@@ -204,7 +202,6 @@ function CheckoutPage() {
   const changeQuantity = (line, quantity) =>
     dispatch(updateCartItem({ userId: user.id, itemId: line.id, quantity }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return dispatch(showToast({ message: action.error.message, tone: 'error' }))
         }

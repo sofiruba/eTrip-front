@@ -7,6 +7,7 @@ import authReducer, { sessionExpired } from './authSlice'
 import bookingsReducer from './bookingsSlice'
 import cartReducer from './cartSlice'
 import categoriesReducer from './categoriesSlice'
+import currenciesReducer from './currenciesSlice'
 import couponsReducer from './couponsSlice'
 import experiencesReducer from './experiencesSlice'
 import favoritesReducer from './favoritesSlice'
@@ -14,7 +15,6 @@ import interestsReducer from './interestsSlice'
 import notificationsReducer from './notificationsSlice'
 import ordersReducer from './ordersSlice'
 import preferencesReducer from './preferencesSlice'
-import recommendationsReducer from './recommendationsSlice'
 import recentlyViewedReducer from './recentlyViewedSlice'
 import reviewsReducer from './reviewsSlice'
 import savedCardsReducer from './savedCardsSlice'
@@ -24,7 +24,7 @@ import usersReducer from './usersSlice'
 import waitlistReducer from './waitlistSlice'
 
 /**
- * Persistencia con redux-persist (la librería de persistencia de Redux que vimos en clase).
+ * Persistencia con redux-persist.
  * Estos slices se guardan en el localStorage y se recuperan al recargar la página:
  *  - auth: el token y el usuario (no el modal de login, que se abre y se cierra)
  *  - preferences: moneda, tema y búsquedas recientes
@@ -41,6 +41,7 @@ export const store = configureStore({
     experiences: experiencesReducer,
     sessions: sessionsReducer,
     categories: categoriesReducer,
+    currencies: currenciesReducer,
     interests: interestsReducer,
     cart: cartReducer,
     orders: ordersReducer,
@@ -51,7 +52,6 @@ export const store = configureStore({
     notifications: notificationsReducer,
     favorites: favoritesReducer,
     waitlist: waitlistReducer,
-    recommendations: recommendationsReducer,
     // Sesión (persistida)
     auth: persist('auth', authReducer, ['token', 'user']),
     // Solo de front

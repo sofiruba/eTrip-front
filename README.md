@@ -1,16 +1,15 @@
-# PLAN (eTrip) · Front
+# PLAN · Front
 
 Marketplace de experiencias armadas por gente local: se publican, se buscan, se reservan y se pagan (pago simulado).
-TPO de Aplicaciones Interactivas (UADE, 2° cuatrimestre 2026). El back es el proyecto `eTrip-back` (Spring Boot).
+TPO de Aplicaciones Interactivas (UADE, 2° cuatrimestre 2026). El back es la carpeta `eTrip back` (Spring Boot).
 
-**Tecnologías:** React 19 · Vite · react-router-dom 7 · **Redux Toolkit + react-redux** (estado global) · **axios** (llamadas al back) ·
-**redux-persist** (sesión y preferencias al recargar) · lucide-react · CSS con variables (modo claro y oscuro). Sin TypeScript.
-
-La migración a Redux de la tercera entrega está explicada, archivo por archivo, en [`REDUX-TERCERA-ENTREGA.md`](REDUX-TERCERA-ENTREGA.md).
+**Tecnologías:** React 19 · Vite · react-router-dom 7 · **Redux Toolkit + react-redux** (estado global) ·
+**axios** (llamadas al back) · **redux-persist** (sesión y preferencias al recargar) · lucide-react · CSS con
+variables (modo claro y oscuro).
 
 ## Cómo levantarlo
 
-1. Levantar el back (`eTrip-back`): MySQL corriendo y `./mvnw spring-boot:run`. Queda en `http://localhost:4002`.
+1. Levantar el back (ver su README): queda en `http://localhost:4002`.
 2. En esta carpeta:
 
 ```bash
@@ -18,22 +17,36 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-Si el back está en otra URL, copiá `.env.example` como `.env.local` y cambiá `VITE_API_URL`.
-Al desplegar en Vercel, `VITE_API_URL` se carga como variable de entorno del proyecto, y en el back hay que sumar la URL de Vercel a `CORS_ALLOWED_ORIGINS`.
-
-Otros comandos: `npm run build` (versión de producción en `dist/`), `npm run lint` (oxlint).
+Si el back está en otra dirección, copiá `.env.example` como `.env.local` y cambiá `VITE_API_URL`.
+Otros comandos: `npm run build` (versión de producción en `dist/`) y `npm run lint` (oxlint).
 
 ## Cómo está armado
 
 ```
-src/redux/      estado global con Redux Toolkit: store.js + un slice por entidad (experiencias, fechas, carrito,
-                órdenes, reservas, reseñas, usuarios, cupones…). Cada slice tiene sus acciones asíncronas
-                (createAsyncThunk + axios: GET, POST, PUT, PATCH, DELETE) y sus reducers. api.js es el cliente axios
-src/hooks/      hooks propios (useCurrency, useTheme, useDocumentTitle…)
+src/redux/      estado global con Redux Toolkit
+src/hooks/      hooks propios (useCurrency, useTheme, useDocumentTitle, useUnsavedChanges…)
 src/routes/     rutas protegidas (RequireAuth, CustomerOnly) y RemountOnParam
 src/pages/      una página por ruta (las rutas están en App.jsx)
-src/components/ componentes por sección (home, experience, checkout, host, admin…) y ui/ (base)
-src/utils/      funciones puras (filtros, fechas, carrito, órdenes, cupones…)
+src/components/ componentes por sección (home, experience, checkout, booking, host, admin…) y ui/ (los de base)
+src/utils/      funciones de presentación (filtros de la URL, fechas, formatos)
 ```
 
-Los endpoints del back están en `eTrip-back/insomnia/ENDPOINTS.md`.
+## Redux
+
+- **Un store** (`store.js`, `configureStore`) con **un slice por entidad de la base**: experiences (catálogo,
+  detalle, búsquedas y "Para vos"), sessions (fechas y resumen del anfitrión), categories, interests, currencies,
+  cart, orders, bookings, reviews, users, coupons, notifications, favorites y waitlist. Además, `auth` (la sesión:
+  token, usuario y modal de login) y slices solo de front: preferences, savedCards, recentlyViewed y toasts.
+- **Todos los pedidos al back están en los slices**, como acciones asíncronas (`createAsyncThunk` + axios). Ningún
+  componente llama a axios: despachan acciones (`useDispatch`) y leen el estado (`useSelector`).
+- Cada pedido maneja `pending` / `fulfilled` / `rejected` en `extraReducers`. Si el back responde con error,
+  `action.error.message` es el mensaje del back (lo arma el interceptor de `api.js`) y se muestra tal cual.
+- **Un solo GET por lista:** los componentes piden una lista solo si todavía no está en el store. Después de un
+  POST / PUT / PATCH / DELETE, el reducer actualiza el store con lo que devolvió el back (sin volver a pedir).
+  Si el cambio afecta datos que calcula el back (por ejemplo, un reembolso cambia la orden), la lista se marca para
+  volver a pedirse.
+- **Las reglas de negocio están en el back:** el front no calcula comisiones, plazos de cancelación, estados ni
+  recomendaciones; muestra lo que manda el back (`refundable`, `status`, `hostEarnings`, `reason`…).
+- **Persistencia** con redux-persist: sesión, preferencias (moneda, tema), tarjetas guardadas y vistos recientemente.
+
+Los endpoints del back están en `eTrip back/insomnia/ENDPOINTS.md`.

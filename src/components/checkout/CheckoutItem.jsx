@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getCancellationPolicy } from '../../utils/cancellation'
+import { describeCancellation } from '../../utils/cancellation'
 import { formatMoney, formatTimeRange, formatWeekdayDate, pluralize } from '../../utils/format'
 import ImageWithFallback from '../ui/ImageWithFallback'
 import QuantityStepper from '../ui/QuantityStepper'
@@ -10,7 +10,8 @@ import { Rating } from '../ui/Rating'
 function CheckoutItem({ line, collapsible, onQuantityChange }) {
   const { experience, session, quantity, subtotal } = line
   const [editingGuests, setEditingGuests] = useState(false)
-  const policy = getCancellationPolicy(session.startsAt)
+  // El plazo lo manda el back con cada fecha
+  const policy = describeCancellation(session.refundableUntil)
 
   const details = (
     <dl className="checkout-item__details">

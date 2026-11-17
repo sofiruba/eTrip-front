@@ -8,29 +8,29 @@ import { createOrder } from './ordersSlice'
  * el navbar (cantidad), el detalle (lo que ya agregaste), el carrito y el checkout leen este slice.
  */
 
-const URL = '/carts'
+const ENDPOINT = '/carts'
 
 // GET: el carrito del usuario que inició sesión (App.jsx lo pide al iniciar sesión; al cerrarla se vacía este slice)
 export const fetchCart = createAsyncThunk('cart/fetchCart', async (userId) => {
-  const { data } = await api.get(`${URL}/user/${userId}`)
+  const { data } = await api.get(`${ENDPOINT}/user/${userId}`)
   return data
 })
 
 // POST: lugares de una fecha → el back devuelve el carrito completo
 export const addToCart = createAsyncThunk('cart/addToCart', async ({ sessionId, quantity }) => {
-  const { data } = await api.post(`${URL}/items`, { experienceSessionId: sessionId, quantity })
+  const { data } = await api.post(`${ENDPOINT}/items`, { experienceSessionId: sessionId, quantity })
   return data
 })
 
 // PATCH: solo la cantidad de un ítem → el back devuelve el carrito completo
 export const updateCartItem = createAsyncThunk('cart/updateCartItem', async ({ userId, itemId, quantity }) => {
-  const { data } = await api.patch(`${URL}/user/${userId}/items/${itemId}`, null, { params: { quantity } })
+  const { data } = await api.patch(`${ENDPOINT}/user/${userId}/items/${itemId}`, null, { params: { quantity } })
   return data
 })
 
 // DELETE: el back no devuelve el carrito, así que devolvemos el id y el reducer recalcula el total
 export const removeCartItem = createAsyncThunk('cart/removeCartItem', async ({ userId, itemId }) => {
-  await api.delete(`${URL}/user/${userId}/items/${itemId}`)
+  await api.delete(`${ENDPOINT}/user/${userId}/items/${itemId}`)
   return itemId
 })
 

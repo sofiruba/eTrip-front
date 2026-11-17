@@ -21,7 +21,7 @@ import { fetchExperienceById } from '../redux/experiencesSlice'
 import { fetchOrderById } from '../redux/ordersSlice'
 import { fetchMyReviews } from '../redux/reviewsSlice'
 import { getBookingStatus } from '../utils/bookings'
-import { getCancellationPolicy } from '../utils/cancellation'
+import { describeCancellation } from '../utils/cancellation'
 import { formatFullDate, isPast } from '../utils/format'
 import { toSummaryItems } from '../utils/orders'
 import NotFoundPage from './NotFoundPage'
@@ -90,14 +90,11 @@ function BookingDetailPage() {
   if (!booking || (orderId && !order)) return <Loading />
 
   const past = isPast(booking.startsAt)
-  const status = getBookingStatus({ ...booking, isPast: past })
-  // Misma regla que se muestra en el checkout: reembolso solo hasta 48 h antes
-  const policy = getCancellationPolicy(booking.startsAt)
-  const showPolicy = !past && !booking.refunded
-  // El reembolso lo pide quien pagó: si me lo regalaron, le aviso a esa persona
-  const canRefund = showPolicy && policy.refundable && !isGiftReceived
-  // El back no permite editar reseñas: solo se escribe una vez, cuando la experiencia terminó
-  const canReview = isPast(booking.endsAt) && !booking.refunded && !myReview
+  const status = getBookingStatus(booking)
+  // Si se puede cancelar (y hasta cuándo) y si se puede reseñar lo decide el back según quién mira la reserva
+  const showPolicy = !past && !booking.refunded && Boolean(booking.refundableUntil)
+  const policy = describeCancellation(booking.refundableUntil, booking.refundable)
+  const canReview = booking.reviewable && !myReview
 
   return (
     <div className="container page">
@@ -106,7 +103,7 @@ function BookingDetailPage() {
       <div className="split">
         <div className="stack">
           <BookingInfoCard booking={booking} experience={experience} status={status} />
-          {showPolicy && !isGiftReceived && <CancellationPolicy policy={policy} />}
+          {showPolicy && <CancellationPolicy policy={policy} />}
 
           <VoucherCard booking={booking} />
           {/* Regalo que todavía no es de quien lo recibe (el estado lo calcula el back) */}
@@ -125,7 +122,7 @@ function BookingDetailPage() {
               </Button>
             )}
             {myReview && <Badge tone="success">Ya dejaste tu reseña</Badge>}
-            {canRefund && (
+            {booking.refundable && (
               <Button variant="danger" icon={Undo2} onClick={() => setModal('refund')}>
                 Pedir reembolso
               </Button>
@@ -141,7 +138,7 @@ function BookingDetailPage() {
             </p>
             {showPolicy && (
               <p className="muted small">
-                Si no podés ir, avisale a {booking.giftFromName}: el reembolso lo pide quien pagó, hasta 48 h antes.
+                Si no podés ir, cancelalo desde acá: la plata vuelve a {booking.giftFromName}.
               </p>
             )}
           </aside>
@@ -164,7 +161,7 @@ function BookingDetailPage() {
 
       {/* Después del reembolso o de la reseña, los reducers actualizan la reserva, la orden, los lugares y la reseña:
           esta página está suscripta a esos datos y se vuelve a dibujar sola */}
-      {modal === 'refund' && <RefundModal booking={booking} order={order} onClose={() => setModal(null)} />}
+      {modal === 'refund' && <RefundModal booking={booking} onClose={() => setModal(null)} />}
       {modal === 'review' && (
         <ReviewFormModal experienceId={booking.experienceId} experienceTitle={booking.experienceTitle} onClose={() => setModal(null)} />
       )}

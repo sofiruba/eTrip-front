@@ -41,7 +41,7 @@ export function canonicalCity(value, existing = []) {
   return known ?? clean.charAt(0).toLocaleUpperCase('es') + clean.slice(1)
 }
 
-/** Igual que el back pero sin acentos: "cordoba" encuentra "Córdoba". */
+/** Sin acentos ni mayúsculas: "cordoba" encuentra "Córdoba". */
 export function matchesLocation(location, query) {
   return normalizeText(location).includes(normalizeText(query.trim()))
 }

@@ -5,38 +5,37 @@ import { removeById, replaceById } from './helpers'
 
 /** Cupones de descuento: el admin los gestiona y el checkout los valida. */
 
-const URL = '/discount-coupons'
+const ENDPOINT = '/discount-coupons'
 
 // GET (admin)
 export const fetchCoupons = createAsyncThunk('coupons/fetchCoupons', async () => {
-  const { data } = await api.get(URL)
+  const { data } = await api.get(ENDPOINT)
   return listOf(data)
 })
 
 // GET /discount-coupons/validate?code= → { code, valid, reason, message, percentage, subtotal, discountAmount, total }
 // El back calcula el descuento con el carrito actual. El checkout guarda el resultado en su estado local
 export const validateCoupon = createAsyncThunk('coupons/validateCoupon', async (code) => {
-  const { data } = await api.get(`${URL}/validate`, { params: { code } })
+  const { data } = await api.get(`${ENDPOINT}/validate`, { params: { code } })
   return data
 })
 
 // POST: newCoupon = { code, percentage, validFrom, validUntil, active }
 export const createCoupon = createAsyncThunk('coupons/createCoupon', async (newCoupon) => {
-  const { data } = await api.post(URL, newCoupon)
+  const { data } = await api.post(ENDPOINT, newCoupon)
   return data
 })
 
 // PUT: el cupón completo
 export const updateCoupon = createAsyncThunk('coupons/updateCoupon', async ({ id, ...coupon }) => {
-  const { data } = await api.put(`${URL}/${id}`, coupon)
+  const { data } = await api.put(`${ENDPOINT}/${id}`, coupon)
   return data
 })
 
-// DELETE: si el cupón ya se usó en alguna orden, el back no lo borra: lo desactiva (para no romper órdenes viejas).
-// `used` = cuántas órdenes lo usaron (el panel lo sabe porque tiene las órdenes en el store): el reducer aplica la misma regla
-export const deleteCoupon = createAsyncThunk('coupons/deleteCoupon', async ({ id, used }) => {
-  await api.delete(`${URL}/${id}`)
-  return { id, used }
+// DELETE: si el cupón nunca se usó, el back lo borra (204). Si ya se usó, lo desactiva y devuelve el cupón (200)
+export const deleteCoupon = createAsyncThunk('coupons/deleteCoupon', async (id) => {
+  const { data } = await api.delete(`${ENDPOINT}/${id}`)
+  return { id, deactivated: data || null }
 })
 
 const initialState = {
@@ -72,9 +71,8 @@ const couponsSlice = createSlice({
         replaceById(state.items, action.payload)
       })
       .addCase(deleteCoupon.fulfilled, (state, action) => {
-        const { id, used } = action.payload
-        const coupon = state.items.find((item) => item.id === id)
-        if (used > 0 && coupon) coupon.active = false // baja lógica, igual que en el back
+        const { id, deactivated } = action.payload
+        if (deactivated) replaceById(state.items, deactivated)
         else removeById(state.items, id)
       })
       // Al cerrar sesión vuelve al estado inicial (la lista es del admin)

@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import PageHeader from '../components/ui/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { FREE_CANCELLATION_HOURS } from '../utils/cancellation'
 import './InfoPage.css'
 
 const UPDATED_AT = '1 de octubre de 2026'
@@ -24,11 +23,11 @@ const DOCUMENTS = {
       },
       {
         title: 'Cancelaciones',
-        text: `Podés cancelar con reembolso total hasta ${FREE_CANCELLATION_HOURS} horas antes del inicio de la experiencia. Después de ese plazo la reserva no es reembolsable, salvo que el anfitrión cancele la fecha.`,
+        text: `Podés cancelar con reembolso total hasta 48 horas antes del inicio de la experiencia. Después de ese plazo la reserva no es reembolsable, salvo que el anfitrión cancele la fecha.`,
       },
       {
         title: 'Publicaciones',
-        text: 'Los anfitriones se comprometen a publicar información veraz (descripción, fotos, precio, ubicación y cupos) y a mantener actualizado el stock de lugares de cada fecha. No se puede eliminar una experiencia con reservas próximas.',
+        text: 'Los anfitriones se comprometen a publicar información veraz (descripción, fotos, precio, ubicación y cupos) y a mantener actualizado el stock de lugares de cada fecha. Si un anfitrión da de baja una experiencia con reservas próximas, se reembolsa a todos los compradores.',
       },
     ],
   },

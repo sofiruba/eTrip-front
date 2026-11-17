@@ -36,7 +36,7 @@ function LocationMap({ location }) {
           </div>
         </div>
       )}
-      <small className="muted">Zona aproximada. Te enviamos el punto exacto al confirmar la reserva.</small>
+      <small className="muted">Zona aproximada. El punto exacto te lo pasa el anfitrión.</small>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 
 const BRAND = 'PLAN'
-const DEFAULT_TITLE = `${BRAND} · Experiencias en Buenos Aires`
+const DEFAULT_TITLE = `${BRAND} · Experiencias`
 
 /** Título de la pestaña. Con `null` se usa el título por defecto. */
 export function useDocumentTitle(title) {

@@ -47,10 +47,13 @@ function BookingCard({ booking, action }) {
           </span>
         </div>
       </div>
-      <div className="booking-card__code">
-        <small className="muted">Voucher</small>
-        <strong>{booking.voucherCode}</strong>
-      </div>
+      {/* Un regalo ya entregado: el voucher es de quien lo recibió y el back no manda el código */}
+      {booking.voucherCode && (
+        <div className="booking-card__code">
+          <small className="muted">Voucher</small>
+          <strong>{booking.voucherCode}</strong>
+        </div>
+      )}
       <ChevronRight size={20} className="booking-card__arrow" aria-hidden />
     </Link>
   )

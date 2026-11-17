@@ -95,7 +95,6 @@ function InterestsAdmin() {
           message={`Vas a eliminar “${deleting.name}”. Se lo sacamos a las experiencias y a las personas que lo tenían.`}
           onConfirm={() =>
             dispatch(deleteInterest({ id: deleting.id, name: deleting.name })).then((action) => {
-              // rejected: el back respondió con un error (action.error.message, como en el reducer)
               if (action.error) {
                 return dispatch(showToast({ message: action.error.message, tone: 'error' }))
               }

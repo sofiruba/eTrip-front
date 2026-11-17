@@ -40,7 +40,6 @@ function CartPage() {
   const updateQuantity = (line, quantity) =>
     dispatch(updateCartItem({ userId: user.id, itemId: line.id, quantity }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return dispatch(showToast({ message: action.error.message, tone: 'error' }))
         }
@@ -48,7 +47,6 @@ function CartPage() {
   const remove = (line) =>
     dispatch(removeCartItem({ userId: user.id, itemId: line.id }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return dispatch(showToast({ message: action.error.message, tone: 'error' }))
         }

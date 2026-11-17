@@ -1,7 +1,7 @@
 import { ShieldCheck, ShieldX } from 'lucide-react'
 import './CancellationPolicy.css'
 
-/** Aviso de si la reserva todavía se puede reembolsar. `policy` viene de getCancellationPolicy(). */
+/** Aviso de si la reserva todavía se puede reembolsar. `policy` viene de describeCancellation(). */
 function CancellationPolicy({ policy }) {
   return (
     <section className={`card booking-policy ${policy.refundable ? '' : 'is-locked'}`}>

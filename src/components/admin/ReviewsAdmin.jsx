@@ -29,7 +29,8 @@ const RATING_FILTERS = [
 
 function ReviewsAdmin() {
   const dispatch = useDispatch()
-  const { items: reviews, error } = useSelector((state) => state.reviews)
+  const reviews = useSelector((state) => state.reviews.items)
+  const error = useSelector((state) => state.reviews.failed.all)
   // Listo cuando llegaron TODAS (antes puede haber solo las de alguna experiencia que se abrió)
   const ready = useSelector((state) => state.reviews.requested.includes('all') && !state.reviews.loading)
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
@@ -105,7 +106,6 @@ function ReviewsAdmin() {
           onConfirm={() =>
             dispatch(deleteReview(deleting))
               .then((action) => {
-                // rejected: el back respondió con un error (action.error.message, como en el reducer)
                 if (action.error) {
                   return dispatch(showToast({ message: action.error.message, tone: 'error' }))
                 }

@@ -13,26 +13,26 @@ import { joinWaitlist, leaveWaitlist } from './waitlistSlice'
  * con lo que devolvió el back: no hace falta volver a pedir las fechas.
  */
 
-const URL = '/experience-sessions'
+const ENDPOINT = '/experience-sessions'
 
 // ---------- GET ----------
 
 // Fechas públicas: el back manda las activas y futuras (también las agotadas). Una sola vez, al abrir la app
 export const fetchSessions = createAsyncThunk('sessions/fetchSessions', async () => {
-  const { data } = await api.get(URL)
+  const { data } = await api.get(ENDPOINT)
   return listOf(data)
 })
 
 // Para gestionar: también las pasadas y las canceladas. Anfitrión → las de sus experiencias; admin → todas
 export const fetchManagedSessions = createAsyncThunk('sessions/fetchManagedSessions', async () => {
-  const { data } = await api.get(`${URL}/manage`)
+  const { data } = await api.get(`${ENDPOINT}/manage`)
   return listOf(data)
 })
 
 // "Fechas y huéspedes" del anfitrión: un resumen por experiencia que calcula el back
 // (fechas próximas, pasadas y canceladas, lugares reservados, ocupación y lista de espera)
 export const fetchHostAgenda = createAsyncThunk('sessions/fetchHostAgenda', async () => {
-  const { data } = await api.get(`${URL}/manage/summary`)
+  const { data } = await api.get(`${ENDPOINT}/manage/summary`)
   return data
 })
 
@@ -40,26 +40,26 @@ export const fetchHostAgenda = createAsyncThunk('sessions/fetchHostAgenda', asyn
 
 // POST: session = { experienceId, startsAt, endsAt, capacity }
 export const createSession = createAsyncThunk('sessions/createSession', async (session) => {
-  const { data } = await api.post(URL, session)
+  const { data } = await api.post(ENDPOINT, session)
   return data
 })
 
 // PUT: recibimos la sesión a actualizar y mandamos sus campos
 export const updateSession = createAsyncThunk('sessions/updateSession', async ({ id, ...session }) => {
-  const { data } = await api.put(`${URL}/${id}`, session)
+  const { data } = await api.put(`${ENDPOINT}/${id}`, session)
   return data
 })
 
 // DELETE /experience-sessions/{id}: el back no la borra, la CANCELA (baja lógica) y reembolsa sus reservas.
 // No devuelve nada: devolvemos la sesión para que los reducers sepan cuál cambió
 export const cancelSession = createAsyncThunk('sessions/cancelSession', async (session) => {
-  await api.delete(`${URL}/${session.id}`)
+  await api.delete(`${ENDPOINT}/${session.id}`)
   return session
 })
 
 // DELETE /experience-sessions/{id}/permanent: borra del todo una fecha cancelada o terminada
 export const removeSession = createAsyncThunk('sessions/removeSession', async (id) => {
-  await api.delete(`${URL}/${id}/permanent`)
+  await api.delete(`${ENDPOINT}/${id}/permanent`)
   return id
 })
 
@@ -91,11 +91,10 @@ const copiesOf = (state, sessionId) => [...state.items, ...state.managed.items].
 function changeSeats(state, sessionId, seats) {
   copiesOf(state, sessionId).forEach((session) => {
     session.availableSeats = Math.min(Math.max(session.availableSeats + seats, 0), session.capacity)
-    if (session.status === 'SOLD_OUT' && session.availableSeats > 0) session.status = 'PUBLISHED'
-    if (session.status === 'PUBLISHED' && session.availableSeats === 0) session.status = 'SOLD_OUT'
-    // Se liberó un lugar: el back ya avisó a la lista de espera y la vació
-    if (seats > 0 && session.availableSeats > 0) session.waitlistCount = 0
   })
+  // El estado de cada fecha (agotada, publicada) y su lista de espera los calcula el back: la lista del
+  // calendario se vuelve a pedir la próxima vez que se muestre
+  state.managed.loaded = false
 }
 
 // Alguien se anota (delta = 1) o se baja (delta = -1) de la lista de espera de una fecha

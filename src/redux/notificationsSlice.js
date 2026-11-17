@@ -5,18 +5,18 @@ import { replaceById } from './helpers'
 
 /** Avisos del usuario (compras de sus experiencias, cancelaciones, reembolsos). */
 
-const URL = '/notifications'
+const ENDPOINT = '/notifications'
 
 // GET: al iniciar sesión y cada vez que se abre la campanita. Es la única lista que se vuelve a pedir a propósito:
 // los avisos los generan OTROS usuarios en el back (alguien compró, el anfitrión canceló), así aparecen los nuevos
 export const fetchNotifications = createAsyncThunk('notifications/fetchNotifications', async () => {
-  const { data } = await api.get(URL)
+  const { data } = await api.get(ENDPOINT)
   return listOf(data)
 })
 
 // PATCH: marcar como leída → la notificación actualizada
 export const markNotificationRead = createAsyncThunk('notifications/markNotificationRead', async (id) => {
-  const { data } = await api.patch(`${URL}/${id}/read`)
+  const { data } = await api.patch(`${ENDPOINT}/${id}/read`)
   return data
 })
 

@@ -16,7 +16,6 @@ import './MyBookingsPage.css'
 function MyBookingsPage() {
   useDocumentTitle('Mis reservas')
   const dispatch = useDispatch()
-  // Nos suscribimos a las tres propiedades del slice de reservas
   const { items: bookings, loaded, error } = useSelector((state) => state.bookings)
   const experiences = useSelector((state) => state.experiences.items) // para la foto y el lugar de cada reserva
   const [tab, setTab] = useState('upcoming')

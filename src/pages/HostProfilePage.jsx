@@ -13,6 +13,8 @@ import PageHeader from '../components/ui/PageHeader'
 import SectionHeader from '../components/ui/SectionHeader'
 import StatCard from '../components/ui/StatCard'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { fetchExperiences } from '../redux/experiencesSlice'
+import { fetchSessions } from '../redux/sessionsSlice'
 import { fetchUserById } from '../redux/usersSlice'
 import { addSessionInfo, getHostStats } from '../utils/experiences'
 import { fullName } from '../utils/format'
@@ -47,7 +49,16 @@ function HostProfilePage() {
   if (error) {
     return (
       <div className="container page page--narrow">
-        <ErrorState title="No pudimos cargar este perfil" message={error} onRetry={() => dispatch(fetchUserById(id))} />
+        <ErrorState
+          title="No pudimos cargar este perfil"
+          message={error}
+          // Se vuelve a pedir solo lo que falló
+          onRetry={() => {
+            if (profile?.error) dispatch(fetchUserById(id))
+            if (catalogState.error) dispatch(fetchExperiences())
+            if (sessionsState.error) dispatch(fetchSessions())
+          }}
+        />
       </div>
     )
   }

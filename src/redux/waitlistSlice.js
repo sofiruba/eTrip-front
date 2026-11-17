@@ -8,23 +8,23 @@ import { logout, sessionExpired } from './authSlice'
  * y saca a todos de la lista. Acá solo guardamos los ids de las fechas en las que estoy anotado.
  */
 
-const URL = '/experience-sessions'
+const ENDPOINT = '/experience-sessions'
 
 // GET /experience-sessions/waitlist/mine → [sessionId, ...]
 export const fetchWaitlist = createAsyncThunk('waitlist/fetchWaitlist', async () => {
-  const { data } = await api.get(`${URL}/waitlist/mine`)
+  const { data } = await api.get(`${ENDPOINT}/waitlist/mine`)
   return data
 })
 
 // POST /experience-sessions/{id}/waitlist: el back valida que la fecha esté agotada, activa y sea futura
 export const joinWaitlist = createAsyncThunk('waitlist/joinWaitlist', async (sessionId) => {
-  await api.post(`${URL}/${sessionId}/waitlist`)
+  await api.post(`${ENDPOINT}/${sessionId}/waitlist`)
   return sessionId
 })
 
 // DELETE /experience-sessions/{id}/waitlist
 export const leaveWaitlist = createAsyncThunk('waitlist/leaveWaitlist', async (sessionId) => {
-  await api.delete(`${URL}/${sessionId}/waitlist`)
+  await api.delete(`${ENDPOINT}/${sessionId}/waitlist`)
   return sessionId
 })
 

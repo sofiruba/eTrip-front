@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useSearchParams } from 'react-router-dom'
 import { deleteCoupon, fetchCoupons } from '../../redux/couponsSlice'
 import { isMissing } from '../../redux/helpers'
-import { fetchOrders } from '../../redux/ordersSlice'
 import { showToast } from '../../redux/toastsSlice'
 import { getCouponStatus } from '../../utils/coupons'
 import { formatShortDate, normalizeText } from '../../utils/format'
@@ -25,8 +24,6 @@ function CouponsAdmin() {
   const dispatch = useDispatch()
   const couponsState = useSelector((state) => state.coupons)
   const { items: coupons, loaded, error } = couponsState
-  const ordersState = useSelector((state) => state.orders) // para contar cuántas órdenes usaron cada cupón
-  const orders = ordersState.items
   // Filtro inicial desde la URL (los links de "Requiere atención" del resumen)
   const [params] = useSearchParams()
   const [editing, setEditing] = useState(null)
@@ -36,27 +33,22 @@ function CouponsAdmin() {
 
   useEffect(() => {
     if (isMissing(couponsState)) dispatch(fetchCoupons())
-    if (isMissing(ordersState)) dispatch(fetchOrders())
-  }, [couponsState, ordersState, dispatch])
+  }, [couponsState, dispatch])
 
-  const usesOf = (coupon) => orders.filter((order) => order.couponCode === coupon.code).length
-
+  // Usos y estado vienen del back (usedCount, status)
   const rows = coupons
-    .map((coupon) => ({ ...coupon, used: usesOf(coupon), status: getCouponStatus(coupon) }))
+    .map((coupon) => ({ ...coupon, used: coupon.usedCount, statusInfo: getCouponStatus(coupon) }))
     .filter((coupon) => normalizeText(coupon.code).includes(normalizeText(search.trim())))
-    .filter((coupon) => !status || coupon.status.label === status)
+    .filter((coupon) => !status || coupon.statusInfo.label === status)
 
-  // La regla la aplica el back: si el cupón ya se usó lo desactiva en vez de borrarlo (para no romper órdenes viejas).
-  // Con la cantidad de usos, el reducer hace lo mismo en el store: lo saca de la lista o lo deja desactivado
+  // Si el cupón ya se usó, el back lo desactiva en vez de borrarlo (para no romper las órdenes que lo usaron)
   const confirmDelete = () =>
-    dispatch(deleteCoupon({ id: deleting.id, used: deleting.used }))
-      .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
-        if (action.error) {
-          return dispatch(showToast({ message: action.error.message, tone: 'error' }))
-        }
-        return dispatch(showToast({ message: deleting.used > 0 ? 'El cupón ya se había usado: quedó desactivado' : 'Cupón eliminado', tone: 'info' }))
-      })
+    dispatch(deleteCoupon(deleting.id)).then((action) => {
+      if (action.error) return dispatch(showToast({ message: action.error.message, tone: 'error' }))
+      return dispatch(
+        showToast({ message: action.payload.deactivated ? 'El cupón ya se había usado: quedó desactivado' : 'Cupón eliminado', tone: 'info' }),
+      )
+    })
 
   if (error) return <ErrorState message={error} onRetry={() => dispatch(fetchCoupons())} />
   if (!loaded) return <Loading />
@@ -114,8 +106,8 @@ function CouponsAdmin() {
           {
             key: 'status',
             header: 'Estado',
-            sortValue: (coupon) => coupon.status.label,
-            render: (coupon) => <Badge tone={coupon.status.tone}>{coupon.status.label}</Badge>,
+            sortValue: (coupon) => coupon.statusInfo.label,
+            render: (coupon) => <Badge tone={coupon.statusInfo.tone}>{coupon.statusInfo.label}</Badge>,
           },
           {
             key: 'actions',
@@ -132,7 +124,7 @@ function CouponsAdmin() {
       />
 
       {editing && (
-        <CouponFormModal coupon={editing === 'new' ? null : editing} coupons={coupons} onClose={() => setEditing(null)} />
+        <CouponFormModal coupon={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />
       )}
       {deleting && (
         <ConfirmDialog

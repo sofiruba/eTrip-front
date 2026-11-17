@@ -25,7 +25,6 @@ function FavoriteButton({ experience, withLabel = false, className = '' }) {
     const action = saved ? removeFavorite(experience.id) : addFavorite(experience.id)
     return dispatch(action)
       .then((result) => {
-        // rejected: el back respondió con un error (result.error.message, como en el reducer)
         if (result.error) {
           return dispatch(showToast({ message: result.error.message, tone: 'error' }))
         }

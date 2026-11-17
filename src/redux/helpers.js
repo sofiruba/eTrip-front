@@ -4,7 +4,7 @@
  * el estado global nunca se modifica directamente.
  */
 
-/** PUT: busca con findIndex el elemento con el mismo id y lo reemplaza (como en clase). Si da -1, no estaba. */
+/** PUT: busca con findIndex el elemento con el mismo id y lo reemplaza. Si da -1, no estaba. */
 export function replaceById(list, updated) {
   const index = list.findIndex((item) => item.id === updated.id)
   if (index !== -1) list[index] = updated

@@ -40,8 +40,8 @@ export function addSessionInfo(experiences, sessions) {
 export const isSoldOut = (experience) => experience.upcomingCount > 0 && experience.availableSeats === 0
 
 // "Anfitrión destacado": promedio de al menos 4,7 con al menos 5 reseñas entre todas sus experiencias
-export const TOP_HOST_RATING = 4.7
-export const TOP_HOST_REVIEWS = 5
+const TOP_HOST_RATING = 4.7
+const TOP_HOST_REVIEWS = 5
 
 /** Reseñas y promedio de un anfitrión sumando sus experiencias del catálogo, y si es "destacado". */
 export function getHostStats(experiences, publisherId) {

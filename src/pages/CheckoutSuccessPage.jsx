@@ -13,6 +13,14 @@ import { fetchOrderById } from '../redux/ordersSlice'
 import { formatMoney, formatSessionDate } from '../utils/format'
 import './CheckoutSuccessPage.css'
 
+// Qué pasa con el regalo según su estado (lo calcula el back)
+const GIFT_TEXT = {
+  DELIVERED: (order) => `Es un regalo para ${order.giftRecipientName}: ya lo tiene en sus reservas.`,
+  PENDING: (order) =>
+    `Es un regalo para ${order.giftRecipientName}: le avisamos por mail y se lo pasamos cuando entre a PLAN con ${order.giftRecipientEmail}. Hasta entonces el voucher es tuyo y podés corregir el email desde la reserva.`,
+  IN_PERSON: (order) => `Es un regalo para ${order.giftRecipientName}: el voucher está en Mis reservas para que se lo des.`,
+}
+
 function CheckoutSuccessPage() {
   const { orderId } = useParams()
   const { state } = useLocation()
@@ -55,9 +63,7 @@ function CheckoutSuccessPage() {
       </h1>
       <p className="muted">
         {state?.paymentLabel ? `Pagaste ${formatMoney(order.total)} con ${state.paymentLabel}.` : `Pagaste ${formatMoney(order.total)}.`}{' '}
-        {order.giftRecipientName
-          ? `Es un regalo para ${order.giftRecipientName}: ${order.giftRecipientEmail ? 'le avisamos y el voucher le aparece en sus reservas' : 'mostrale el voucher o mandáselo'}. También queda en Mis reservas.`
-          : 'Tus vouchers quedaron guardados en Mis reservas.'}
+        {order.giftRecipientName ? GIFT_TEXT[order.giftStatus](order) : 'Tus vouchers quedaron guardados en Mis reservas.'}
       </p>
 
       <dl className="checkout-success__receipt card">

@@ -151,11 +151,12 @@ function OrdersAdmin() {
             { label: 'Descuento', value: formatMoney(selected.discountAmount) },
             { label: 'Total cobrado', value: formatMoney(selected.total) },
             { label: 'Reembolsado', value: formatMoney(selected.refunded) },
-            { label: 'Total neto', value: formatMoney(selected.total - selected.refunded) },
+            { label: 'Comisión PLAN', value: formatMoney(selected.commission) },
             { label: 'Estado', value: statusOf(selected).label },
           ]}
           footer={
-            selected.status !== 'CANCELLED' && (
+            // Solo si le queda alguna reserva que todavía se puede cancelar (lo dice el back en cada reserva)
+            selected.bookings.some((booking) => booking.refundable) && (
               <Button variant="danger" icon={Ban} onClick={() => setCancelling(selected)}>
                 Cancelar orden
               </Button>
@@ -179,7 +180,6 @@ function OrdersAdmin() {
             // Le pasamos la orden como está ahora: así el thunk sabe qué reservas se reembolsan recién
             dispatch(cancelOrder(cancelling))
               .then((action) => {
-                // rejected: el back respondió con un error (action.error.message, como en el reducer)
                 if (action.error) {
                   return dispatch(showToast({ message: action.error.message, tone: 'error' }))
                 }

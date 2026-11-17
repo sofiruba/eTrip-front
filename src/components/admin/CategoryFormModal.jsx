@@ -10,7 +10,7 @@ import Modal from '../ui/Modal'
  * Crear (POST) o editar (PUT) una categoría. El reducer la agrega o la reemplaza en el store:
  * la tabla del panel, los filtros del catálogo y el editor la ven al instante, sin volver a pedirla.
  */
-function CategoryFormModal({ category, categories, onClose }) {
+function CategoryFormModal({ category, onClose }) {
   const dispatch = useDispatch()
   const [name, setName] = useState(category?.name ?? '')
   const [description, setDescription] = useState(category?.description ?? '')
@@ -21,16 +21,12 @@ function CategoryFormModal({ category, categories, onClose }) {
     event.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return setError('Ingresá un nombre.')
-    // Igual que CategoryDuplicateException en el back
-    const duplicated = categories.some((entry) => entry.name.toLowerCase() === trimmed.toLowerCase() && entry.id !== category?.id)
-    if (duplicated) return setError('Ya existe una categoría con ese nombre.')
 
     const data = { name: trimmed, description: description.trim() }
     setSending(true)
     const request = category ? dispatch(updateCategory({ id: category.id, ...data })) : dispatch(createCategory(data))
     return request
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           setError(action.error.message)
           setSending(false)

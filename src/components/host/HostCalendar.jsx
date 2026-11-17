@@ -29,7 +29,7 @@ const isEditable = (session) => session.editable
 const bookedSeats = (session) => session.capacity - session.availableSeats
 
 /**
- * Fechas de las experiencias. Lo usan el anfitrión y el admin.
+ * Fechas de todas las experiencias (panel de admin → Sesiones).
  * Cada acción se despacha al store: los reducers actualizan las fechas (calendario y catálogo público) y,
  * si se cancela una fecha, sus reservas quedan reembolsadas. No hace falta volver a pedir nada.
  */
@@ -53,7 +53,7 @@ function HostCalendar({ experiences, sessions }) {
   }
 
   if (!experiences.length) {
-    return <EmptyState icon={CalendarX} title="Primero creá una experiencia" text="Después vas a poder sumarle fechas acá." />
+    return <EmptyState icon={CalendarX} title="Todavía no hay experiencias" text="Cuando alguien publique una, sus fechas aparecen acá." />
   }
 
   return (
@@ -144,7 +144,6 @@ function HostCalendar({ experiences, sessions }) {
           onConfirm={() =>
             dispatch(cancelSession(deleting))
               .then((action) => {
-                // rejected: el back respondió con un error (action.error.message, como en el reducer)
                 if (action.error) {
                   return dispatch(showToast({ message: action.error.message, tone: 'error' }))
                 }
@@ -161,7 +160,6 @@ function HostCalendar({ experiences, sessions }) {
           onConfirm={() =>
             dispatch(removeSession(removing.id))
               .then((action) => {
-                // rejected: el back respondió con un error (action.error.message, como en el reducer)
                 if (action.error) {
                   return dispatch(showToast({ message: action.error.message, tone: 'error' }))
                 }

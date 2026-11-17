@@ -29,7 +29,6 @@ function BookingExtras({ booking, experience }) {
     setSharing(true)
     dispatch(shareVoucher(booking)).then((action) => {
       setSharing(false)
-      // rejected: el back respondió con un error (action.error.message, como en el reducer)
       if (action.error) return dispatch(showToast({ message: action.error.message, tone: 'error' }))
       if (action.payload === 'downloaded') return dispatch(showToast({ message: 'Descargamos el voucher: ya lo podés mandar' }))
       return null

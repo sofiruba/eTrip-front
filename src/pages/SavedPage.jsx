@@ -9,6 +9,7 @@ import Loading from '../components/ui/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { fetchFavorites } from '../redux/favoritesSlice'
+import { isMissing } from '../redux/helpers'
 import { addSessionInfo } from '../utils/experiences'
 import { pluralize } from '../utils/format'
 
@@ -20,10 +21,10 @@ function SavedPage() {
   const catalog = useSelector((state) => state.experiences)
   const sessions = useSelector((state) => state.sessions.items)
 
-  // Una sola vez por sesión (App.jsx ya los pide al iniciar sesión; esto cubre si falló)
+  // App.jsx ya los pide al iniciar sesión; esto cubre si se entra directo. Si falló, se reintenta con el botón
   useEffect(() => {
-    if (!favorites.loaded && !favorites.loading) dispatch(fetchFavorites())
-  }, [favorites.loaded, favorites.loading, dispatch])
+    if (isMissing(favorites)) dispatch(fetchFavorites())
+  }, [favorites, dispatch])
 
   const experiences = addSessionInfo(catalog.items, sessions)
   // En el orden en que se guardaron (la última primero). Una guardada que el anfitrión pausó no está en el catálogo: no se muestra

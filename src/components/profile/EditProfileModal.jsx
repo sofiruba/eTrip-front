@@ -27,7 +27,6 @@ function EditProfileModal({ onClose }) {
     setSending(true)
     dispatch(updateMe({ firstName: form.firstName.trim(), lastName: form.lastName.trim(), city: form.city.trim(), bio: form.bio.trim() }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           dispatch(showToast({ message: action.error.message, tone: 'error' }))
           setSending(false)

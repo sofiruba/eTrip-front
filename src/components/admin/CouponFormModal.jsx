@@ -8,7 +8,7 @@ import FormField from '../ui/FormField'
 import Modal from '../ui/Modal'
 
 /** Crear (POST) o editar (PUT) un cupón. El reducer lo agrega o lo reemplaza en el store. */
-function CouponFormModal({ coupon, coupons, onClose }) {
+function CouponFormModal({ coupon, onClose }) {
   const dispatch = useDispatch()
   const [form, setForm] = useState({
     code: coupon?.code ?? '',
@@ -27,7 +27,6 @@ function CouponFormModal({ coupon, coupons, onClose }) {
     const percentage = Number(form.percentage)
     const nextErrors = {}
     if (!/^[A-Z0-9]{4,20}$/.test(code)) nextErrors.code = 'Entre 4 y 20 letras o números, sin espacios.'
-    else if (coupons.some((entry) => entry.code === code && entry.id !== coupon?.id)) nextErrors.code = 'Ese código ya existe.'
     if (!(percentage >= 1 && percentage <= 100)) nextErrors.percentage = 'Entre 1 y 100.'
     if (form.validUntil < form.validFrom) nextErrors.validUntil = 'Tiene que ser posterior al inicio.'
     setErrors(nextErrors)
@@ -44,7 +43,6 @@ function CouponFormModal({ coupon, coupons, onClose }) {
     const request = coupon ? dispatch(updateCoupon({ id: coupon.id, ...data })) : dispatch(createCoupon(data))
     request
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           setErrors({ code: action.error.message })
           setSending(false)

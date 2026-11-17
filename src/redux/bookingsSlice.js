@@ -8,25 +8,25 @@ import { cancelSession, removeSession } from './sessionsSlice'
 
 /** Reservas (vouchers). Cada compra genera una reserva por fecha. */
 
-const URL = '/bookings'
+const ENDPOINT = '/bookings'
 
 // ---------- GET ----------
 
 // Cliente: sus reservas. Administrador: todas. Una vez por sesión
 export const fetchBookings = createAsyncThunk('bookings/fetchBookings', async () => {
-  const { data } = await api.get(URL)
+  const { data } = await api.get(ENDPOINT)
   return listOf(data)
 })
 
 // Anfitrión: las reservas de sus experiencias (sus ventas)
 export const fetchSales = createAsyncThunk('bookings/fetchSales', async () => {
-  const { data } = await api.get(`${URL}/sales`)
+  const { data } = await api.get(`${ENDPOINT}/sales`)
   return listOf(data)
 })
 
 // Una reserva (detalle). La página solo la pide si no estaba ya en "Mis reservas"
 export const fetchBookingById = createAsyncThunk('bookings/fetchBookingById', async (id) => {
-  const { data } = await api.get(`${URL}/${id}`)
+  const { data } = await api.get(`${ENDPOINT}/${id}`)
   return data
 })
 
@@ -58,7 +58,7 @@ export const shareVoucher = createAsyncThunk('bookings/shareVoucher', async (boo
 })
 
 export const refundBooking = createAsyncThunk('bookings/refundBooking', async (id) => {
-  const { data } = await api.post(`${URL}/${id}/refund`)
+  const { data } = await api.post(`${ENDPOINT}/${id}/refund`)
   return data
 })
 
@@ -74,13 +74,12 @@ const initialState = {
 }
 
 // Todas las copias de reservas que tenemos guardadas
-const allBookings = (state) => [
-  ...state.items,
-  ...state.sales.items,
-  ...Object.values(state.details)
-    .map((detail) => detail.item)
-    .filter(Boolean),
-]
+function bookingsChanged(state) {
+  state.items = []
+  state.loaded = false
+  state.sales = initialState.sales
+  state.details = {}
+}
 
 function replaceEverywhere(state, updated) {
   replaceById(state.items, updated)
@@ -152,23 +151,15 @@ const bookingsSlice = createSlice({
       .addCase(cancelGift.fulfilled, (state, action) => {
         action.payload.bookings.forEach((booking) => replaceEverywhere(state, booking))
       })
-      // Fecha cancelada: el back reembolsa todas sus reservas
-      .addCase(cancelSession.fulfilled, (state, action) => {
-        allBookings(state)
-          .filter((booking) => booking.experienceSessionId === action.payload.id && !booking.refunded)
-          .forEach((booking) => Object.assign(booking, { refunded: true, status: 'REFUNDED' }))
-      })
+      // Fecha cancelada o experiencia dada de baja: el back reembolsó sus reservas. Se descartan las reservas
+      // guardadas y la pantalla que las muestre las vuelve a pedir (con su estado y su plata ya calculados)
+      .addCase(cancelSession.fulfilled, bookingsChanged)
+      .addCase(deleteExperience.fulfilled, bookingsChanged)
       // Fecha borrada del todo: el back borra sus reservas
       .addCase(removeSession.fulfilled, (state, action) => {
         const fromOtherSession = (booking) => booking.experienceSessionId !== action.payload
         state.items = state.items.filter(fromOtherSession)
         state.sales.items = state.sales.items.filter(fromOtherSession)
-      })
-      // Experiencia dada de baja: el back reembolsó todas las reservas de sus fechas futuras (las pasadas quedan)
-      .addCase(deleteExperience.fulfilled, (state, action) => {
-        allBookings(state)
-          .filter((booking) => booking.experienceId === action.payload.id && !booking.refunded && new Date(booking.startsAt) > new Date())
-          .forEach((booking) => Object.assign(booking, { refunded: true, status: 'REFUNDED' }))
       })
 
       // Al cerrar sesión vuelve al estado inicial

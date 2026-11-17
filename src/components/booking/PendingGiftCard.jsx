@@ -26,7 +26,6 @@ function PendingGiftCard({ order }) {
     setError('')
     return dispatch(updateGiftEmail({ orderId: order.id, recipientEmail: email.trim() })).then((action) => {
       setSending(false)
-      // rejected: el back respondió con un error (action.error.message, como en el reducer)
       if (action.error) return setError(action.error.message)
       setEditing(false)
       const delivered = action.payload.giftStatus === 'DELIVERED'

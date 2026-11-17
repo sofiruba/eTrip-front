@@ -1,16 +1,16 @@
 import { useDispatch } from 'react-redux'
-import { RATES_DATE } from '../../data/currencies'
 import { useCurrency } from '../../hooks/useCurrency'
 import { setCurrency } from '../../redux/preferencesSlice'
+import { formatFullDate } from '../../utils/format'
 import Modal from '../ui/Modal'
 import './CurrencyModal.css'
-
-const RATES_LABEL = new Date(`${RATES_DATE}T12:00:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
 
 /** "Elegí una moneda" (estilo Airbnb). Solo cambia cómo se ven los precios: se cobra siempre en pesos. */
 function CurrencyModal({ onClose }) {
   const dispatch = useDispatch()
   const { currency, currencies } = useCurrency()
+  // Fecha de la última cotización que cargó el admin (viene del back)
+  const lastUpdate = currencies.map((entry) => entry.updatedAt).sort().at(-1)
 
   return (
     <Modal title="Elegí una moneda" onClose={onClose} size="lg">
@@ -38,8 +38,8 @@ function CurrencyModal({ onClose }) {
         })}
       </ul>
       <p className="currency-note muted small">
-        Los precios se cobran en pesos argentinos. En otra moneda vas a ver un valor aproximado, con la cotización de
-        referencia del {RATES_LABEL}.
+        Los precios se cobran en pesos argentinos. En otra moneda vas a ver un valor aproximado
+        {lastUpdate && `, con la cotización de referencia del ${formatFullDate(lastUpdate)}`}.
       </p>
     </Modal>
   )

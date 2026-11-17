@@ -13,7 +13,7 @@ function LocationFields({ city, area, errors, onChange }) {
         error={errors.area}
         placeholder="Palermo"
         required
-        hint="El punto exacto se lo mandás a quien reserve."
+        hint="Barrio y ciudad, sin dirección exacta."
       />
     </div>
   )

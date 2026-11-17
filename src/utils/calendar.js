@@ -9,7 +9,7 @@ const toCalendarDate = (iso) => iso.slice(0, 19).replace(/[-:]/g, '')
 const escapeText = (text = '') => text.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/[,;]/g, (char) => `\\${char}`)
 
 /** Evento de un voucher: { title, startsAt, endsAt, location, description, url }. */
-export function buildIcs(event) {
+function buildIcs(event) {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',

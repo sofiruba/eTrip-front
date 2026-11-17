@@ -176,7 +176,7 @@ function HostExperienceAgenda({ experience, sessions, bookings }) {
                             {booking.refunded ? (
                               <Badge tone="neutral">Reembolsada</Badge>
                             ) : (
-                              session.editable && (
+                              booking.refundable && (
                                 <Button size="sm" variant="danger" icon={Undo2} onClick={() => setRefunding(booking)}>
                                   Reembolsar
                                 </Button>

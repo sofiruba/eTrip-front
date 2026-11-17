@@ -52,7 +52,6 @@ function ForgotPasswordForm({ step, onStepChange, identifier, onIdentifierChange
     setResent(false)
     return dispatch(requestPasswordReset(identifier.trim()))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return fail(action.error)
         }
@@ -68,7 +67,6 @@ function ForgotPasswordForm({ step, onStepChange, identifier, onIdentifierChange
     setFormError('')
     return dispatch(verifyResetCode({ usernameOrEmail: identifier.trim(), code: value }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           setCode('')
           fail(action.error)
@@ -95,7 +93,6 @@ function ForgotPasswordForm({ step, onStepChange, identifier, onIdentifierChange
     setFormError('')
     return dispatch(resetPassword({ usernameOrEmail: identifier.trim(), code, newPassword: password }))
       .then((action) => {
-        // rejected: el back respondió con un error (action.error.message, como en el reducer)
         if (action.error) {
           return fail(action.error)
         }

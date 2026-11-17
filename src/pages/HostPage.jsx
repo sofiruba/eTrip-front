@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { CalendarDays, LayoutGrid, Plus, Store } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import HostAgenda from '../components/host/HostAgenda'
 import HostExperienceAgenda from '../components/host/HostExperienceAgenda'
 import HostExperiences from '../components/host/HostExperiences'
@@ -30,11 +30,10 @@ const TABS = [
 /**
  * Modo anfitrión. Pide sus datos al montarse (una sola vez por sesión: si se vuelve a entrar, ya están en el store).
  * Cada pestaña recibe los datos por props y, cuando cambia algo, despacha su acción: el reducer actualiza el store
- * y esta página (suscripta con useSelector) le pasa los datos nuevos. Ya no hace falta pasar funciones "setX" a los hijos.
+ * y esta página (suscripta con useSelector) le pasa los datos nuevos.
  */
 function HostPage() {
   const { tab = 'resumen', experienceId } = useParams()
-  const [params] = useSearchParams()
   const dispatch = useDispatch()
   const user = useSelector((state) => state.auth.user)
   const managed = useSelector((state) => state.experiences.managed) // las mías: { items, loaded, error }
@@ -57,11 +56,6 @@ function HostPage() {
     if (!salesState.loaded) dispatch(fetchSales())
   }, [salesState.loaded, dispatch])
 
-  // Las pestañas viejas (Calendario y Huéspedes) ahora son "Fechas y huéspedes"
-  if (tab === 'calendario' || tab === 'reservas') {
-    const old = params.get('experiencia')
-    return <Navigate to={old ? `/anfitrion/fechas/${old}` : '/anfitrion/fechas'} replace />
-  }
   if (!TABS.some((item) => item.id === tab) || (experienceId && tab !== 'fechas')) return <NotFoundPage />
 
   const myIds = experiences.map((experience) => experience.id)

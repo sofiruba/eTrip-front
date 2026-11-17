@@ -1,9 +1,10 @@
-import { CalendarCheck, CalendarDays, LayoutGrid, MessageSquare, Receipt, Sparkles, Store, Tags, TicketPercent, Users } from 'lucide-react'
+import { CalendarCheck, CalendarDays, Coins, LayoutGrid, MessageSquare, Receipt, Sparkles, Store, Tags, TicketPercent, Users } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import AdminOverview from '../components/admin/AdminOverview'
 import BookingsAdmin from '../components/admin/BookingsAdmin'
 import CategoriesAdmin from '../components/admin/CategoriesAdmin'
 import CouponsAdmin from '../components/admin/CouponsAdmin'
+import CurrenciesAdmin from '../components/admin/CurrenciesAdmin'
 import ExperiencesAdmin from '../components/admin/ExperiencesAdmin'
 import InterestsAdmin from '../components/admin/InterestsAdmin'
 import OrdersAdmin from '../components/admin/OrdersAdmin'
@@ -28,14 +29,14 @@ const GROUPS = [
         label: 'Experiencias',
         icon: Store,
         component: ExperiencesAdmin,
-        description: 'Todas las publicaciones del sitio. Revisá disponibilidad, ventas y dá de baja las que no cumplan las reglas.',
+        description: 'Todas las publicaciones del sitio. Revisá disponibilidad, ventas y da de baja las que no cumplan las reglas.',
       },
       {
         id: 'sesiones',
         label: 'Sesiones',
         icon: CalendarDays,
         component: SessionsAdmin,
-        description: 'Todas las fechas publicadas. Podés crear, editar, pausar o quitar sesiones.',
+        description: 'Todas las fechas publicadas. Podés crear, editar, cancelar o borrar fechas.',
       },
       { id: 'categorias', label: 'Categorías', icon: Tags, component: CategoriesAdmin, description: 'Cómo se agrupan las experiencias en el catálogo.' },
       {
@@ -58,7 +59,8 @@ const GROUPS = [
     sections: [
       { id: 'ordenes', label: 'Órdenes', icon: Receipt, component: OrdersAdmin, description: 'Cada compra, con su cupón y sus reembolsos.' },
       { id: 'reservas', label: 'Reservas', icon: CalendarCheck, component: BookingsAdmin, description: 'Los lugares reservados en cada fecha. Desde acá podés reembolsar.' },
-      { id: 'cupones', label: 'Cupones', icon: TicketPercent, component: CouponsAdmin, description: 'Promociones con porcentaje y vigencia. Cada cliente puede usar un cupón una sola vez.' },
+      { id: 'cupones', label: 'Cupones', icon: TicketPercent, component: CouponsAdmin, description: 'Promociones con porcentaje y vigencia. Cada cliente puede usar un cupón una sola vez. El descuento lo absorbe PLAN.' },
+      { id: 'monedas', label: 'Monedas', icon: Coins, component: CurrenciesAdmin, description: 'Cotizaciones de referencia para ver los precios en otra moneda. Todo se cobra en pesos.' },
     ],
   },
   {

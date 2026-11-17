@@ -35,7 +35,6 @@ function VerifyEmailForm({ identifier, onBack, onDone }) {
     setSending(true)
     setFormError('')
     return dispatch(verifyEmail({ usernameOrEmail: identifier.trim(), code: value })).then((action) => {
-      // rejected: el back respondió con un error (action.error.message, como en el reducer)
       if (action.error) {
         setCode('')
         setFormError(action.error.message)

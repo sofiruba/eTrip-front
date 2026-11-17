@@ -10,7 +10,6 @@ import { fetchOrders, fetchOrderStats } from '../../redux/ordersSlice'
 import { fetchAllReviews } from '../../redux/reviewsSlice'
 import { fetchManagedSessions } from '../../redux/sessionsSlice'
 import { fetchUsers } from '../../redux/usersSlice'
-import { getCouponStatus } from '../../utils/coupons'
 import { addSessionInfo, byNewest, isSoldOut } from '../../utils/experiences'
 import { formatFullDate, formatMoney, isPast, pluralize } from '../../utils/format'
 import DataTable from '../ui/DataTable'
@@ -29,12 +28,12 @@ const DAY_MS = 86400000
 /** Cosas que conviene revisar, cada una con link a su sección ya filtrada. */
 function getAlerts({ experiences, reviews, users, coupons }) {
   const soldOut = experiences.filter(isSoldOut).length
-  const withoutDates = experiences.filter((experience) => !experience.upcomingCount).length
+  const withoutDates = experiences.filter((experience) => experience.status === 'NO_DATES').length
   const lowReviews = reviews.filter((review) => review.rating <= LOW_RATING).length
   const inactiveUsers = users.filter((user) => !user.active).length
   const couponsExpiring = coupons.filter(
     (coupon) =>
-      getCouponStatus(coupon).label === 'Activo' &&
+      coupon.status === 'ACTIVE' &&
       new Date(coupon.validUntil).getTime() - Date.now() <= COUPON_EXPIRY_WARNING_DAYS * DAY_MS,
   ).length
 
@@ -75,7 +74,7 @@ function AdminOverview() {
 
   const lists = [orders, stats, bookings, users, coupons, experiences, sessions]
   // Si algo falla se muestra el error (y no un "0 ventas" engañoso)
-  const error = lists.find((list) => list.error)?.error ?? reviews.error
+  const error = lists.find((list) => list.error)?.error ?? reviews.failed.all
   const loading = lists.some((list) => !list.loaded) || !allReviewsRequested || reviews.loading
 
   // Reintentar: se vuelve a pedir solo lo que falló
@@ -87,7 +86,7 @@ function AdminOverview() {
     if (coupons.error) dispatch(fetchCoupons())
     if (experiences.error) dispatch(fetchAllExperiences())
     if (sessions.error) dispatch(fetchManagedSessions())
-    if (reviews.error) dispatch(fetchAllReviews())
+    if (reviews.failed.all) dispatch(fetchAllReviews())
   }
 
   if (error) return <ErrorState title="No pudimos cargar el resumen" message={error} onRetry={retry} />
@@ -122,7 +121,7 @@ function OverviewContent({ catalog, stats, orders, bookings, users, reviews, cou
       ...experience,
       sold: bookings
         .filter((booking) => booking.experienceId === experience.id && !booking.refunded)
-        .reduce((sum, booking) => sum + booking.unitPrice * booking.quantity, 0),
+        .reduce((sum, booking) => sum + Number(booking.paidAmount), 0),
     }))
     .filter((experience) => experience.sold > 0)
     .sort((a, b) => b.sold - a.sold)

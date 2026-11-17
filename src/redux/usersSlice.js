@@ -5,29 +5,29 @@ import { replaceById, toUser } from './helpers'
 
 /** Usuarios: la lista del panel de admin y los perfiles públicos (por ejemplo, el de un anfitrión). */
 
-const URL = '/users'
+const ENDPOINT = '/users'
 
 // GET (admin): todos los usuarios
 export const fetchUsers = createAsyncThunk('users/fetchUsers', async () => {
-  const { data } = await api.get(URL)
+  const { data } = await api.get(ENDPOINT)
   return listOf(data).map(toUser)
 })
 
 // GET /users/{id}: perfil público (queda guardado por id), con bio, ciudad, foto e intereses
 export const fetchUserById = createAsyncThunk('users/fetchUserById', async (id) => {
-  const { data } = await api.get(`${URL}/${id}`)
+  const { data } = await api.get(`${ENDPOINT}/${id}`)
   return toUser(data)
 })
 
 // PATCH: solo el rol (CLIENTE / ADMIN)
 export const updateUserRole = createAsyncThunk('users/updateUserRole', async ({ id, role }) => {
-  const { data } = await api.patch(`${URL}/${id}/role`, null, { params: { role } })
+  const { data } = await api.patch(`${ENDPOINT}/${id}/role`, null, { params: { role } })
   return toUser(data)
 })
 
 // PATCH: activar o desactivar la cuenta (baja lógica: el usuario sigue en la base, pero no puede ingresar)
 export const updateUserStatus = createAsyncThunk('users/updateUserStatus', async ({ id, active }) => {
-  const { data } = await api.patch(`${URL}/${id}/status`, null, { params: { active } })
+  const { data } = await api.patch(`${ENDPOINT}/${id}/status`, null, { params: { active } })
   return toUser(data)
 })
 

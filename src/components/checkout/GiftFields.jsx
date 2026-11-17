@@ -2,7 +2,7 @@ import { Gift } from 'lucide-react'
 import FormField from '../ui/FormField'
 import './GiftFields.css'
 
-export const MAX_GIFT_MESSAGE = 300
+const MAX_GIFT_MESSAGE = 300
 
 /**
  * "Es un regalo": nombre de quien lo recibe, su email (opcional) y un mensaje. Va en la orden (POST /orders, campo `gift`).
@@ -20,7 +20,7 @@ function GiftFields({ gift, onChange, errors = {} }) {
         <Gift size={18} aria-hidden />
         <span>
           <strong>Es un regalo</strong>
-          <small className="muted">El voucher sale a nombre de quien lo recibe, con tu mensaje.</small>
+          <small className="muted">Le avisamos por mail con tu mensaje y el plan pasa a su cuenta de PLAN.</small>
         </span>
       </label>
 

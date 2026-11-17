@@ -14,8 +14,7 @@ const router = createBrowserRouter([{ path: '*', element: <App /> }])
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {/* Provider (react-redux): conecta el store de Redux con React. Todo lo que está adentro puede usar
-        useSelector y useDispatch. Va por debajo de StrictMode y por arriba del router. */}
+    {/* El store de Redux para toda la app (useSelector / useDispatch) */}
     <Provider store={store}>
       {/* Espera a que redux-persist recupere del localStorage la sesión y las preferencias antes de mostrar la app */}
       <PersistGate loading={null} persistor={persistor}>

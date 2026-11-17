@@ -4,29 +4,29 @@ import { removeById, replaceById } from './helpers'
 
 /** Categorías de experiencias. Las lee todo el sitio (filtros, editor); las gestiona el admin. */
 
-const URL = '/experience-categories'
+const ENDPOINT = '/experience-categories'
 
 // GET: una sola vez, al abrir la app
 export const fetchCategories = createAsyncThunk('categories/fetchCategories', async () => {
-  const { data } = await api.get(URL)
+  const { data } = await api.get(ENDPOINT)
   return listOf(data)
 })
 
 // POST: category = { name, description }
 export const createCategory = createAsyncThunk('categories/createCategory', async (newCategory) => {
-  const { data } = await api.post(URL, newCategory)
+  const { data } = await api.post(ENDPOINT, newCategory)
   return data
 })
 
 // PUT: desestructuramos el id y mandamos el resto en el body
 export const updateCategory = createAsyncThunk('categories/updateCategory', async ({ id, name, description }) => {
-  const { data } = await api.put(`${URL}/${id}`, { name, description })
+  const { data } = await api.put(`${ENDPOINT}/${id}`, { name, description })
   return data
 })
 
 // DELETE: el back no devuelve nada; devolvemos el id para sacarla de la lista
 export const deleteCategory = createAsyncThunk('categories/deleteCategory', async (id) => {
-  await api.delete(`${URL}/${id}`)
+  await api.delete(`${ENDPOINT}/${id}`)
   return id
 })
 

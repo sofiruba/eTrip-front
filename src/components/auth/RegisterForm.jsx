@@ -98,18 +98,19 @@ function RegisterForm({ step, onStepChange, onLogin, onVerify }) {
   const usernameStatus = usernameCheck?.value === form.username ? usernameCheck.status : null
   const nameKey = `${form.firstname}|${form.lastname}`
 
-  // useCallback: la misma función en cada render (dispatch no cambia), así los efectos de abajo la pueden usar
+  // useCallback: la misma función mientras no cambie el email, así los efectos de abajo la pueden usar.
+  // Se manda también el email: si el usuario es de una cuenta propia que todavía no se verificó, está libre
+  const email = form.email.trim()
   const isUsernameFree = useCallback(
     (username) => {
       if (username in checked.current) return Promise.resolve(checked.current[username])
-      return dispatch(checkAvailability({ username }))
-        .then((action) => {
-          if (action.error) throw action.error
-          checked.current[username] = action.payload.usernameAvailable
-          return action.payload.usernameAvailable
-        })
+      return dispatch(checkAvailability({ username, email })).then((action) => {
+        if (action.error) throw action.error
+        checked.current[username] = action.payload.usernameAvailable
+        return action.payload.usernameAvailable
+      })
     },
-    [dispatch],
+    [dispatch, email],
   )
 
   const setField = (field) => (event) => {
